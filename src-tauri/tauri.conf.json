@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "SilverScript Studio",
-  "version": "0.1.0",
+  "productName": "Kaspa SilverScript Studio",
+  "version": "0.1.1",
   "identifier": "io.kaspa.silverscript-studio",
   "build": {
     "frontendDist": "../dist",

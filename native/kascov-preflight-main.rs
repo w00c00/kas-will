@@ -1,4 +1,4 @@
-//! SilverScript Studio local preflight entry point.
+//! Kaspa SilverScript Studio local preflight entry point.
 //!
 //! This binary is built against a pinned Kascov revision and reuses Kascov's
 //! exact pure-computation preflight module. It reads transaction JSON from

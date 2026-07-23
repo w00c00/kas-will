@@ -22,6 +22,7 @@ import { availableLifecycleOperations, lifecycleRenewalAvailable } from "../src/
 import { operationPresentation } from "../server/operation-metadata.mjs";
 import { buildLifecycleStatus } from "../server/lifecycle-status.mjs";
 import { assertLocalRenewalOpen, assertLocalRenewalPackage } from "../server/local-operation-authorization.mjs";
+import { detectPreferredLanguage } from "../src/locale.js";
 
 const require = createRequire(import.meta.url);
 const kaspa = require("@kluster/kaspa-wasm");
@@ -54,6 +55,34 @@ function configuredTemplateParameters(template, network = "testnet-10") {
     throw new Error(`Unsupported test template field: ${field.type}`);
   }));
 }
+
+test("language detection respects manual choice, system language and time-zone fallback", () => {
+  assert.equal(detectPreferredLanguage({
+    storedLanguage: "en",
+    languages: ["zh-CN"],
+    timeZone: "Asia/Shanghai"
+  }), "en");
+  assert.equal(detectPreferredLanguage({
+    languages: ["zh-TW", "en-US"],
+    language: "zh-TW",
+    timeZone: "America/Los_Angeles"
+  }), "zh");
+  assert.equal(detectPreferredLanguage({
+    languages: ["en-US", "zh-CN"],
+    language: "en-US",
+    timeZone: "Asia/Shanghai"
+  }), "en");
+  assert.equal(detectPreferredLanguage({
+    languages: ["ja-JP"],
+    language: "ja-JP",
+    timeZone: "Asia/Hong_Kong"
+  }), "zh");
+  assert.equal(detectPreferredLanguage({
+    languages: ["fr-FR"],
+    language: "fr-FR",
+    timeZone: "Europe/Paris"
+  }), "en");
+});
 
 test("AI package retains explicit transaction plans and stays experimental", () => {
   const parsed = parseAiContract(JSON.stringify({

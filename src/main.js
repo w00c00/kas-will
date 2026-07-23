@@ -1,6 +1,7 @@
 import "./styles.css";
 import { clearProjectScopedTransactionState } from "./project-transaction-state.js";
 import { availableLifecycleOperations, lifecycleRenewalAvailable } from "./lifecycle-presentation.js";
+import { detectBrowserLanguage } from "./locale.js";
 import { open as openExternalUrl } from "@tauri-apps/plugin-shell";
 
 const $ = (selector) => document.querySelector(selector);
@@ -90,7 +91,7 @@ const copy = {
 };
 
 const state = {
-  language: localStorage.getItem("silverstudio-language") || "zh",
+  language: detectBrowserLanguage(),
   token: "",
   config: null,
   settings: null,
@@ -155,9 +156,12 @@ function toast(message, kind = "") {
 
 function applyLanguage() {
   document.documentElement.lang = state.language === "zh" ? "zh-CN" : "en";
+  document.title = "Kaspa SilverScript Studio";
   $$('[data-i18n]').forEach((el) => { el.textContent = tr(el.dataset.i18n); });
   $$('[data-i18n-placeholder]').forEach((el) => { el.placeholder = tr(el.dataset.i18nPlaceholder); });
   $("#language-toggle").textContent = state.language === "zh" ? "EN" : "中文";
+  $("#language-toggle").title = state.language === "zh" ? "Switch to English" : "切换到中文";
+  $("#language-toggle").setAttribute("aria-label", $("#language-toggle").title);
   renderProjectList();
   renderTemplates();
   renderTemplatePreview();
@@ -1577,8 +1581,8 @@ async function shareInvitation() {
     const file = new File([invitationJson()], invitationFilename(), { type: "application/json" });
     if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
       await navigator.share({
-        title: state.language === "zh" ? "SilverScript 多签邀请" : "SilverScript multisig invitation",
-        text: `${state.language === "zh" ? "请在 SilverScript Studio 中导入并核对交易承诺：" : "Import in SilverScript Studio and verify commitment: "}${state.externalReview?.commitment || ""}`,
+        title: state.language === "zh" ? "Kaspa SilverScript 多签邀请" : "Kaspa SilverScript multisig invitation",
+        text: `${state.language === "zh" ? "请在 Kaspa SilverScript Studio 中导入并核对交易承诺：" : "Import in Kaspa SilverScript Studio and verify commitment: "}${state.externalReview?.commitment || ""}`,
         files: [file]
       });
     } else {
@@ -1706,6 +1710,7 @@ function normalizeWhitespace() {
 }
 
 async function init() {
+  applyLanguage();
   const session = await waitForApi();
   state.token = session.token;
   state.config = await api("/api/config");
@@ -1724,7 +1729,11 @@ async function init() {
 }
 
 $$(".tab").forEach((tab) => tab.addEventListener("click", () => selectTab(tab.dataset.tab)));
-$("#language-toggle").addEventListener("click", () => { state.language = state.language === "zh" ? "en" : "zh"; localStorage.setItem("silverstudio-language", state.language); applyLanguage(); });
+$("#language-toggle").addEventListener("click", () => {
+  state.language = state.language === "zh" ? "en" : "zh";
+  try { localStorage.setItem("silverstudio-language", state.language); } catch {}
+  applyLanguage();
+});
 $("#new-project").addEventListener("click", () => createProject());
 $("#template-example").addEventListener("click", openTemplateExample);
 $("#template-new-project").addEventListener("click", () => createFromSelectedTemplate().catch((error) => toast(error.message, "bad")));
