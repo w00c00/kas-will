@@ -1,0 +1,33 @@
+{
+  "order": 10,
+  "category": "vault",
+  "titleZh": "单签金库",
+  "titleEn": "Owner vault",
+  "descriptionZh": "仅指定 Schnorr 公钥可以花费。适合作为最小契约、编译和签名链路样板。",
+  "descriptionEn": "Only the specified Schnorr key can spend. A minimal contract, compiler and signing reference.",
+  "example": {
+    "titleZh": "个人冷储蓄金库",
+    "titleEn": "Personal cold-storage vault",
+    "scenarioZh": "小王把 10 TKAS 锁进只接受自己指定钱包签名的 Covenant，用来演示最小、可审查的保管与释放流程。",
+    "scenarioEn": "Alice locks 10 TKAS in a covenant that accepts only her configured wallet signature, demonstrating the smallest auditable custody and release flow.",
+    "rolesZh": ["拥有者：创建并持有唯一释放密钥", "收款地址：释放时由拥有者逐笔核对"],
+    "rolesEn": ["Owner: creates the vault and holds the only release key", "Destination: reviewed by the owner for every release"],
+    "stepsZh": ["填写锁定金额和拥有者钱包，编译并部署", "需要转出时选择“拥有者释放”并填写目标地址", "拥有者在自己的设备核对金额、目标地址和手续费后签名", "脚本引擎预检通过后广播"],
+    "stepsEn": ["Configure the amount and owner wallet, then compile and deploy", "Choose Owner spend and enter the destination", "The owner reviews the amount, destination and fee on their own device", "Broadcast only after script-engine preflight passes"],
+    "resultZh": "没有拥有者签名，资金无法从该 Covenant UTXO 花费。",
+    "resultEn": "The covenant UTXO cannot be spent without the configured owner signature.",
+    "cautionZh": "这不是自动收益产品；丢失拥有者钱包意味着无法恢复资金。",
+    "cautionEn": "This is not a yield product. Losing the owner wallet makes the funds unrecoverable."
+  },
+  "requirementsEn": "Lock funds so only the configured owner key can spend them.",
+  "risk": "starter",
+  "sourceFile": "contract.sil",
+  "requiredReplacements": [0],
+  "parameters": [
+    { "id": "amountKas", "type": "amount", "projectField": "deployAmount", "required": true, "default": "0.05", "minimum": "0.05", "labelZh": "锁定金额", "labelEn": "Locked amount", "helpZh": "创建 Covenant UTXO 时实际锁定的 TKAS/KAS。", "helpEn": "TKAS/KAS locked when the covenant UTXO is created." },
+    { "id": "ownerAddress", "type": "address", "argIndex": 0, "required": true, "useConnectedWallet": true, "labelZh": "释放授权钱包", "labelEn": "Release authorization wallet", "placeholderZh": "kaspatest:...", "placeholderEn": "kaspatest:...", "helpZh": "只有这个 P2PK 钱包可以签名释放资金；签名前仍需核对实际输出地址。", "helpEn": "Only this P2PK wallet can authorize release; still verify the actual output address before signing." }
+  ],
+  "constructorArgs": [{ "kind": "pubkey", "hex": "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798" }],
+  "invariants": ["Only the configured owner signature authorizes spending"],
+  "transactionPlans": [{ "transition": "spend", "inputs": [{ "role": "vault", "index": 0 }], "outputs": [{ "role": "recipient" }], "conservationChecks": ["Builder must preserve input value minus an explicit fee"] }]
+}

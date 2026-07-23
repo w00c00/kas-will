@@ -1,0 +1,13 @@
+pragma silverscript ^0.1.0;
+
+contract HashlockRefund(pubkey sender, pubkey recipient, byte[32] secretHash, int timeout) {
+    entrypoint function claim(byte[] secret, sig recipientSignature) {
+        require(sha256(secret) == secretHash);
+        require(checkSig(recipientSignature, recipient));
+    }
+
+    entrypoint function refund(sig senderSignature) {
+        require(checkSig(senderSignature, sender));
+        require(tx.time >= timeout);
+    }
+}

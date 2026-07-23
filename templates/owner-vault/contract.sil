@@ -1,0 +1,7 @@
+pragma silverscript ^0.1.0;
+
+contract OwnerVault(pubkey owner) {
+    entrypoint function spend(sig signature) {
+        require(checkSig(signature, owner));
+    }
+}

@@ -1,0 +1,117 @@
+{
+  "order": 50,
+  "category": "estate",
+  "titleZh": "多继承人签到金库",
+  "titleEn": "Multi-inheritor check-in vault",
+  "descriptionZh": "拥有者可签到重置等待期或随时取回；超过未活动期后，任何人都可触发按固定份额向多个继承人分配。",
+  "descriptionEn": "The owner can check in to reset the inactivity period or recover at any time. After inactivity, anyone can trigger a fixed-share distribution to multiple inheritors.",
+  "example": {
+    "titleZh": "多继承人的签到型数字遗产",
+    "titleEn": "Check-in digital inheritance for multiple heirs",
+    "scenarioZh": "拥有者把资产分配给配偶和两名子女，并设置 180 天未签到期限。每次签到都会重新开始计时；长期未签到后，任何人都可触发固定比例分配。",
+    "scenarioEn": "An owner allocates assets to a spouse and two children with a 180-day inactivity period. Every check-in restarts the timer; after prolonged inactivity anyone may trigger the fixed distribution.",
+    "rolesZh": ["拥有者：签到续期或随时取回", "2–5 位继承人：地址和比例在部署时固定", "触发者：到期后提交分配交易，但不能更改收款人和比例"],
+    "rolesEn": ["Owner: checks in or recovers at any time", "2–5 inheritors: addresses and shares are fixed at deployment", "Trigger: submits the mature distribution but cannot alter recipients or shares"],
+    "stepsZh": ["填写拥有者、继承人、比例和未活动期限", "TN10 可选择 1 分钟快速验证签到和到期流程", "拥有者定期选择“签到续期”，生成同脚本延续 UTXO", "超过期限后选择“到期分配继承”并预检广播"],
+    "stepsEn": ["Configure the owner, inheritors, shares and inactivity period", "Use one minute on TN10 to test check-in and maturity quickly", "The owner periodically uses Check in to create the same-script continuation UTXO", "After maturity, build and preflight the inheritance distribution"],
+    "resultZh": "签到重置 UTXO 年龄；到期分配只能按预设地址和比例执行，拥有者仍保留随时取回路径。",
+    "resultEn": "Check-in resets UTXO age. Mature distribution is restricted to the fixed addresses and shares, while the owner retains an anytime recovery path.",
+    "cautionZh": "1 分钟只适合 TN10 测试。实际遗产安排还涉及当地法律、密钥备份和继承人知情机制。",
+    "cautionEn": "One minute is for TN10 testing only. Real estate planning also requires legal review, key backups and an informed-heir process."
+  },
+  "requirementsEn": "Reset inactivity with an owner signature, allow owner recovery, and distribute to 2-5 fixed inheritors after the relative timeout.",
+  "risk": "advanced",
+  "parameterEncodingVersion": 2,
+  "sourceFile": "contract.sil",
+  "requiredReplacements": [0, 1, 2, 3],
+  "parameters": [
+    {
+      "id": "amountKas",
+      "type": "amount",
+      "projectField": "deployAmount",
+      "required": true,
+      "default": "0.05",
+      "minimum": "0.05",
+      "labelZh": "锁定金额",
+      "labelEn": "Locked amount",
+      "helpZh": "创建继承 Covenant UTXO 时锁定的 TKAS/KAS。",
+      "helpEn": "TKAS/KAS locked in the inheritance covenant UTXO."
+    },
+    {
+      "id": "ownerAddress",
+      "type": "address",
+      "argIndex": 0,
+      "required": true,
+      "useConnectedWallet": true,
+      "labelZh": "拥有者签到／取回钱包",
+      "labelEn": "Owner check-in / recovery wallet",
+      "placeholderZh": "kaspatest:...",
+      "placeholderEn": "kaspatest:...",
+      "helpZh": "该钱包可签到重置等待期，也可随时终止契约并取回资金。",
+      "helpEn": "This wallet can reset the inactivity period or terminate and recover the funds at any time."
+    },
+    {
+      "id": "inheritors",
+      "type": "heirs",
+      "keyArgIndex": 1,
+      "shareArgIndex": 2,
+      "disallowParameter": "ownerAddress",
+      "minimum": 2,
+      "maximum": 5,
+      "required": true,
+      "labelZh": "继承人与份额",
+      "labelEn": "Inheritors and shares",
+      "helpZh": "添加 2–5 个不同钱包，份额总计必须为 100%。到期分配会在链上固定输出地址和金额。",
+      "helpEn": "Add 2–5 distinct wallets whose shares total 100%. Distribution outputs and values are enforced on chain."
+    },
+    {
+      "id": "inactivityDays",
+      "type": "duration",
+      "argIndex": 3,
+      "minimumSeconds": 60,
+      "maximumSeconds": 315360000,
+      "defaultValue": 180,
+      "defaultUnit": "days",
+      "required": true,
+      "labelZh": "未签到等待时间",
+      "labelEn": "Inactivity period",
+      "helpZh": "可选择分钟、小时、天或周；1 分钟仅用于 TN10 测试。签到会重建同一契约并重新计算 UTXO 年龄。",
+      "helpEn": "Choose minutes, hours, days or weeks; one minute is for TN10 testing only. Check-in recreates the same covenant and restarts UTXO age."
+    }
+  ],
+  "constructorArgs": [
+    { "kind": "pubkey", "hex": "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798" },
+    { "kind": "pubkey[]", "hex": [
+      "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5",
+      "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
+    ] },
+    { "kind": "int[]", "data": [5000, 5000] },
+    { "kind": "int", "data": 15552000 }
+  ],
+  "invariants": [
+    "Owner check-in recreates exactly one same-script covenant output minus a bounded explicit fee",
+    "Owner recovery terminates to the configured owner P2PK output",
+    "Inheritance requires the relative inactivity period and terminates into 2-5 fixed P2PK outputs",
+    "All inheritor shares are positive, total 100%, and conserve input value minus the explicit fee"
+  ],
+  "transactionPlans": [
+    {
+      "transition": "checkIn",
+      "inputs": [{ "role": "inheritance-vault", "index": 0 }],
+      "outputs": [{ "role": "same-vault-continuation", "index": 0 }],
+      "conservationChecks": ["Same script and covenant identity", "Continuation equals input value minus explicit fee"]
+    },
+    {
+      "transition": "recover",
+      "inputs": [{ "role": "inheritance-vault", "index": 0 }],
+      "outputs": [{ "role": "owner", "index": 0 }],
+      "conservationChecks": ["Owner P2PK output equals input value minus explicit fee"]
+    },
+    {
+      "transition": "inherit",
+      "inputs": [{ "role": "mature-inheritance-vault", "index": 0 }],
+      "outputs": [{ "role": "inheritors", "count": "2-5" }],
+      "conservationChecks": ["Relative timeout is satisfied", "Outputs match every fixed wallet and share", "Outputs total input value minus explicit fee"]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.build/
+.env
+.env.local
+data/
+bin/
+release/
+config/compiler.json
+config/kascov-preflight.local.json
+*.log
+.DS_Store

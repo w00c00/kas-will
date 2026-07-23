@@ -1,0 +1,39 @@
+{
+  "order": 30,
+  "category": "governance",
+  "titleZh": "三选二多签",
+  "titleEn": "Two-of-three multisig",
+  "descriptionZh": "三个固定密钥中的任意两个共同批准后才能花费。",
+  "descriptionEn": "Any two of three fixed keys must jointly approve a spend.",
+  "example": {
+    "titleZh": "三位合伙人的异地财库",
+    "titleEn": "Remote treasury for three partners",
+    "scenarioZh": "甲、乙、丙各自在自己的电脑保存钱包。财库支出只需任意两人批准，第三人是备用签名人，不需要把钱包集中到一台电脑。",
+    "scenarioEn": "Alice, Bob and Carol keep wallets on separate computers. Any two may approve a treasury spend; the third is a backup signer and no wallet needs to move to another device.",
+    "rolesZh": ["发起人：确定唯一的目标地址、金额和手续费并生成邀请包", "签名人 A：导入邀请文件，核对交易承诺后签一个槽位", "签名人 B：导入 A 回传的部分签名包，核对同一承诺并完成第二个槽位"],
+    "rolesEn": ["Initiator: fixes the destination, amount and fee in one invitation package", "Signer A: imports it, verifies the commitment and signs one slot", "Signer B: imports A's partial package, verifies the same commitment and completes the second slot"],
+    "stepsZh": ["部署时填写三个不同的钱包地址", "支出时选择实际参与的两位签名人并构建签名邀请", "下载 .ssinvite 文件或复制 JSON，按顺序发送给第一位、第二位签名人", "每个人在自己的 Studio 中导入、只读审查并签名，再回传更新后的文件", "两个签名槽齐全且脚本预检通过后，由任一方广播"],
+    "stepsEn": ["Configure three distinct wallet addresses when deploying", "Select the two participating signers and build the signing invitation", "Download the .ssinvite file or copy the JSON and send it sequentially", "Each signer imports, reviews and signs in their own Studio, then returns the updated file", "Either party may broadcast after both slots and script preflight pass"],
+    "resultZh": "两个签名绑定同一笔不可变交易；任何人修改目标、金额或手续费都会改变交易承诺并需要重新审查签名。",
+    "resultEn": "Both signatures bind the same immutable transaction. Changing destination, amount or fee changes the commitment and requires a fresh review and signatures.",
+    "cautionZh": "不要让两人分别签两个独立的初始包；必须顺序传递同一个最新包。通过可信聊天、邮件或离线文件传输，并人工比对交易承诺。",
+    "cautionEn": "Do not have two people sign separate initial copies. Pass the latest package sequentially, use a trusted channel, and compare the transaction commitment."
+  },
+  "requirementsEn": "Require any two of three configured Schnorr keys to approve spending.",
+  "risk": "starter",
+  "sourceFile": "contract.sil",
+  "requiredReplacements": [0, 1, 2],
+  "parameters": [
+    { "id": "amountKas", "type": "amount", "projectField": "deployAmount", "required": true, "default": "0.05", "minimum": "0.05", "labelZh": "锁定金额", "labelEn": "Locked amount", "helpZh": "创建多签 Covenant UTXO 时锁定的 TKAS/KAS。", "helpEn": "TKAS/KAS locked in the multisig covenant UTXO." },
+    { "id": "key1Address", "type": "address", "argIndex": 0, "uniqueGroup": "signers", "required": true, "useConnectedWallet": true, "labelZh": "签名钱包 1", "labelEn": "Signer wallet 1", "placeholderZh": "kaspatest:...", "placeholderEn": "kaspatest:...", "helpZh": "三个不同钱包中任意两个必须共同授权。", "helpEn": "Any two of three distinct wallets must authorize together." },
+    { "id": "key2Address", "type": "address", "argIndex": 1, "uniqueGroup": "signers", "required": true, "labelZh": "签名钱包 2", "labelEn": "Signer wallet 2", "placeholderZh": "kaspatest:...", "placeholderEn": "kaspatest:..." },
+    { "id": "key3Address", "type": "address", "argIndex": 2, "uniqueGroup": "signers", "required": true, "labelZh": "签名钱包 3", "labelEn": "Signer wallet 3", "placeholderZh": "kaspatest:...", "placeholderEn": "kaspatest:..." }
+  ],
+  "constructorArgs": [
+    { "kind": "pubkey", "hex": "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798" },
+    { "kind": "pubkey", "hex": "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5" },
+    { "kind": "pubkey", "hex": "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9" }
+  ],
+  "invariants": ["At least two distinct configured keys must authorize the spend"],
+  "transactionPlans": [{ "transition": "spend", "inputs": [{ "role": "multisig-vault", "index": 0 }], "outputs": [{ "role": "approved-destination" }], "conservationChecks": ["Approved outputs plus explicit fee equal the input value"] }]
+}

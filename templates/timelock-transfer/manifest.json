@@ -1,0 +1,42 @@
+{
+  "order": 20,
+  "category": "payments",
+  "titleZh": "带超时退款的转账",
+  "titleEn": "Transfer with timeout refund",
+  "descriptionZh": "收款方可随时领取；达到绝对锁定时间后付款方可以退款。",
+  "descriptionEn": "The recipient can claim, while the sender can refund after an absolute lock time.",
+  "example": {
+    "titleZh": "带退款期限的远程付款",
+    "titleEn": "Remote payment with a refund deadline",
+    "scenarioZh": "付款方锁定 5 TKAS 给远程协作者。收款方可签名领取；如果一直没有领取，约定时间后付款方可以退款。",
+    "scenarioEn": "A payer locks 5 TKAS for a remote collaborator. The recipient can claim, while the payer can refund after the agreed deadline if it remains unclaimed.",
+    "rolesZh": ["付款方：部署并在超时后拥有退款权", "收款方：超时前后都可主动签名领取"],
+    "rolesEn": ["Sender: deploys and gains the refund path after timeout", "Recipient: may actively sign and claim"],
+    "stepsZh": ["填写双方钱包、金额和退款解锁时间", "TN10 可用 +1 分钟快捷时间做流程测试", "收款方领取，或等待到期后付款方构建退款交易", "对应一方在自己的设备签名并广播"],
+    "stepsEn": ["Configure both wallets, amount and refund unlock time", "Use the TN10 +1 minute preset for a fast flow test", "The recipient claims, or the sender builds a refund after timeout", "The authorized party signs on their own device and broadcasts"],
+    "resultZh": "资金只有“收款方领取”或“到期后付款方退款”两条授权路径。",
+    "resultEn": "Funds have exactly two authorized paths: recipient claim or sender refund after timeout.",
+    "cautionZh": "绝对时间以链上交易时间规则判定；1 分钟仅用于 TN10 测试。",
+    "cautionEn": "The absolute timeout follows chain transaction-time rules. One minute is for TN10 testing only."
+  },
+  "requirementsEn": "Allow the recipient to claim or the sender to refund after an absolute timeout.",
+  "risk": "starter",
+  "sourceFile": "contract.sil",
+  "requiredReplacements": [0, 1, 2],
+  "parameters": [
+    { "id": "amountKas", "type": "amount", "projectField": "deployAmount", "required": true, "default": "0.05", "minimum": "0.05", "labelZh": "锁定金额", "labelEn": "Locked amount", "helpZh": "创建 Covenant UTXO 时实际锁定的 TKAS/KAS。", "helpEn": "TKAS/KAS locked when the covenant UTXO is created." },
+    { "id": "senderAddress", "type": "address", "argIndex": 0, "required": true, "useConnectedWallet": true, "labelZh": "付款／超时退款钱包", "labelEn": "Sender / timeout refund wallet", "placeholderZh": "kaspatest:...", "placeholderEn": "kaspatest:...", "helpZh": "超时后只有这个 P2PK 钱包可以签名退款。", "helpEn": "After timeout, only this P2PK wallet can authorize a refund." },
+    { "id": "recipientAddress", "type": "address", "argIndex": 1, "required": true, "labelZh": "收款／释放授权钱包", "labelEn": "Recipient / release wallet", "placeholderZh": "kaspatest:...", "placeholderEn": "kaspatest:...", "helpZh": "这个 P2PK 钱包可以在超时前签名领取；签名前仍需核对实际输出。", "helpEn": "This P2PK wallet can authorize a claim before timeout; verify the actual output before signing." },
+    { "id": "unlockAt", "type": "datetime", "argIndex": 2, "required": true, "defaultOffsetSeconds": 86400, "quickOffsets": [60, 600, 3600, 86400], "labelZh": "退款解锁时间", "labelEn": "Refund unlock time", "helpZh": "本地转换为 SilverScript tx.time 使用的 Unix 时间戳；+1 分钟仅用于 TN10 测试。", "helpEn": "Converted locally to the Unix timestamp used by SilverScript tx.time; +1 minute is for TN10 testing only." }
+  ],
+  "constructorArgs": [
+    { "kind": "pubkey", "hex": "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798" },
+    { "kind": "pubkey", "hex": "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5" },
+    { "kind": "int", "data": 0 }
+  ],
+  "invariants": ["Recipient signature authorizes claim", "Sender refund requires the configured absolute timeout"],
+  "transactionPlans": [
+    { "transition": "claim", "inputs": [{ "role": "locked-transfer", "index": 0 }], "outputs": [{ "role": "recipient" }], "conservationChecks": ["Recipient output equals input value minus explicit fee"] },
+    { "transition": "refund", "inputs": [{ "role": "locked-transfer", "index": 0 }], "outputs": [{ "role": "sender" }], "conservationChecks": ["Transaction lock time satisfies timeout", "Sender output equals input value minus explicit fee"] }
+  ]
+}

@@ -1,0 +1,59 @@
+# Official baseline
+
+## Verified snapshot
+
+- Repository: <https://github.com/kaspanet/silverscript>
+- Verified commit: `2a3961cadc76bb16a425042172ffe32481da89b5`
+- Verified date: 2026-07-22
+- Compiler/language status: experimental
+- Official recommendation at this snapshot: use bytecode artifacts on
+  testnet-10 until the first stable v1 release.
+
+Always compare this snapshot with upstream before answering latest/current,
+deployment, compatibility, or mainnet-readiness questions.
+
+## Primary sources
+
+- Project status and debugger:
+  <https://github.com/kaspanet/silverscript/blob/2a3961cadc76bb16a425042172ffe32481da89b5/README.md>
+- Language tutorial:
+  <https://github.com/kaspanet/silverscript/blob/2a3961cadc76bb16a425042172ffe32481da89b5/docs/TUTORIAL.md>
+- Covenant declaration semantics:
+  <https://github.com/kaspanet/silverscript/blob/2a3961cadc76bb16a425042172ffe32481da89b5/docs/DECL.md>
+- Built-ins and cross-template validation:
+  <https://github.com/kaspanet/silverscript/blob/2a3961cadc76bb16a425042172ffe32481da89b5/silverscript-lang/std/builtins.sil>
+- KCC20 book:
+  <https://kaspanet.github.io/silverscript/kcc20-book/>
+- Official application examples, including chess:
+  <https://github.com/kaspanet/silverscript/tree/2a3961cadc76bb16a425042172ffe32481da89b5/silverscript-lang/tests/apps>
+
+## Snapshot capabilities
+
+- SilverScript compiles a CashScript-inspired language to Kaspa script.
+- Covenant declaration annotations generate auth/covenant wrappers and state
+  validation for verification and transition policies.
+- The compiler supports 1:1, 1:N, and N:M state shapes, explicit termination for
+  singleton transitions, structs, typed state, and cross-template state checks.
+- The workspace includes a source-level debugger and records a compiler version
+  in compiled artifacts.
+- Commit `956868e` hardened template-hash handling and introduced a breaking
+  change. Commit `9aa70b0` fixed lexical-scoping and inferred-array-scope bugs.
+- Commit `26e3b9f` exposes `blake2bWithKey`, `blake3`, and
+  `blake3WithKey` as compiler built-ins. Keyed Blake3 requires explicit
+  `byte[]` data and an exactly 32-byte key; keyed Blake2b accepts keys up to
+  64 bytes. Treat protocol domain-separation keys as exact consensus inputs.
+- Commit `2ed2343` enforces exact type equality during static checking. Fixed
+  and dynamic arrays are not interchangeable; use explicit casts only when the
+  resulting size and protocol meaning are correct.
+- Commit `2a3961c` hardens covenant leader contracts. A contract with any
+  `binding = cov` declaration cannot mix in `binding = auth` declarations.
+  Handwritten entrypoints require the explicit
+  `#[covenant.allow(rule = manual_entrypoint_in_leader_contract)]`
+  acknowledgment and must manually prove singleton, delegate, or complete
+  leader-group semantics. The attribute adds no runtime checks.
+
+## Terminology discipline
+
+Do not silently conflate KCC20, KRC20, and similarly named token protocols.
+Identify the exact covenant implementation, template hash, and covenant ID used
+by the target project.

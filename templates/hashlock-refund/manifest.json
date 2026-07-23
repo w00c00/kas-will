@@ -1,0 +1,44 @@
+{
+  "order": 40,
+  "category": "atomic",
+  "titleZh": "哈希锁与超时退款",
+  "titleEn": "Hashlock with timeout refund",
+  "descriptionZh": "收款方需要公开正确原像并签名；超时后付款方可取回资金。",
+  "descriptionEn": "The recipient reveals the preimage and signs; the sender can refund after timeout.",
+  "example": {
+    "titleZh": "交付秘密后领取的付款",
+    "titleEn": "Payment claimed by revealing a secret",
+    "scenarioZh": "收款方预先提供秘密哈希。付款方锁定 5 TKAS；收款方只有公开正确秘密并使用指定钱包签名才能领取，超时后付款方可退款。",
+    "scenarioEn": "The recipient first supplies a secret hash. The sender locks 5 TKAS; claiming requires both the correct preimage and the recipient signature, otherwise the sender may refund after timeout.",
+    "rolesZh": ["收款方：离线生成并保管秘密原文，只分享 SHA-256 哈希", "付款方：使用哈希创建 Covenant，并持有超时退款权"],
+    "rolesEn": ["Recipient: creates and stores the secret offline, sharing only its SHA-256 digest", "Sender: deploys with the digest and retains the timeout refund path"],
+    "stepsZh": ["离线生成秘密并计算 SHA-256，只把哈希填入模板", "填写双方钱包、金额和退款时间后部署", "收款方领取时输入秘密十六进制并签名", "未领取时，付款方在到期后构建退款交易"],
+    "stepsEn": ["Create the secret offline and enter only its SHA-256 digest", "Configure wallets, amount and refund time, then deploy", "The recipient enters the preimage hex and signs to claim", "If unclaimed, the sender builds a refund after timeout"],
+    "resultZh": "错误秘密无法领取；正确秘密一旦上链会公开，不能再次作为私密凭证使用。",
+    "resultEn": "An incorrect secret cannot claim. Once the correct preimage is published on chain, it must never be reused as a private credential.",
+    "cautionZh": "不要把秘密原文填进部署模板或发送给 AI；1 分钟超时仅用于 TN10 测试。",
+    "cautionEn": "Never enter the preimage in the deployment template or send it to AI. One-minute timeout is for TN10 testing only."
+  },
+  "requirementsEn": "Require a SHA-256 preimage and recipient signature, with a sender refund after timeout.",
+  "risk": "advanced",
+  "sourceFile": "contract.sil",
+  "requiredReplacements": [0, 1, 2, 3],
+  "parameters": [
+    { "id": "amountKas", "type": "amount", "projectField": "deployAmount", "required": true, "default": "0.05", "minimum": "0.05", "labelZh": "锁定金额", "labelEn": "Locked amount", "helpZh": "创建哈希锁 Covenant UTXO 时锁定的 TKAS/KAS。", "helpEn": "TKAS/KAS locked in the hashlocked covenant UTXO." },
+    { "id": "senderAddress", "type": "address", "argIndex": 0, "required": true, "useConnectedWallet": true, "labelZh": "付款／超时退款钱包", "labelEn": "Sender / timeout refund wallet", "placeholderZh": "kaspatest:...", "placeholderEn": "kaspatest:..." },
+    { "id": "recipientAddress", "type": "address", "argIndex": 1, "required": true, "labelZh": "收款／释放授权钱包", "labelEn": "Recipient / release wallet", "placeholderZh": "kaspatest:...", "placeholderEn": "kaspatest:..." },
+    { "id": "secretHash", "type": "sha256", "argIndex": 2, "required": true, "labelZh": "秘密的 SHA-256 哈希", "labelEn": "SHA-256 hash of secret", "placeholderZh": "64 位十六进制哈希，不要填写秘密原文", "placeholderEn": "64 hex characters; never enter the secret itself", "helpZh": "这里只保存哈希。秘密原文是领取凭证，必须离线保管，不能提交给应用。", "helpEn": "Only the digest is stored. The preimage authorizes claiming and must remain offline." },
+    { "id": "unlockAt", "type": "datetime", "argIndex": 3, "required": true, "defaultOffsetSeconds": 86400, "quickOffsets": [60, 600, 3600, 86400], "labelZh": "退款解锁时间", "labelEn": "Refund unlock time", "helpZh": "本地转换为 SilverScript tx.time 使用的 Unix 时间戳；+1 分钟仅用于 TN10 测试。", "helpEn": "Converted locally to the Unix timestamp used by SilverScript tx.time; +1 minute is for TN10 testing only." }
+  ],
+  "constructorArgs": [
+    { "kind": "pubkey", "hex": "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798" },
+    { "kind": "pubkey", "hex": "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5" },
+    { "kind": "bytes32", "hex": "78e902cd31f7dcbd0b9633ce431246b957a08309c6f5081ba2e1be890138ac52" },
+    { "kind": "int", "data": 0 }
+  ],
+  "invariants": ["Claim reveals a preimage matching the fixed SHA-256 digest", "Claim also requires the recipient key", "Refund requires the sender key and timeout"],
+  "transactionPlans": [
+    { "transition": "claim", "inputs": [{ "role": "hashlocked-funds", "index": 0 }], "outputs": [{ "role": "recipient" }], "conservationChecks": ["Recipient output equals input value minus explicit fee"] },
+    { "transition": "refund", "inputs": [{ "role": "hashlocked-funds", "index": 0 }], "outputs": [{ "role": "sender" }], "conservationChecks": ["Transaction lock time satisfies timeout", "Sender output equals input value minus explicit fee"] }
+  ]
+}
