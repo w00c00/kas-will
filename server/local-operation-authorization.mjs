@@ -2,9 +2,23 @@ function authorizationError(message) {
   return Object.assign(new Error(message), { status: 403, code: "LOCAL_OPERATION_AUTHORIZATION_FAILED" });
 }
 
+function lifecycleStateError(message, code) {
+  return Object.assign(new Error(message), { status: 409, code });
+}
+
 export function assertLocalRenewalOpen(status) {
   if (!status?.unspent) throw authorizationError("The local inheritance covenant is no longer unspent");
   if (status.schedule?.mature) throw authorizationError("The inheritance covenant has expired and can no longer be renewed");
+  return true;
+}
+
+export function assertInheritanceDistributionOpen(status) {
+  if (!status?.unspent) {
+    throw lifecycleStateError("The inheritance covenant is no longer unspent", "INHERITANCE_ALREADY_SPENT");
+  }
+  if (!status?.schedule?.mature) {
+    throw lifecycleStateError("The inheritance covenant has not reached maturity", "INHERITANCE_NOT_MATURE");
+  }
   return true;
 }
 

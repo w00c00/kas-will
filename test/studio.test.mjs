@@ -18,10 +18,10 @@ import { WalletService } from "../server/wallet-service.mjs";
 import { exportExternalCovenantPackage, inspectExternalCovenantPackage, signExternalCovenantPackage } from "../server/external-covenant-service.mjs";
 import { buildTemplateOperationPackage, templateOperations } from "../server/template-operation-service.mjs";
 import { clearProjectScopedTransactionState } from "../src/project-transaction-state.js";
-import { availableLifecycleOperations, lifecycleRenewalAvailable } from "../src/lifecycle-presentation.js";
+import { availableLifecycleOperations, lifecycleInheritanceDistributionAvailable, lifecycleRenewalAvailable } from "../src/lifecycle-presentation.js";
 import { operationPresentation } from "../server/operation-metadata.mjs";
-import { buildLifecycleStatus } from "../server/lifecycle-status.mjs";
-import { assertLocalRenewalOpen, assertLocalRenewalPackage } from "../server/local-operation-authorization.mjs";
+import { buildLifecycleStatus, spentLifecycleStatus } from "../server/lifecycle-status.mjs";
+import { assertInheritanceDistributionOpen, assertLocalRenewalOpen, assertLocalRenewalPackage } from "../server/local-operation-authorization.mjs";
 import { detectPreferredLanguage } from "../src/locale.js";
 
 const require = createRequire(import.meta.url);
@@ -378,7 +378,7 @@ test("inheritance lifecycle reports exact DAA target and legacy time mismatch", 
   assert.equal(status.schedule.mismatch, true);
 });
 
-test("inheritance renewal disappears exactly at the maturity DAA boundary", () => {
+test("inheritance renewal closes and distribution opens exactly at the maturity DAA boundary", () => {
   const project = {
     network: "tn10",
     review: { templateId: "inheritance-vault", parameterEncodingVersion: 2 },
@@ -393,19 +393,34 @@ test("inheritance renewal disappears exactly at the maturity DAA boundary", () =
       entry: { amount: 100_000_000n, blockDaaScore: 1_000n }
     }
   };
-  const operations = [{ id: "checkIn" }, { id: "claim" }];
+  const operations = [{ id: "checkIn" }, { id: "recover" }, { id: "inherit" }];
   const active = buildLifecycleStatus(project, source, { virtualDaaScore: "1599" });
   const expired = buildLifecycleStatus(project, source, { virtualDaaScore: "1600" });
 
   assert.equal(active.schedule.mature, false);
   assert.equal(lifecycleRenewalAvailable(active, project.review.templateId), true);
-  assert.deepEqual(availableLifecycleOperations(operations, active), operations);
+  assert.equal(lifecycleInheritanceDistributionAvailable(active, project.review.templateId), false);
+  assert.deepEqual(availableLifecycleOperations(operations, active), [{ id: "checkIn" }, { id: "recover" }]);
+  assert.throws(
+    () => assertInheritanceDistributionOpen(active),
+    (error) => error.code === "INHERITANCE_NOT_MATURE" && error.status === 409
+  );
 
   assert.equal(expired.status, "mature");
   assert.equal(expired.schedule.mature, true);
   assert.equal(lifecycleRenewalAvailable(expired, project.review.templateId), false);
-  assert.deepEqual(availableLifecycleOperations(operations, expired), [{ id: "claim" }]);
+  assert.equal(lifecycleInheritanceDistributionAvailable(expired, project.review.templateId), true);
+  assert.deepEqual(availableLifecycleOperations(operations, expired), [{ id: "recover" }, { id: "inherit" }]);
+  assert.equal(assertInheritanceDistributionOpen(expired), true);
   assert.throws(() => assertLocalRenewalOpen(expired), /expired and can no longer be renewed/i);
+
+  const spent = spentLifecycleStatus(project);
+  assert.equal(lifecycleInheritanceDistributionAvailable(spent, project.review.templateId), false);
+  assert.deepEqual(availableLifecycleOperations(operations, spent), []);
+  assert.throws(
+    () => assertInheritanceDistributionOpen(spent),
+    (error) => error.code === "INHERITANCE_ALREADY_SPENT" && error.status === 409
+  );
 });
 
 test("configured inheritance permits a legitimate 50/50 split that matches the example values", () => {
@@ -433,6 +448,94 @@ test("configured inheritance permits a legitimate 50/50 split that matches the e
     constructorArgs: drifted,
     project
   }), ["Configured template source or constructor arguments changed; re-apply the template before deployment"]);
+});
+
+test("mature inheritance builds a complete unsigned distribution that conserves the covenant value", async () => {
+  const templates = new TemplateStore();
+  const template = templates.get("inheritance-vault");
+  const configured = templates.projectInput(template.id, "tn10", configuredTemplateParameters(template));
+  const artifact = await compileContract(configured);
+  const covenantId = "99".repeat(32);
+  const project = {
+    id: "mature-inheritance-distribution",
+    ...configured,
+    artifact,
+    deployment: { txid: "88".repeat(32), covenantId, network: "tn10" },
+    review: { ...configured.review, templateId: template.id }
+  };
+  const p2sh = kaspa.payToScriptHashScript(artifact.programHex);
+  const p2shAddress = kaspa.addressFromScriptPublicKey(p2sh, "testnet-10").toString();
+  const holder = kaspa.Transaction.deserializeFromSafeJSON(JSON.stringify({
+    id: "00".repeat(32),
+    version: 1,
+    inputs: [{
+      transactionId: "88".repeat(32),
+      index: 0,
+      sequence: "0",
+      sigOpCount: 0,
+      computeBudget: 0,
+      signatureScript: "",
+      utxo: {
+        address: p2shAddress,
+        amount: "50000000",
+        scriptPublicKey: `0000${p2sh.script}`,
+        blockDaaScore: "1000",
+        isCoinbase: false,
+        covenantId
+      }
+    }],
+    outputs: [{
+      value: "1",
+      scriptPublicKey: `0000${kaspa.payToAddressScript(configured.templateParameters.ownerAddress).script}`,
+      covenant: null
+    }],
+    subnetworkId: "00".repeat(20),
+    lockTime: "0",
+    gas: "0",
+    storageMass: "0",
+    payload: ""
+  }));
+  const lookup = async () => ({ entry: holder.inputs[0].utxo, address: p2shAddress, covenantId });
+  const preflight = async () => ({ ok: true, verdict: "ready", stage: "draft" });
+
+  const built = await buildTemplateOperationPackage(
+    { operationId: "inherit", feeKas: "0.01" },
+    project,
+    template,
+    lookup,
+    preflight
+  );
+
+  assert.equal(built.review.entrypoint, "inherit");
+  assert.equal(built.review.operation.kind, "inheritance-payment");
+  assert.equal(built.review.complete, true);
+  assert.deepEqual(built.review.signatureSlots, []);
+  assert.deepEqual(built.review.outputs.map((output) => output.valueSompi), ["29400000", "19600000"]);
+  assert.deepEqual(
+    built.review.outputs.map((output) => output.address),
+    configured.templateParameters.inheritors.map((inheritor) => inheritor.address.toLowerCase())
+  );
+  assert.equal(
+    built.review.outputs.reduce((total, output) => total + BigInt(output.valueSompi), 0n),
+    49_000_000n
+  );
+  assert.equal(
+    JSON.parse(built.package.transactionSafeJson).inputs[0].sequence,
+    String(configured.constructorArgs[3].data)
+  );
+
+  const invalidProject = structuredClone(project);
+  invalidProject.templateParameters.inheritors[1].shareBps = 3999;
+  await assert.rejects(
+    buildTemplateOperationPackage(
+      { operationId: "inherit", feeKas: "0.01" },
+      invalidProject,
+      template,
+      lookup,
+      preflight
+    ),
+    /total exactly 100%/i
+  );
 });
 
 test("pinned official compiler fully compiles the sample contract", async () => {

@@ -1,6 +1,6 @@
 import "./styles.css";
 import { clearProjectScopedTransactionState } from "./project-transaction-state.js";
-import { availableLifecycleOperations, lifecycleRenewalAvailable } from "./lifecycle-presentation.js";
+import { availableLifecycleOperations, lifecycleInheritanceDistributionAvailable, lifecycleRenewalAvailable } from "./lifecycle-presentation.js";
 import { detectBrowserLanguage } from "./locale.js";
 import { open as openExternalUrl } from "@tauri-apps/plugin-shell";
 
@@ -47,7 +47,7 @@ const copy = {
     backupMnemonic: "立即备份助记词", backupWarning: "这是恢复钱包的唯一凭证，只显示这一次。请离线抄写，不要截图、上传云盘或发送给任何人。", passphraseBackupWarning: "你设置了 BIP39 附加密码。恢复钱包时必须同时拥有助记词和附加密码，请分别离线备份。", shownOnce: "仅显示一次", backupConfirmed: "我已经按顺序离线备份，并理解丢失后无法恢复", finishBackup: "完成备份",
     noProjectHelp: "当前没有打开的工作。选择下方模板直接创建，或点击左侧 ＋ 新建空白工作。", templateIntro: "优先使用已经完整编译验证的模板。点击只会选择并预览，不会创建新工作，也不会调用 AI。", selectTemplate: "选择并预览", viewExample: "查看用例示范", newFromTemplate: "从模板新建工作", applyTemplate: "应用到当前工作", templateParameters: "填写模板信息", templateParametersHint: "参数在本地确定性转换，不会调用 AI", templateParameterBoundary: "钱包字段用于生成契约授权公钥；锁定金额同步到上链步骤。模板不会保存私钥或秘密原文。", useConnectedWallet: "使用当前钱包", describeCustomContract: "自定义契约（AI）", customAiHelp: "只有现有模板无法覆盖需求时才使用 AI。AI 生成的是候选方案，不会替代固定模板。", confirmTemplateApply: "确认应用模板", templateReplaceWarning: "当前源码、构造参数和未上链的编译凭证将被模板内容替换；已经广播的链上交易不受影响。", confirmApply: "确认应用", deleteProject: "删除工作", deleteProjectWarning: "此操作只删除本地工作文件且无法撤销；已经广播的链上交易不会被删除。", confirmDelete: "确认删除", exampleRoles: "参与角色", exampleSteps: "操作步骤", exampleResult: "链上结果", understood: "知道了",
     externalCovenantTitle: "操作包识别、审查与签名", externalCovenantHelp: "导入后会识别续期、多签、领取、退款或付款界面。业务标签只用于辅助理解；真正的授权依据仍是完整交易、UTXO、redeem program、ABI、入口、参数和全部输出。", externalPackage: "交易包 JSON", inspectPackage: "识别并只读审查", importInvitation: "导入操作包", signPackage: "签署匹配槽位", externalConfirmation: "外部签名确认短语", externalConfirmationHelp: "签名前请完整输入：SIGN REVIEWED EXTERNAL COVENANT", externalReviewEmpty: "先粘贴或导入完整操作包。应用会核对 P2SH、covenant ID、输入输出、手续费、ABI 参数和签名槽位。", signedPackage: "最新操作包", copySignedPackage: "复制最新包", broadcastConfirmation: "广播确认短语", broadcastPackage: "预检并广播完整交易", signingInvitationTitle: "异地签名邀请", signingInvitationHelp: "把同一个最新邀请包按顺序发送给签名人。每个人在自己的设备导入、核对交易承诺、签名，再把更新后的包传给下一位。", transactionCommitment: "交易承诺", copyInvitation: "复制邀请", downloadInvitation: "下载邀请文件", shareInvitation: "系统分享", sequentialSigningWarning: "必须传递最新的部分签名包，不能让两个人分别签署两个初始副本。签名前请通过另一条可信渠道比对交易承诺。",
-    lifecycleTitle: "导出或异地处理操作包", lifecycleHelp: "只有需要交给其他电脑或多位签名人时，才在这里构建可携带操作包。本机继承合约续期请直接使用上方“签到续期”。", operation: "操作", operationFee: "显式手续费", operationDestination: "释放到钱包", claimSecretHex: "秘密原文（十六进制）", multisigSigners: "选择本次参与的两个签名钱包", multisigInviteHint: "构建后下载邀请文件，按顺序发送给这两位签名人；每个人都在自己的设备签名。", buildOperationPackage: "构建可导出的操作包", lifecycleDestinationRequired: "请填写释放到钱包的地址", lifecycleDestinationWrongNetwork: "释放地址必须属于当前项目网络", lifecycleDestinationInvalid: "释放地址必须是有效的 P2PK 钱包地址", multisigDeployGuideTitle: "多签邀请要在部署完成后生成", multisigBeforeDeploy: "这里的“构建草案”只负责由出资钱包创建多签 Covenant UTXO，不需要三位成员共同签名。完成签名和广播后，下面会出现“三选二释放”；在那里选择两位成员并构建操作，下载邀请文件。", multisigAfterDeploy: "多签 Covenant 已部署。请在下方“三选二释放”中选择两位签名钱包、填写目标地址，然后点击“构建操作交易包”；下载按钮会立即出现在旁边。", contractSchedule: "合约到期与活动状态", refreshLifecycle: "刷新链上状态", recognizedOperation: "已识别操作", renewNow: "签到续期", walletRequired: "此操作需要钱包，请先连接钱包"
+    lifecycleTitle: "导出或异地处理操作包", lifecycleHelp: "只有需要交给其他电脑或多位签名人时，才在这里构建可携带操作包。本机继承合约续期请直接使用上方“签到续期”。", operation: "操作", operationFee: "显式手续费", operationDestination: "释放到钱包", claimSecretHex: "秘密原文（十六进制）", multisigSigners: "选择本次参与的两个签名钱包", multisigInviteHint: "构建后下载邀请文件，按顺序发送给这两位签名人；每个人都在自己的设备签名。", buildOperationPackage: "构建可导出的操作包", lifecycleDestinationRequired: "请填写释放到钱包的地址", lifecycleDestinationWrongNetwork: "释放地址必须属于当前项目网络", lifecycleDestinationInvalid: "释放地址必须是有效的 P2PK 钱包地址", multisigDeployGuideTitle: "多签邀请要在部署完成后生成", multisigBeforeDeploy: "这里的“构建草案”只负责由出资钱包创建多签 Covenant UTXO，不需要三位成员共同签名。完成签名和广播后，下面会出现“三选二释放”；在那里选择两位成员并构建操作，下载邀请文件。", multisigAfterDeploy: "多签 Covenant 已部署。请在下方“三选二释放”中选择两位签名钱包、填写目标地址，然后点击“构建操作交易包”；下载按钮会立即出现在旁边。", contractSchedule: "合约到期与活动状态", refreshLifecycle: "刷新链上状态", recognizedOperation: "已识别操作", renewNow: "签到续期", inheritNow: "触发继承分配", inheritanceMatureHelp: "等待期已经成熟。任何人都可以准备分配交易；继承地址和比例由链上契约固定，广播前请核对每笔金额。", walletRequired: "此操作需要钱包，请先连接钱包"
   },
   en: {
     connectWallet: "Connect wallet", localWorkspace: "Local workspace", projects: "Contract projects", toolchain: "Toolchain",
@@ -86,7 +86,7 @@ const copy = {
     backupMnemonic: "Back up your mnemonic now", backupWarning: "This is the only wallet recovery credential and it is shown once. Write it down offline—never screenshot, upload or send it to anyone.", passphraseBackupWarning: "You set a BIP39 passphrase. Recovery requires both the mnemonic and passphrase; back them up separately offline.", shownOnce: "Shown once", backupConfirmed: "I recorded every word in order offline and understand that loss is unrecoverable", finishBackup: "Finish backup",
     noProjectHelp: "No work is open. Create directly from a template below, or click ＋ in the sidebar for a blank work.", templateIntro: "Start with a fully compiled template whenever possible. Clicking only selects and previews it—it creates no work and never calls AI.", selectTemplate: "Select & preview", viewExample: "View use-case example", newFromTemplate: "New work from template", applyTemplate: "Apply to current work", templateParameters: "Configure template", templateParametersHint: "Parameters are converted deterministically without AI", templateParameterBoundary: "Wallet fields generate covenant authorization keys, and the locked amount is copied to deployment. Templates never store private keys or secret preimages.", useConnectedWallet: "Use connected wallet", describeCustomContract: "Custom contract (AI)", customAiHelp: "Use AI only when the available templates cannot cover the requirement. AI produces a candidate; it does not replace deterministic templates.", confirmTemplateApply: "Confirm template application", templateReplaceWarning: "The current source, constructor arguments and unbroadcast build evidence will be replaced. Transactions already broadcast on-chain are unaffected.", confirmApply: "Apply template", deleteProject: "Delete work", deleteProjectWarning: "This permanently deletes only the local work file. Transactions already broadcast on-chain cannot be deleted.", confirmDelete: "Delete work", exampleRoles: "Participants", exampleSteps: "Walkthrough", exampleResult: "On-chain result", understood: "Got it",
     externalCovenantTitle: "Recognize, review & sign operation packages", externalCovenantHelp: "Imported packages are classified as renewal, multisig, claim, refund or payment. The label is only a review aid; authorization still comes from the complete transaction, UTXOs, redeem program, ABI, entrypoint, arguments and every output.", externalPackage: "Operation package JSON", inspectPackage: "Recognize & inspect", importInvitation: "Import operation package", signPackage: "Sign matching slots", externalConfirmation: "External signing phrase", externalConfirmationHelp: "Before signing, enter exactly: SIGN REVIEWED EXTERNAL COVENANT", externalReviewEmpty: "Paste or import a complete operation package. Studio verifies P2SH, covenant ID, inputs, outputs, fee, ABI arguments and signature slots.", signedPackage: "Latest operation package", copySignedPackage: "Copy latest package", broadcastConfirmation: "Broadcast confirmation phrase", broadcastPackage: "Preflight & broadcast complete transaction", signingInvitationTitle: "Remote signing invitation", signingInvitationHelp: "Send the same latest invitation package sequentially. Each signer imports it on their own device, verifies the commitment, signs, and passes the updated package onward.", transactionCommitment: "Transaction commitment", copyInvitation: "Copy invitation", downloadInvitation: "Download invitation", shareInvitation: "System share", sequentialSigningWarning: "Always pass the latest partially signed package. Never have two people sign separate initial copies. Compare the transaction commitment over another trusted channel before signing.",
-    lifecycleTitle: "Export or remotely process operation packages", lifecycleHelp: "Build a portable package here only when another computer or multiple signers need it. For a local inheritance renewal, use Check in & renew above.", operation: "Operation", operationFee: "Explicit fee", operationDestination: "Release destination", claimSecretHex: "Secret preimage (hex)", multisigSigners: "Select the two participating signer wallets", multisigInviteHint: "After building, download the invitation and send the same latest file sequentially. Each person signs on their own device.", buildOperationPackage: "Build exportable operation package", lifecycleDestinationRequired: "Enter the wallet address that will receive the released funds", lifecycleDestinationWrongNetwork: "The release destination must belong to the current project network", lifecycleDestinationInvalid: "The release destination must be a valid P2PK wallet address", multisigDeployGuideTitle: "Multisig invitations are created after deployment", multisigBeforeDeploy: "Build draft here only lets the funding wallet create the multisig covenant UTXO; the three members do not sign this funding transaction. After signing and broadcasting it, use Two-of-three spend below, select two members, build the operation, and download the invitation.", multisigAfterDeploy: "The multisig covenant is deployed. In Two-of-three spend below, select two signer wallets, enter the destination, then build the operation; the download button will appear beside it.", contractSchedule: "Contract maturity & activity", refreshLifecycle: "Refresh on-chain status", recognizedOperation: "Recognized operation", renewNow: "Check in & renew", walletRequired: "This action requires a wallet. Connect a wallet first."
+    lifecycleTitle: "Export or remotely process operation packages", lifecycleHelp: "Build a portable package here only when another computer or multiple signers need it. For a local inheritance renewal, use Check in & renew above.", operation: "Operation", operationFee: "Explicit fee", operationDestination: "Release destination", claimSecretHex: "Secret preimage (hex)", multisigSigners: "Select the two participating signer wallets", multisigInviteHint: "After building, download the invitation and send the same latest file sequentially. Each person signs on their own device.", buildOperationPackage: "Build exportable operation package", lifecycleDestinationRequired: "Enter the wallet address that will receive the released funds", lifecycleDestinationWrongNetwork: "The release destination must belong to the current project network", lifecycleDestinationInvalid: "The release destination must be a valid P2PK wallet address", multisigDeployGuideTitle: "Multisig invitations are created after deployment", multisigBeforeDeploy: "Build draft here only lets the funding wallet create the multisig covenant UTXO; the three members do not sign this funding transaction. After signing and broadcasting it, use Two-of-three spend below, select two members, build the operation, and download the invitation.", multisigAfterDeploy: "The multisig covenant is deployed. In Two-of-three spend below, select two signer wallets, enter the destination, then build the operation; the download button will appear beside it.", contractSchedule: "Contract maturity & activity", refreshLifecycle: "Refresh on-chain status", recognizedOperation: "Recognized operation", renewNow: "Check in & renew", inheritNow: "Trigger inheritance distribution", inheritanceMatureHelp: "The inactivity period has matured. Anyone can prepare the distribution transaction; recipient addresses and shares are fixed by the on-chain covenant. Review every amount before broadcast.", walletRequired: "This action requires a wallet. Connect a wallet first."
   }
 };
 
@@ -1284,10 +1284,16 @@ function renderLifecycleOperations() {
     renderLifecycleInvitationActions();
     return;
   }
-  card.hidden = false;
   const select = $("#lifecycle-operation");
   const previous = select.value;
   const availableOperations = availableLifecycleOperations(state.lifecycleOperations, state.lifecycleSummary);
+  if (!availableOperations.length) {
+    card.hidden = true;
+    select.innerHTML = "";
+    renderLifecycleInvitationActions();
+    return;
+  }
+  card.hidden = false;
   select.innerHTML = availableOperations.map((operation) => `<option value="${esc(operation.id)}">${esc(state.language === "zh" ? operation.titleZh : operation.titleEn)}</option>`).join("");
   if (availableOperations.some((operation) => operation.id === previous)) select.value = previous;
   const operation = selectedLifecycleOperation();
@@ -1347,10 +1353,16 @@ function renderLifecycleSummary() {
   renewButton.hidden = !lifecycleRenewalAvailable(summary, state.project?.review?.templateId);
   renewButton.disabled = false;
   renewButton.textContent = tr("renewNow");
+  const inheritButton = $("#lifecycle-inherit-now");
+  const inheritanceAvailable = lifecycleInheritanceDistributionAvailable(summary, state.project?.review?.templateId);
+  inheritButton.hidden = !inheritanceAvailable;
+  inheritButton.disabled = false;
+  inheritButton.textContent = tr("inheritNow");
+  $("#lifecycle-inheritance-help").hidden = !inheritanceAvailable;
   if (card.hidden) return;
   const schedule = summary.schedule;
   const statusText = summary.unspent
-    ? (schedule?.mature ? (state.language === "zh" ? "已过期" : "EXPIRED") : (state.language === "zh" ? "活动中" : "ACTIVE"))
+    ? (schedule?.mature ? (state.language === "zh" ? "已成熟" : "MATURE") : (state.language === "zh" ? "活动中" : "ACTIVE"))
     : (state.language === "zh" ? "已花费" : "SPENT");
   $("#lifecycle-overview-status").textContent = statusText;
   const items = [
@@ -1372,8 +1384,8 @@ function renderLifecycleSummary() {
   warning.hidden = !schedule?.mismatch;
   if (schedule?.mismatch) {
     warning.textContent = state.language === "zh"
-      ? `注意：这是旧版参数编码的已部署合约。界面配置为 ${durationLabel(schedule.configuredSeconds)}，但链上 ${schedule.periodDaa} DAA 按约 ${schedule.daaPerSecond} DAA/秒计算，实际约为 ${durationLabel(schedule.approximateActualSeconds)}。${schedule.mature ? "合约已经过期，续期入口已关闭。" : "已部署脚本不可修改。"}`
-      : `Warning: this deployed contract uses legacy parameter encoding. The UI was configured for ${durationLabel(schedule.configuredSeconds)}, but ${schedule.periodDaa} on-chain DAA at roughly ${schedule.daaPerSecond} DAA/s is about ${durationLabel(schedule.approximateActualSeconds)}. ${schedule.mature ? "The contract has expired and renewal is no longer offered." : "The deployed script is immutable."}`;
+      ? `注意：这是旧版参数编码的已部署合约。界面配置为 ${durationLabel(schedule.configuredSeconds)}，但链上 ${schedule.periodDaa} DAA 按约 ${schedule.daaPerSecond} DAA/秒计算，实际约为 ${durationLabel(schedule.approximateActualSeconds)}。${schedule.mature ? "合约已经成熟，续期入口已关闭，可以触发继承分配。" : "已部署脚本不可修改。"}`
+      : `Warning: this deployed contract uses legacy parameter encoding. The UI was configured for ${durationLabel(schedule.configuredSeconds)}, but ${schedule.periodDaa} on-chain DAA at roughly ${schedule.daaPerSecond} DAA/s is about ${durationLabel(schedule.approximateActualSeconds)}. ${schedule.mature ? "The contract has matured; renewal is closed and inheritance distribution is now available." : "The deployed script is immutable."}`;
   }
 }
 
@@ -1434,6 +1446,7 @@ async function buildLifecycleOperation() {
     } else {
       $("#external-covenant-package").scrollIntoView({ behavior: "smooth", block: "center" });
     }
+    return payload;
   } catch (error) {
     $("#lifecycle-status").textContent = "FAILED";
     const message = error.payload?.code === "OPERATION_ADDRESS_REQUIRED"
@@ -1444,6 +1457,7 @@ async function buildLifecycleOperation() {
           ? tr("lifecycleDestinationInvalid")
           : error.message;
     toast(message, "bad");
+    return null;
   } finally { button.disabled = false; }
 }
 
@@ -1479,6 +1493,39 @@ async function renewCurrentContract() {
   } finally {
     button.disabled = false;
     button.textContent = tr("renewNow");
+  }
+}
+
+async function prepareMatureInheritance() {
+  if (!lifecycleInheritanceDistributionAvailable(state.lifecycleSummary, state.project?.review?.templateId)) return;
+  const button = $("#lifecycle-inherit-now");
+  button.disabled = true;
+  button.textContent = state.language === "zh" ? "正在准备分配…" : "Preparing distribution…";
+  try {
+    const operationSelect = $("#lifecycle-operation");
+    if (![...operationSelect.options].some((option) => option.value === "inherit")) {
+      throw new Error(state.language === "zh" ? "当前成熟合约没有继承分配入口" : "This mature covenant has no inheritance distribution operation");
+    }
+    operationSelect.value = "inherit";
+    renderLifecycleOperations();
+    const payload = await buildLifecycleOperation();
+    if (!payload?.review?.complete || payload.review.entrypoint !== "inherit") {
+      throw new Error(state.language === "zh" ? "继承分配交易没有通过本地操作识别" : "The inheritance transaction was not recognized as a complete local distribution");
+    }
+    $("#external-broadcast-confirmation").value = "";
+    $("#external-covenant-review").scrollIntoView({ behavior: "smooth", block: "center" });
+    $("#external-broadcast-confirmation").focus({ preventScroll: true });
+    toast(
+      state.language === "zh"
+        ? "分配交易已生成。请核对每位继承人的地址和金额，再输入广播确认短语。"
+        : "Distribution prepared. Verify every inheritor address and amount, then enter the broadcast confirmation phrase.",
+      "good"
+    );
+  } catch (error) {
+    toast(error.message, "bad");
+  } finally {
+    button.disabled = false;
+    button.textContent = tr("inheritNow");
   }
 }
 
@@ -1802,6 +1849,7 @@ $("#lifecycle-download-invitation").addEventListener("click", downloadInvitation
 $("#lifecycle-copy-invitation").addEventListener("click", () => copyText(invitationJson()));
 $("#lifecycle-refresh").addEventListener("click", () => loadLifecycleStatus());
 $("#lifecycle-renew-now").addEventListener("click", renewCurrentContract);
+$("#lifecycle-inherit-now").addEventListener("click", prepareMatureInheritance);
 $("#external-covenant-package").addEventListener("input", () => {
   state.externalPackage = null;
   state.externalReview = null;

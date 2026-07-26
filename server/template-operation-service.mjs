@@ -93,14 +93,24 @@ function inheritOutputs(parameters, value, network) {
   const base = value / 10000n;
   const remainder = value % 10000n;
   let paid = 0n;
-  return inheritors.map((item, index) => {
+  let shareTotal = 0n;
+  const outputs = inheritors.map((item, index) => {
     const identity = publicKeyOf(item.address, network);
-    const share = BigInt(item.shareBps);
+    const shareNumber = Number(item.shareBps);
+    if (!Number.isSafeInteger(shareNumber) || shareNumber <= 0 || shareNumber > 10000) {
+      throw operationError("Every inheritance share must be a positive integer no greater than 100%");
+    }
+    const share = BigInt(shareNumber);
+    shareTotal += share;
     let amount = base * share + (remainder * share) / 10000n;
     if (index === inheritors.length - 1) amount = value - paid;
+    if (amount <= 0n) throw operationError("Every inheritor output must receive a positive amount");
     paid += amount;
     return new kaspa.TransactionOutput(amount, kaspa.payToAddressScript(identity.address));
   });
+  if (shareTotal !== 10000n) throw operationError("Inheritance shares must total exactly 100%");
+  if (paid !== value) throw operationError("Inheritance outputs do not conserve the distributable value");
+  return outputs;
 }
 
 export async function buildTemplateOperationPackage(

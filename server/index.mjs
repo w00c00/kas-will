@@ -16,7 +16,7 @@ import { WalletService } from "./wallet-service.mjs";
 import { exportExternalCovenantPackage, inspectExternalCovenantPackage, signExternalCovenantPackage } from "./external-covenant-service.mjs";
 import { buildTemplateOperationPackage, templateOperations } from "./template-operation-service.mjs";
 import { buildLifecycleStatus, spentLifecycleStatus } from "./lifecycle-status.mjs";
-import { assertLocalRenewalOpen, assertLocalRenewalPackage } from "./local-operation-authorization.mjs";
+import { assertInheritanceDistributionOpen, assertLocalRenewalOpen, assertLocalRenewalPackage } from "./local-operation-authorization.mjs";
 
 fs.mkdirSync(config.dataDir, { recursive: true, mode: 0o700 });
 const projects = new ProjectStore(config.dataDir);
@@ -185,6 +185,9 @@ app.post("/api/projects/:id/operations/build", async (req, res, next) => {
     }
     if (project.review?.templateId === "inheritance-vault" && req.body?.operationId === "checkIn") {
       assertLocalRenewalOpen(await lifecycleStatusFor(project));
+    }
+    if (project.review?.templateId === "inheritance-vault" && req.body?.operationId === "inherit") {
+      assertInheritanceDistributionOpen(await lifecycleStatusFor(project));
     }
     res.json(await buildTemplateOperationPackage(req.body || {}, project, template));
   } catch (error) { next(error); }

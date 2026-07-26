@@ -196,8 +196,10 @@
             <div class="card-heading"><div><span class="eyebrow">ON-CHAIN SCHEDULE</span><h3 data-i18n="contractSchedule">合约到期与活动状态</h3></div><span class="result-status" id="lifecycle-overview-status">LOADING</span></div>
             <div class="lifecycle-overview-grid" id="lifecycle-overview-grid"></div>
             <p class="external-warning" id="lifecycle-overview-warning" hidden></p>
+            <p class="muted" id="lifecycle-inheritance-help" hidden data-i18n="inheritanceMatureHelp">等待期已经成熟。任何人都可以准备分配交易；继承地址和比例由链上契约固定，广播前请核对每笔金额。</p>
             <div class="lifecycle-overview-actions">
               <button class="primary-button" type="button" id="lifecycle-renew-now" hidden data-i18n="renewNow">签到续期</button>
+              <button class="primary-button" type="button" id="lifecycle-inherit-now" hidden data-i18n="inheritNow">触发继承分配</button>
               <button class="outline-button small" type="button" id="lifecycle-refresh" data-i18n="refreshLifecycle">刷新链上状态</button>
             </div>
           </article>
