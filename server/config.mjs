@@ -8,7 +8,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 dotenv.config({ path: path.join(ROOT, ".env") });
 dotenv.config({ path: path.join(ROOT, ".env.local"), override: true });
 
-export const SILVERSCRIPT_COMMIT = "2a3961cadc76bb16a425042172ffe32481da89b5";
+export const SILVERSCRIPT_COMMIT = "4b0e1cd69739934f92c3ac4df1bb13d912418b2b";
+export const SILVERSCRIPT_LEGACY_COMMIT = "2a3961cadc76bb16a425042172ffe32481da89b5";
 
 export const NETWORKS = Object.freeze({
   tn10: Object.freeze({
@@ -40,14 +41,35 @@ function bool(value, fallback = false) {
 
 function loadCompilerConfig() {
   const file = path.join(ROOT, "config", "compiler.json");
+  const profilesFile = path.join(ROOT, "config", "compiler-profiles.json");
   let stored = {};
+  let compatibility = {};
   try { stored = JSON.parse(fs.readFileSync(file, "utf8")); } catch {}
-  return {
-    bin: process.env.SILVERC_BIN || stored.bin || path.join(ROOT, "bin", "silverc"),
-    sha256: String(process.env.SILVERC_SHA256 || stored.sha256 || "").toLowerCase(),
-    upstreamCommit: stored.upstreamCommit || SILVERSCRIPT_COMMIT,
-    manifestFile: file
-  };
+  try { compatibility = JSON.parse(fs.readFileSync(profilesFile, "utf8")); } catch {}
+  const localProfiles = stored.profiles && typeof stored.profiles === "object" ? stored.profiles : {};
+  const definitions = Array.isArray(compatibility.profiles) ? compatibility.profiles : [];
+  const profiles = Object.fromEntries(definitions.map((definition) => {
+    const local = localProfiles[definition.id] || {};
+    const isLatest = definition.upstreamCommit === SILVERSCRIPT_COMMIT;
+    const legacyStored = !stored.profiles && definition.upstreamCommit === (stored.upstreamCommit || SILVERSCRIPT_LEGACY_COMMIT)
+      ? stored
+      : {};
+    const environmentBin = isLatest ? process.env.SILVERC_LATEST_BIN || process.env.SILVERC_BIN : process.env.SILVERC_LEGACY_BIN;
+    const environmentSha = isLatest ? process.env.SILVERC_LATEST_SHA256 || process.env.SILVERC_SHA256 : process.env.SILVERC_LEGACY_SHA256;
+    return [definition.id, Object.freeze({
+      ...definition,
+      bin: path.resolve(environmentBin || local.bin || legacyStored.bin || path.join(ROOT, definition.binary)),
+      sha256: String(environmentSha || local.sha256 || legacyStored.sha256 || "").toLowerCase(),
+      builtAt: local.builtAt || legacyStored.builtAt || ""
+    })];
+  }));
+  return Object.freeze({
+    defaultProfileId: stored.defaultProfileId || compatibility.defaultProfileId || "latest-4b0e1cd",
+    profiles: Object.freeze(profiles),
+    breakingChanges: Object.freeze(Array.isArray(compatibility.breakingChanges) ? compatibility.breakingChanges : []),
+    manifestFile: file,
+    profilesFile
+  });
 }
 
 function loadPreflightConfig() {
@@ -135,9 +157,16 @@ export function publicConfig() {
     },
     providers,
     compiler: {
-      configured: fs.existsSync(config.compiler.bin) && /^[0-9a-f]{64}$/.test(config.compiler.sha256),
-      upstreamCommit: config.compiler.upstreamCommit,
-      expectedCommit: SILVERSCRIPT_COMMIT
+      configured: Boolean(config.compiler.profiles[config.compiler.defaultProfileId]
+        && fs.existsSync(config.compiler.profiles[config.compiler.defaultProfileId].bin)
+        && /^[0-9a-f]{64}$/.test(config.compiler.profiles[config.compiler.defaultProfileId].sha256)),
+      defaultProfileId: config.compiler.defaultProfileId,
+      upstreamCommit: config.compiler.profiles[config.compiler.defaultProfileId]?.upstreamCommit || "",
+      expectedCommit: SILVERSCRIPT_COMMIT,
+      profiles: Object.values(config.compiler.profiles).map(({ bin: _bin, ...profile }) => ({
+        ...profile,
+        configured: fs.existsSync(config.compiler.profiles[profile.id].bin) && /^[0-9a-f]{64}$/.test(profile.sha256)
+      }))
     },
     silverscriptStatus: "experimental",
     recommendedNetwork: "testnet-10"

@@ -155,11 +155,18 @@ button:disabled { opacity: .45; cursor: not-allowed; transform: none !important;
 .template-parameter-heading strong { font-size: 12px; }
 .template-parameter-heading span { color: var(--mint); font: 9px "DM Mono"; }
 .template-parameter-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.template-parameter-step { grid-column: 1 / -1; border: 1px solid var(--line); background: rgba(255,255,255,.012); }
+.template-parameter-step > header { display: flex; align-items: flex-start; gap: 12px; padding: 12px; border-bottom: 1px solid var(--line); }
+.template-parameter-step > header > b { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--mint); color: var(--mint); font: 10px "DM Mono"; }
+.template-parameter-step > header div { display: grid; gap: 4px; }
+.template-parameter-step > header strong { font-size: 11px; }
+.template-parameter-step > header small { color: var(--muted); font-size: 9px; line-height: 1.5; text-transform: none; letter-spacing: 0; }
+.template-step-fields { padding: 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .template-field { min-width: 0; padding: 12px; border: 1px solid var(--line); background: var(--panel); }
 .template-field > span { color: var(--silver); font-size: 10px; }
 .template-field small { min-height: 30px; color: var(--muted); font-size: 9px; line-height: 1.5; text-transform: none; letter-spacing: 0; }
 .template-field-input { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; margin: 7px 0; }
-.template-field-input input { width: 100%; height: 40px; padding: 0 10px; font: 11px "DM Mono"; }
+.template-field-input input, .template-field-input select { width: 100%; height: 40px; padding: 0 10px; font: 11px "DM Mono"; }
 .template-field-input button { min-height: 40px; white-space: nowrap; font-size: 10px; }
 .template-field-unit { min-width: 54px; height: 40px; border: 1px solid var(--line); display: grid; place-items: center; color: var(--mint); font: 10px "DM Mono"; }
 .duration-input { display: grid; grid-template-columns: minmax(0, 1fr) 120px; gap: 7px; margin: 7px 0; }
@@ -178,6 +185,20 @@ button:disabled { opacity: .45; cursor: not-allowed; transform: none !important;
 .heir-total { display: block; margin-top: 8px; color: var(--mint); font: 9px "DM Mono"; }
 .heir-total.bad { color: var(--red); }
 .template-parameter-boundary { margin: 12px 0 0; color: var(--amber); font-size: 9px; line-height: 1.55; }
+.kcc721-metadata-field { grid-column: 1 / -1; }
+.kcc721-metadata-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 9px 0; }
+.kcc721-metadata-grid label { display: grid; gap: 5px; }
+.kcc721-metadata-grid label.wide { grid-column: 1 / -1; }
+.kcc721-metadata-grid b { color: var(--muted); font: 9px "DM Mono"; }
+.kcc721-metadata-grid input, .kcc721-metadata-grid textarea { width: 100%; padding: 9px 10px; font: 10px "DM Mono"; }
+.kcc721-metadata-grid input { height: 40px; }
+.kcc721-metadata-grid textarea { min-height: 72px; resize: vertical; }
+.kcc721-digest { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 10px; margin-top: 9px; padding: 9px; border: 1px solid var(--line); background: #090d0f; }
+.kcc721-digest b { color: var(--mint); font: 9px "DM Mono"; }
+.kcc721-digest code { min-width: 0; overflow-wrap: anywhere; color: var(--silver); font: 9px "DM Mono"; }
+.kcc721-digest code.bad { color: var(--red); }
+.kcc721-pending-id { display: grid; gap: 8px; border-color: var(--amber); }
+.kcc721-pending-id strong { color: var(--amber); font-size: 11px; }
 .design-grid { grid-template-columns: minmax(360px, .9fr) minmax(360px, 1.1fr); }
 .compile-grid, .deploy-grid { grid-template-columns: minmax(340px, .8fr) minmax(420px, 1.2fr); }
 .external-covenant-card { min-height: 0; margin-top: 18px; }
@@ -411,6 +432,8 @@ label input, label select { height: 42px; padding: 0 11px; text-transform: none;
   .template-preview { grid-template-columns: 1fr; }
   .template-preview-actions { grid-template-columns: 1fr 1fr; }
   .template-parameter-fields { grid-template-columns: 1fr; }
+  .template-step-fields, .kcc721-metadata-grid { grid-template-columns: 1fr; }
+  .kcc721-metadata-grid label.wide { grid-column: auto; }
   .heir-row { grid-template-columns: 1fr 92px 38px; }
   .heir-row > b { grid-column: 1 / -1; }
   .topbar { grid-template-columns: 1fr auto; }

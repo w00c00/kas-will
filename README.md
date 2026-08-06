@@ -35,7 +35,8 @@ AI 只负责生成候选方案和辅助审查，不能解锁钱包、签名交�
 - 中英文界面；首次启动自动读取系统语言，并在系统语言既非中文也非英文时使用时区辅助判断。
 - 用户手动切换语言后，本机选择优先于自动识别。
 - 本地项目工作区，可创建、切换和删除未使用的工作。
-- 固定 `kaspanet/silverscript@2a3961cadc76bb16a425042172ffe32481da89b5` 编译器来源和二进制 SHA-256。
+- 双编译器兼容档案：默认固定 `kaspanet/silverscript@4b0e1cd69739934f92c3ac4df1bb13d912418b2b`，并保留 `2a3961c` 旧版用于复现；两者都校验二进制 SHA-256。
+- 内置破坏性变更扫描与安全迁移，识别 `entry`、`checkMsgSig`、`outpointTxId`、artifact `bytecode` 等升级差异；无法安全自动迁移的 `.reverse()` 和位运算会要求人工审查。
 - 固定 Kascov 来源提交构建的本地交易预检引擎。
 - 支持 OpenAI、Anthropic、Gemini、OpenRouter、Ollama 和 OpenAI-compatible 接口。
 - AI API Key 使用 scrypt 派生密钥和 AES-256-GCM 加密保存在本机。
@@ -44,6 +45,8 @@ AI 只负责生成候选方案和辅助审查，不能解锁钱包、签名交�
 - 支持 BIP39 附加密码；钱包密码和附加密码不会保存为普通偏好设置。
 - 支持 TN10 和 mainnet 自建 wRPC 节点，留空时使用公共节点发现。
 - 支持 `.ssinvite` 可携带操作包、跨设备顺序签名和外部 Covenant 交易包审查。
+- 可替换 `CovenantStateSource` 会在原生 Covenant RPC、outpoint RPC 与 P2SH 地址索引之间回退，并重新验证 outpoint、Covenant ID、脚本和金额。
+- 通用 P2PK co-spend 授权只签指定普通钱包输入，并锁定整笔交易承诺；原子构建器支持 2–32 个不同 Covenant 输入。
 - Kascov 是首选可视化和第二份报告来源，但不是签名、预检或广播的运行依赖。
 
 ### 内置模板
@@ -55,6 +58,9 @@ AI 只负责生成候选方案和辅助审查，不能解锁钱包、签名交�
 | 三选二多签 | 两位成员共同释放 | 团队金库、异地共同签署 |
 | 哈希锁退款 | 秘密领取、超时退款 | 原子交付、跨客户端秘密交换 |
 | 多继承人签到金库 | 所有者签到、所有者取回、到期分配 | 多继承人资产安排和定期续期 |
+| Merkle 一次性领取（TN10 Experimental） | Merkle 证明领取、超时退款 | 白名单领取和一次性票据 |
+| Commit / Reveal（TN10 Experimental） | Reveal 领取、超时退款 | 域隔离承诺和密封交付 |
+| KCC721 四契约包（TN10 Experimental） | Collection、Ticket、NFT、Migration | Covenant 原生 NFT 研究；禁止普通单合约部署 |
 
 每个模板都包含：
 
@@ -214,6 +220,8 @@ OLLAMA_MODEL=
 
 仅有 Covenant ID 或 cov hash 不足以签名。外部操作包必须携带待签交易、UTXO、redeem program、ABI、入口、参数、输出和签名槽信息。详见 [可携带 Covenant 操作包](docs/portable-covenant-package.md)。
 
+编译器升级、状态查询与原子授权接口见 [Studio 0.2 架构说明](docs/studio-0.2-architecture.md)。KCC721 包的来源、边界和禁止事项见 [TN10 Experimental KCC721](docs/kcc721-experimental.md)。
+
 ### 网络
 
 | Studio | Kaspa network ID | 地址前缀 | Kascov |
@@ -280,7 +288,8 @@ AI is limited to candidate generation and review assistance. It cannot unlock wa
 - Chinese and English UI with automatic system-language detection and time-zone fallback.
 - A manual language choice always overrides future automatic detection.
 - Local project workspace with explicit create, switch, and delete actions.
-- Pinned `kaspanet/silverscript@2a3961cadc76bb16a425042172ffe32481da89b5` provenance and compiler SHA-256.
+- Dual compiler profiles: the default is pinned to `kaspanet/silverscript@4b0e1cd69739934f92c3ac4df1bb13d912418b2b`, while `2a3961c` remains available for reproducible legacy builds; both binaries are SHA-256 verified.
+- Built-in breaking-change detection and safe migration for `entry`, `checkMsgSig`, `outpointTxId`, and artifact `bytecode`; removed `.reverse()` and bitwise typing changes require manual review.
 - Pinned Kascov-derived local transaction preflight engine.
 - OpenAI, Anthropic, Gemini, OpenRouter, Ollama, and OpenAI-compatible providers.
 - AES-256-GCM encrypted AI key vault with a scrypt-derived key.
@@ -288,6 +297,8 @@ AI is limited to candidate generation and review assistance. It cannot unlock wa
 - One-time mnemonic display and optional BIP39 passphrase support.
 - Direct TN10 and mainnet self-hosted wRPC endpoints with public-node discovery fallback.
 - Portable `.ssinvite` operation packages, sequential cross-device signing, and external covenant-package review.
+- Replaceable `CovenantStateSource` fallback across native covenant RPC, outpoint RPC, and P2SH address indexing, with independent outpoint, covenant ID, script, and value verification.
+- Generic isolated P2PK co-spend authorization plus an atomic builder for 2–32 distinct covenant inputs.
 - Kascov is the preferred visual and secondary-report layer, not a signing, preflight, or broadcast dependency.
 
 ### Built-in templates
@@ -299,6 +310,9 @@ AI is limited to candidate generation and review assistance. It cannot unlock wa
 | Two-of-three multisig | Any authorized pair releases | Team treasury and remote co-signing |
 | Hashlock refund | Secret claim, timeout refund | Atomic delivery and cross-client secret exchange |
 | Multi-inheritor check-in vault | Owner check-in, owner recovery, mature distribution | Inheritance planning with periodic renewal |
+| Merkle one-time claim (TN10 Experimental) | Merkle proof claim, timeout refund | Allowlists and single-use tickets |
+| Commit / reveal (TN10 Experimental) | Reveal claim, timeout refund | Domain-separated commitments and sealed delivery |
+| Four-contract KCC721 pack (TN10 Experimental) | Collection, Ticket, NFT, Migration | Covenant-native NFT research; standalone deployment is blocked |
 
 Every template includes bilingual parameter forms and examples, deterministic constructor encoding, full compile verification, per-entrypoint transaction plans, and matching post-deployment builders.
 
@@ -431,6 +445,8 @@ For multisig and remote signing, pass the same latest `.ssinvite` package sequen
 Never have multiple signers sign separate initial copies. Compare the transaction commitment over a second trusted channel.
 
 A covenant ID or cov hash alone is not a signing request. An external package must include the exact transaction, UTXOs, redeem program, ABI, entrypoint, arguments, outputs, and signature slots. See [Portable covenant packages](docs/portable-covenant-package.md).
+
+See [Studio 0.2 architecture](docs/studio-0.2-architecture.md) for compiler upgrades, state sources, P2PK authorization, and atomic transaction APIs. See [TN10 Experimental KCC721](docs/kcc721-experimental.md) for provenance, boundaries, and prohibited release claims.
 
 ### Networks
 

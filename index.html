@@ -139,8 +139,12 @@
           <div class="panel-grid compile-grid">
             <article class="card">
               <div class="card-heading"><div><span class="eyebrow">REPRODUCIBLE BUILD</span><h3 data-i18n="constructorArgs">构造参数</h3></div><span class="step-chip">03 / BUILD</span></div>
+              <label><span data-i18n="compilerProfile">编译器兼容档案</span><select id="compiler-profile"></select></label>
+              <p class="muted" id="compiler-profile-help"></p>
               <p class="muted" data-i18n="argsHelp">使用 silverc 的表达式 JSON 数组格式。无构造参数时填写 []。</p>
               <textarea id="constructor-args" class="json-editor" spellcheck="false">[]</textarea>
+              <div class="button-row"><button class="outline-button" type="button" id="check-compatibility" data-i18n="checkCompatibility">检查破坏性变更</button><button class="outline-button" type="button" id="migrate-source" data-i18n="applySafeMigration" hidden>应用安全迁移</button></div>
+              <div class="findings" id="compatibility-findings"></div>
               <button class="primary-button full" id="compile-contract"><span data-i18n="compilePinned">使用固定编译器完整编译</span><i>⌘</i></button>
             </article>
             <article class="card">
@@ -211,6 +215,9 @@
               <label><span data-i18n="operationFee">显式手续费</span><div class="amount-input"><input id="lifecycle-fee" value="0.01" inputmode="decimal"/><b id="lifecycle-fee-symbol">TKAS</b></div></label>
               <label id="lifecycle-destination-row" hidden><span data-i18n="operationDestination">释放到钱包</span><input id="lifecycle-destination" placeholder="kaspatest:..." autocomplete="off" /></label>
               <label id="lifecycle-secret-row" hidden><span data-i18n="claimSecretHex">秘密原文（十六进制）</span><input id="lifecycle-secret" placeholder="例如 68656c6c6f" autocomplete="off" spellcheck="false" /></label>
+              <label id="lifecycle-proof-row" hidden><span data-i18n="merkleProofHex">Merkle 证明（十六进制）</span><input id="lifecycle-proof" placeholder="按顺序拼接 32-byte siblings；单叶树留空" autocomplete="off" spellcheck="false" /></label>
+              <label id="lifecycle-payload-row" hidden><span data-i18n="revealPayloadHex">Reveal Payload（十六进制）</span><input id="lifecycle-payload" placeholder="例如 68656c6c6f" autocomplete="off" spellcheck="false" /></label>
+              <label id="lifecycle-salt-row" hidden><span data-i18n="revealSaltHex">32-byte Salt（十六进制）</span><input id="lifecycle-salt" placeholder="64 个十六进制字符" maxlength="66" autocomplete="off" spellcheck="false" /></label>
               <fieldset class="lifecycle-signers" id="lifecycle-signers-row" hidden><legend data-i18n="multisigSigners">选择本次参与的两个签名钱包</legend><div id="lifecycle-signer-options"></div><small data-i18n="multisigInviteHint">构建后下载邀请文件，按顺序发送给这两位签名人；每个人都在自己的设备签名。</small></fieldset>
             </div>
             <div class="lifecycle-actions">
@@ -232,7 +239,7 @@
               <div>
                 <label><span data-i18n="externalPackage">交易包 JSON</span><textarea id="external-covenant-package" spellcheck="false" placeholder='{"version":1,"network":"tn10",...}'></textarea></label>
                 <div class="button-row"><button class="outline-button" type="button" id="external-covenant-inspect" data-i18n="inspectPackage">只读审查</button><button class="outline-button" type="button" id="external-import-package" data-i18n="importInvitation">导入邀请文件</button><input type="file" id="external-package-file" accept=".ssinvite,.json,application/json" hidden /><button class="primary-button" type="button" id="external-covenant-sign" data-i18n="signPackage" disabled>签署匹配槽位</button></div>
-                <label class="confirmation" id="external-sign-confirmation-row"><span data-i18n="externalConfirmation">外部签名确认短语</span><input id="external-covenant-confirmation" placeholder="SIGN REVIEWED EXTERNAL COVENANT" autocomplete="off" /><small data-i18n="externalConfirmationHelp">签名前请完整输入：SIGN REVIEWED EXTERNAL COVENANT</small></label>
+                <label class="confirmation" id="external-sign-confirmation-row"><span data-i18n="externalConfirmation">外部签名确认短语</span><input id="external-covenant-confirmation" placeholder="SIGN REVIEWED EXTERNAL COVENANT" autocomplete="off" /><small id="external-confirmation-help" data-i18n="externalConfirmationHelp">签名前请完整输入：SIGN REVIEWED EXTERNAL COVENANT</small></label>
                 <label class="confirmation" id="external-broadcast-confirmation-row"><span data-i18n="broadcastConfirmation">广播确认短语</span><input id="external-broadcast-confirmation" placeholder="BROADCAST REVIEWED COVENANT" autocomplete="off" /></label>
                 <button class="outline-button full" type="button" id="external-covenant-broadcast" data-i18n="broadcastPackage" disabled>预检并广播完整交易</button>
               </div>

@@ -2,7 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { config, NETWORKS } from "./config.mjs";
-import { safeId } from "./security.mjs";
+import { safeId, sha256 } from "./security.mjs";
+import { canonicalKcc721Metadata } from "../src/kcc721-metadata.js";
 
 const require = createRequire(import.meta.url);
 const kaspa = require("@kluster/kaspa-wasm");
@@ -147,10 +148,16 @@ export class TemplateStore {
     try {
       const manifest = readJson(path.join(directory, "manifest.json"));
       const source = fs.readFileSync(path.join(directory, manifest.sourceFile || "contract.sil"), "utf8");
+      const packContracts = Array.isArray(manifest.packContracts) ? manifest.packContracts.map((contract) => ({
+        ...contract,
+        source: fs.readFileSync(path.join(directory, contract.sourceFile), "utf8"),
+        constructorArgs: Array.isArray(contract.constructorArgs) ? contract.constructorArgs.map(compilerExpression) : []
+      })) : [];
       return {
         ...manifest,
         id: normalized,
         source,
+        packContracts,
         constructorArgs: Array.isArray(manifest.constructorArgs) ? manifest.constructorArgs.map(compilerExpression) : [],
         transactionPlans: Array.isArray(manifest.transactionPlans) ? manifest.transactionPlans : []
       };
@@ -163,6 +170,9 @@ export class TemplateStore {
   deploymentBlockedReasons(id, input = {}) {
     const template = this.get(id);
     if (!template) return [];
+    if (template.deploymentMode === "pack-only") {
+      return [template.deploymentBlockedReason || "This experimental template pack requires its dedicated multi-contract transaction builder"];
+    }
     const project = input.project;
     if (project?.review?.configured === true && project.review.templateId === template.id) {
       const expected = this.projectInput(template.id, project.network, project.templateParameters, {
@@ -182,6 +192,9 @@ export class TemplateStore {
     const template = this.get(id);
     if (!template) throw Object.assign(new Error("Template not found"), { status: 404 });
     const selectedNetwork = network === "mainnet" ? "mainnet" : "tn10";
+    if (Array.isArray(template.networkAllowlist) && !template.networkAllowlist.includes(selectedNetwork)) {
+      throw parameterError(`Template ${template.id} is restricted to ${template.networkAllowlist.join(", ")}`);
+    }
     const networkConfig = NETWORKS[selectedNetwork];
     const definitions = Array.isArray(template.parameters) ? template.parameters : [];
     const acceptedIds = new Set(definitions.map((field) => field.id));
@@ -198,6 +211,12 @@ export class TemplateStore {
         const value = parseAmount(raw, field.minimum || "0.05");
         parameters[field.id] = value;
         if (field.projectField === "deployAmount") deployAmount = value;
+        if (Number.isInteger(field.argIndex)) {
+          const [whole, fraction = ""] = value.split(".");
+          const sompi = BigInt(whole) * SOMPI + BigInt(fraction.padEnd(8, "0"));
+          if (sompi > BigInt(Number.MAX_SAFE_INTEGER)) throw parameterError("Template amount exceeds the compiler argument safe integer range");
+          constructorArgs[field.argIndex] = { kind: "int", data: Number(sompi) };
+        }
       } else if (field.type === "address") {
         const value = addressPublicKey(raw, networkConfig);
         parameters[field.id] = value.address;
@@ -216,6 +235,40 @@ export class TemplateStore {
         const value = hex32(raw);
         parameters[field.id] = value;
         if (Number.isInteger(field.argIndex)) constructorArgs[field.argIndex] = compilerExpression({ kind: "bytes32", hex: value });
+      } else if (field.type === "choice") {
+        const value = String(raw || "").trim();
+        const options = Array.isArray(field.options) ? field.options.map((option) => String(option.value)) : [];
+        if (!options.includes(value)) throw parameterError(`Template choice ${field.id} is invalid`);
+        parameters[field.id] = value;
+      } else if (field.type === "kcc721CollectionId") {
+        const mode = String(inputParameters?.collectionMode || "preview");
+        if (mode === "preview") {
+          const value = "00".repeat(32);
+          parameters[field.id] = null;
+          if (Number.isInteger(field.argIndex)) constructorArgs[field.argIndex] = compilerExpression({ kind: "bytes32", hex: value });
+        } else {
+          const value = hex32(raw);
+          if (value === "00".repeat(32)) throw parameterError("A verified Collection covenant ID cannot be the all-zero preview sentinel");
+          parameters[field.id] = value;
+          if (Number.isInteger(field.argIndex)) constructorArgs[field.argIndex] = compilerExpression({ kind: "bytes32", hex: value });
+        }
+      } else if (field.type === "kcc721Metadata") {
+        let canonical;
+        try {
+          canonical = canonicalKcc721Metadata(raw);
+        } catch (error) {
+          throw parameterError(error.message);
+        }
+        const digest = sha256(canonical.canonicalJson);
+        parameters[field.id] = { ...canonical.metadata, canonicalJson: canonical.canonicalJson, digest };
+        if (Number.isInteger(field.argIndex)) constructorArgs[field.argIndex] = compilerExpression({ kind: "bytes32", hex: digest });
+      } else if (field.type === "integer") {
+        const value = Number(String(raw ?? "").trim());
+        const minimum = Number(field.minimum ?? 0);
+        const maximum = Number(field.maximum ?? Number.MAX_SAFE_INTEGER);
+        if (!Number.isSafeInteger(value) || value < minimum || value > maximum) throw parameterError(`Template integer ${field.id} must be from ${minimum} to ${maximum}`);
+        parameters[field.id] = value;
+        if (Number.isInteger(field.argIndex)) constructorArgs[field.argIndex] = { kind: "int", data: value };
       } else if (field.type === "durationDays") {
         const value = durationDays(raw, Number(field.minimum || 1), Number(field.maximum || 3650));
         parameters[field.id] = value.days;
@@ -249,6 +302,7 @@ export class TemplateStore {
       requirements: template.requirementsEn,
       source: template.source,
       constructorArgs,
+      compilerProfileId: template.compilerProfileId || config.compiler.defaultProfileId,
       templateParameters: parameters,
       deployAmount,
       specification: {
@@ -262,6 +316,7 @@ export class TemplateStore {
       review: {
         riskLevel: "experimental",
         templateId: template.id,
+        compilerProfileId: template.compilerProfileId || config.compiler.defaultProfileId,
         configured: true,
         parameterEncodingVersion,
         daaPerSecond: Number(networkConfig.daaPerSecond || 1),

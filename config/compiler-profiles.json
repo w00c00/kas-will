@@ -1,0 +1,105 @@
+{
+  "defaultProfileId": "latest-4b0e1cd",
+  "profiles": [
+    {
+      "id": "latest-4b0e1cd",
+      "label": "SilverScript latest (4b0e1cd)",
+      "upstreamCommit": "4b0e1cd69739934f92c3ac4df1bb13d912418b2b",
+      "binary": "bin/silverc-latest",
+      "artifactBytecodeField": "bytecode",
+      "syntaxGeneration": 2,
+      "status": "experimental",
+      "networkPolicy": "tn10-only",
+      "releasedAt": "2026-08-03",
+      "notes": [
+        "Uses entry syntax for public entrypoints",
+        "Exposes transaction introspection as outpointTxId",
+        "Uses checkMsgSig for arbitrary-message signatures",
+        "Compiler JSON calls the emitted program bytecode"
+      ]
+    },
+    {
+      "id": "legacy-2a3961c",
+      "label": "SilverScript legacy (2a3961c)",
+      "upstreamCommit": "2a3961cadc76bb16a425042172ffe32481da89b5",
+      "binary": "bin/silverc-legacy",
+      "artifactBytecodeField": "script",
+      "syntaxGeneration": 1,
+      "status": "legacy",
+      "networkPolicy": "tn10-only",
+      "releasedAt": "2026-07-21",
+      "notes": [
+        "Retained only for reproducible builds of existing Studio projects",
+        "New built-in templates do not target this profile"
+      ]
+    }
+  ],
+  "breakingChanges": [
+    {
+      "id": "entry-syntax",
+      "severity": "error",
+      "introducedBy": "0f99803",
+      "fromProfile": "legacy-2a3961c",
+      "toProfile": "latest-4b0e1cd",
+      "pattern": "\\bentrypoint\\s+function\\b",
+      "messageZh": "公开入口语法已从 entrypoint function 改为 entry。",
+      "messageEn": "Public entrypoint syntax changed from entrypoint function to entry.",
+      "replacement": "entry"
+    },
+    {
+      "id": "message-signature-rename",
+      "severity": "error",
+      "introducedBy": "782a4d7",
+      "fromProfile": "legacy-2a3961c",
+      "toProfile": "latest-4b0e1cd",
+      "pattern": "\\bcheckSigFromStack\\b",
+      "messageZh": "任意消息签名内建函数已改名为 checkMsgSig。",
+      "messageEn": "The arbitrary-message signature builtin was renamed to checkMsgSig.",
+      "replacement": "checkMsgSig"
+    },
+    {
+      "id": "outpoint-field-rename",
+      "severity": "error",
+      "introducedBy": "65421cf",
+      "fromProfile": "legacy-2a3961c",
+      "toProfile": "latest-4b0e1cd",
+      "pattern": "\\.outpointTransactionHash\\b",
+      "messageZh": "输入 outpoint 字段已改名为 outpointTxId。",
+      "messageEn": "The input outpoint field was renamed to outpointTxId.",
+      "replacement": ".outpointTxId"
+    },
+    {
+      "id": "reverse-removed",
+      "severity": "error",
+      "introducedBy": "6869e7d",
+      "fromProfile": "legacy-2a3961c",
+      "toProfile": "latest-4b0e1cd",
+      "pattern": "\\.reverse\\s*\\(",
+      "messageZh": ".reverse() 已删除，必须显式重写字节顺序逻辑并重新测试。",
+      "messageEn": ".reverse() was removed; rewrite byte ordering explicitly and retest it.",
+      "replacement": null
+    },
+    {
+      "id": "artifact-script-field",
+      "severity": "integration",
+      "introducedBy": "4d88ded",
+      "fromProfile": "legacy-2a3961c",
+      "toProfile": "latest-4b0e1cd",
+      "pattern": null,
+      "messageZh": "编译产物 JSON 字段由 script 改为 bytecode；外部工具必须兼容两个字段。",
+      "messageEn": "The compiler artifact JSON field changed from script to bytecode; integrations must support both.",
+      "replacement": null
+    },
+    {
+      "id": "bitwise-bytes-only",
+      "severity": "manual-review",
+      "introducedBy": "8b74812",
+      "fromProfile": "legacy-2a3961c",
+      "toProfile": "latest-4b0e1cd",
+      "pattern": "(?:^|[^&|])(?:<<|>>|\\^|&|\\|)(?:[^&|]|$)",
+      "messageZh": "位运算现在仅接受 bytes；请人工确认操作数类型。",
+      "messageEn": "Bitwise operators now accept bytes only; review operand types manually.",
+      "replacement": null
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+pragma silverscript ^0.1.0;
+
+contract MerkleOneTimeClaim(
+    pubkey claimant,
+    pubkey refundKey,
+    byte[32] merkleRoot,
+    int leafIndex,
+    byte[32] claimId,
+    int timeout
+) {
+    int constant MAX_PROOF_BYTES = 512;
+    int constant MAX_PROOF_LEVELS = 16;
+    int constant MAX_MINER_FEE = 10000000;
+
+    function requireTerminalPayment(pubkey recipient, int minerFee) {
+        require(tx.inputs.length == 1);
+        require(this.activeInputIndex == 0);
+        require(tx.outputs.length == 1);
+        require(OpAuthOutputCount(this.activeInputIndex) == 0);
+        require(minerFee >= 1000);
+        require(minerFee <= MAX_MINER_FEE);
+        require(tx.inputs[this.activeInputIndex].value > minerFee);
+        byte[34] recipientScript = new ScriptPubKeyP2PK(recipient);
+        require(tx.outputs[0].scriptPubKey == byte[](recipientScript));
+        require(tx.outputs[0].value == tx.inputs[this.activeInputIndex].value - minerFee);
+    }
+
+    entry claim(byte[] proof, byte[32] salt, sig claimantSignature, int minerFee) {
+        require(leafIndex >= 0);
+        require(proof.length <= MAX_PROOF_BYTES);
+        require(proof.length % 32 == 0);
+        int levels = proof.length / 32;
+        require(levels <= MAX_PROOF_LEVELS);
+        byte[32] node = sha256(byte[](claimant) + byte[](claimId) + byte[](salt));
+        int cursor = leafIndex;
+        for(i, 0, levels, MAX_PROOF_LEVELS) {
+            byte[32] sibling = byte[32](proof.slice(i * 32, i * 32 + 32));
+            if (cursor % 2 == 0) {
+                node = sha256(byte[](node) + byte[](sibling));
+            } else {
+                node = sha256(byte[](sibling) + byte[](node));
+            }
+            cursor = cursor / 2;
+        }
+        require(node == merkleRoot);
+        require(checkSig(claimantSignature, claimant));
+        requireTerminalPayment(claimant, minerFee);
+    }
+
+    entry refund(sig refundSignature, int minerFee) {
+        require(tx.time >= timeout);
+        require(checkSig(refundSignature, refundKey));
+        requireTerminalPayment(refundKey, minerFee);
+    }
+}

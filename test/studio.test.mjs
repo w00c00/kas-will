@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 
 import { parseAiContract } from "../server/ai-providers.mjs";
-import { compileContract, compilerManifest, staticAnalyze } from "../server/compiler.mjs";
+import { compileContract, compilerManifest, compilerProfiles, detectBreakingChanges, encodeConstructorArgsForProfile, migrateSourceToProfile, staticAnalyze } from "../server/compiler.mjs";
 import { DraftStore } from "../server/draft-store.mjs";
 import { publicConfig, SILVERSCRIPT_COMMIT } from "../server/config.mjs";
 import { buildDeployDraft, buildWalletTransferDraft, configureNodeAccess, kascovPreflight, setRpcClientFactoryForTests, sompiToKas, toKascovPreflightTransaction, walletBalance } from "../server/kaspa-service.mjs";
@@ -15,7 +15,7 @@ import { ProjectStore, SAMPLE_SOURCE } from "../server/project-store.mjs";
 import { AiSettingsStore, AppSettingsStore } from "../server/settings-store.mjs";
 import { TemplateStore } from "../server/template-store.mjs";
 import { WalletService } from "../server/wallet-service.mjs";
-import { exportExternalCovenantPackage, inspectExternalCovenantPackage, signExternalCovenantPackage } from "../server/external-covenant-service.mjs";
+import { exportExternalCovenantPackage, finalizeExternalCovenantPackage, inspectExternalCovenantPackage, signExternalCovenantPackage } from "../server/external-covenant-service.mjs";
 import { buildTemplateOperationPackage, templateOperations } from "../server/template-operation-service.mjs";
 import { clearProjectScopedTransactionState } from "../src/project-transaction-state.js";
 import { availableLifecycleOperations, lifecycleInheritanceDistributionAvailable, lifecycleRenewalAvailable } from "../src/lifecycle-presentation.js";
@@ -23,6 +23,10 @@ import { operationPresentation } from "../server/operation-metadata.mjs";
 import { buildLifecycleStatus, spentLifecycleStatus } from "../server/lifecycle-status.mjs";
 import { assertInheritanceDistributionOpen, assertLocalRenewalOpen, assertLocalRenewalPackage } from "../server/local-operation-authorization.mjs";
 import { detectPreferredLanguage } from "../src/locale.js";
+import { CovenantStateSource, covenantStateProvider, verifyCovenantStateCandidate } from "../server/covenant-state-source.mjs";
+import { createP2pkCoSpendAuthorization, selectP2pkFundingUtxo, signP2pkCoSpendPackage } from "../server/p2pk-cospend.mjs";
+import { buildAtomicCovenantPackage } from "../server/atomic-covenant-builder.mjs";
+import { canonicalKcc721Metadata } from "../src/kcc721-metadata.js";
 
 const require = createRequire(import.meta.url);
 const kaspa = require("@kluster/kaspa-wasm");
@@ -42,10 +46,17 @@ const TEMPLATE_KEYS = [
 function configuredTemplateParameters(template, network = "testnet-10") {
   let addressIndex = 0;
   return Object.fromEntries((template.parameters || []).map((field) => {
-    if (field.type === "amount") return [field.id, "0.15"];
+    if (field.type === "amount") return [field.id, Number(field.minimum || 0) > 0.15 ? String(field.default || field.minimum) : "0.15"];
     if (field.type === "address") return [field.id, new kaspa.XOnlyPublicKey(TEMPLATE_KEYS[addressIndex++ % TEMPLATE_KEYS.length]).toAddress(network).toString()];
     if (field.type === "datetime") return [field.id, "2035-01-02T03:04:00.000Z"];
     if (field.type === "sha256") return [field.id, "42".repeat(32)];
+    if (field.type === "choice") return [field.id, String(field.default || field.options?.[0]?.value || "")];
+    if (field.type === "kcc721CollectionId") return [field.id, ""];
+    if (field.type === "kcc721Metadata") return [field.id, structuredClone(field.default || { name: "TN10 test NFT", attributes: [] })];
+    if (field.type === "integer") {
+      const base = Number(field.default ?? field.minimum ?? 0);
+      return [field.id, base < Number(field.maximum ?? Number.MAX_SAFE_INTEGER) ? base + 1 : base];
+    }
     if (field.type === "durationDays") return [field.id, 181];
     if (field.type === "duration") return [field.id, { value: 181, unit: "days" }];
     if (field.type === "heirs") return [field.id, [
@@ -82,6 +93,11 @@ test("language detection respects manual choice, system language and time-zone f
     language: "fr-FR",
     timeZone: "Europe/Paris"
   }), "en");
+});
+
+test("desktop runtime includes server-imported KCC721 metadata code", () => {
+  const prepareDesktop = fs.readFileSync(new URL("../scripts/prepare-desktop-runtime.mjs", import.meta.url), "utf8");
+  assert.match(prepareDesktop, /src\/kcc721-metadata\.js/);
 });
 
 test("AI package retains explicit transaction plans and stays experimental", () => {
@@ -232,8 +248,15 @@ test("human template fields deterministically produce compile-ready constructor 
   for (const template of templates.list()) {
     const parameters = configuredTemplateParameters(template);
     const input = templates.projectInput(template.id, "tn10", parameters);
-    assert.equal(input.deployAmount, "0.15");
-    assert.deepEqual(input.templateParameters, parameters);
+    assert.equal(input.deployAmount, parameters.amountKas || "0.15");
+    if (template.id === "kcc721-experimental") {
+      assert.equal(input.templateParameters.collectionMode, "preview");
+      assert.equal(input.templateParameters.collectionId, null);
+      assert.equal(input.templateParameters.metadata.name, parameters.metadata.name);
+      assert.match(input.templateParameters.metadata.digest, /^[0-9a-f]{64}$/);
+    } else {
+      assert.deepEqual(input.templateParameters, parameters);
+    }
     for (const index of template.requiredReplacements || []) assert.notDeepEqual(input.constructorArgs[index], template.constructorArgs[index]);
     const artifact = await compileContract(input);
     assert.ok(artifact.programHex.length > 0, template.id);
@@ -549,6 +572,57 @@ test("pinned official compiler fully compiles the sample contract", async () => 
   assert.equal(artifact.analysis.findingCount, 0);
 });
 
+test("compiler profiles detect and safely migrate known upstream breaking changes", async () => {
+  const legacySource = `pragma silverscript ^0.1.0;
+contract Compatibility(pubkey owner) {
+  entrypoint function spend(sig signature) {
+    require(checkSig(signature, owner));
+  }
+}`;
+  const profiles = compilerProfiles();
+  assert.deepEqual(profiles.map((profile) => profile.id), ["latest-4b0e1cd", "legacy-2a3961c"]);
+  assert.ok(profiles.every((profile) => profile.configured));
+  const report = detectBreakingChanges(`${legacySource}\n// checkSigFromStack and tx.inputs[0].outpointTransactionHash.reverse()`, "latest-4b0e1cd");
+  assert.equal(report.compatible, false);
+  assert.ok(report.findings.some((finding) => finding.id === "entry-syntax" && finding.line === 3));
+  assert.ok(report.findings.some((finding) => finding.id === "reverse-removed" && finding.replacement === null));
+  const migrated = migrateSourceToProfile(legacySource, "latest-4b0e1cd");
+  assert.deepEqual(migrated.applied, ["entry-syntax"]);
+  assert.equal(migrated.report.compatible, true);
+  const owner = byteArray(new Uint8Array(32).fill(3));
+  const legacyArtifact = await compileContract({ source: legacySource, constructorArgs: [owner], compilerProfileId: "legacy-2a3961c" });
+  const latestArtifact = await compileContract({ source: migrated.source, constructorArgs: [owner], compilerProfileId: "latest-4b0e1cd" });
+  assert.equal(legacyArtifact.compiler.artifactBytecodeField, "script");
+  assert.equal(latestArtifact.compiler.artifactBytecodeField, "bytecode");
+  const encoded = encodeConstructorArgsForProfile(migrated.source, [owner], "latest-4b0e1cd");
+  assert.equal(encoded[0].data.type_ref.base, "byte");
+  assert.deepEqual(encoded[0].data.type_ref.array_dims, [{ kind: "fixed", value: 32 }]);
+});
+
+test("CovenantStateSource rejects false matches, records fallback and fails on ambiguity", async () => {
+  const request = { covenantId: "11".repeat(32), script: "aa55" };
+  const valid = (txByte, amount = 10_000n) => ({
+    outpoint: { transactionId: txByte.repeat(32), index: 0 },
+    entry: { amount, scriptPublicKey: { script: "aa55" }, covenantId: request.covenantId, isCoinbase: false }
+  });
+  assert.equal(verifyCovenantStateCandidate(valid("22"), request).amount, 10_000n);
+  assert.throws(() => verifyCovenantStateCandidate({ ...valid("22"), entry: { ...valid("22").entry, covenantId: "33".repeat(32) } }, request), (error) => error.code === "COVENANT_ID_MISMATCH");
+  const source = new CovenantStateSource([
+    covenantStateProvider("broken-provider", async () => { throw new Error("offline"); }),
+    covenantStateProvider("wrong-provider", async () => [{ ...valid("22"), entry: { ...valid("22").entry, scriptPublicKey: { script: "ffff" } } }]),
+    covenantStateProvider("verified-provider", async () => [valid("44")])
+  ]);
+  const resolved = await source.resolve(request);
+  assert.equal(resolved.provider, "verified-provider");
+  assert.equal(resolved.verified, true);
+  assert.ok(resolved.attempts.some((attempt) => attempt.provider === "broken-provider" && /offline/.test(attempt.error)));
+  assert.ok(resolved.attempts.some((attempt) => attempt.rejected === "COVENANT_SCRIPT_MISMATCH"));
+  await assert.rejects(
+    new CovenantStateSource([covenantStateProvider("ambiguous-provider", async () => [valid("55"), valid("66")])]).resolve(request),
+    (error) => error.code === "AMBIGUOUS_COVENANT_UTXO"
+  );
+});
+
 test("external covenant packages bind the P2SH program, covenant id, ABI slot, fee and local signature", async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "silverstudio-external-covenant-test-"));
   const originalFetch = globalThis.fetch;
@@ -610,6 +684,340 @@ test("external covenant packages bind the P2SH program, covenant id, ABI slot, f
   } finally {
     globalThis.fetch = originalFetch;
     fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("P2PK co-spend authorization and atomic multi-covenant builder bind wallet, inputs, covenant IDs and fee", async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "silverstudio-atomic-cospend-test-"));
+  try {
+    const wallets = new WalletService(directory);
+    const created = await wallets.create({ title: "Atomic owner", walletSecret: "atomic-wallet-password" });
+    const owner = await wallets.unlock({ walletId: created.wallet.id, walletSecret: "atomic-wallet-password", network: "tn10" });
+    const source = `pragma silverscript ^0.1.0;
+contract AtomicCell() { entry spend() { require(true); } }`;
+    const artifact = await compileContract({ source, constructorArgs: [] });
+    const p2sh = kaspa.payToScriptHashScript(artifact.programHex);
+    const p2shAddress = kaspa.addressFromScriptPublicKey(p2sh, "testnet-10").toString();
+    const covenantUtxo = (txByte, amount, covenantId) => ({
+      address: p2shAddress,
+      outpoint: { transactionId: txByte.repeat(32), index: 0 },
+      amount,
+      scriptPublicKey: p2sh,
+      blockDaaScore: 100n,
+      isCoinbase: false,
+      covenantId
+    });
+    const p2pkScript = kaspa.payToAddressScript(owner.address);
+    const fundingUtxos = [
+      { address: owner.address, outpoint: { transactionId: "77".repeat(32), index: 0 }, amount: 9_000_000n, scriptPublicKey: p2pkScript, blockDaaScore: 10n, isCoinbase: false },
+      { address: owner.address, outpoint: { transactionId: "88".repeat(32), index: 0 }, amount: 5_000_000n, scriptPublicKey: p2pkScript, blockDaaScore: 10n, isCoinbase: false },
+      { address: owner.address, outpoint: { transactionId: "99".repeat(32), index: 0 }, amount: 4_000_000n, scriptPublicKey: p2pkScript, blockDaaScore: 0n, isCoinbase: false }
+    ];
+    const selected = selectP2pkFundingUtxo(fundingUtxos, 4_000_000n);
+    assert.equal(selected.amount, 5_000_000n);
+    const authorization = createP2pkCoSpendAuthorization({
+      network: "tn10",
+      address: owner.address,
+      publicKey: owner.publicKey,
+      utxo: selected,
+      inputIndex: 2
+    });
+    const inputs = [
+      { utxo: covenantUtxo("11", 12_000_000n, "aa".repeat(32)), programHex: artifact.programHex, abi: artifact.abi, entrypoint: "spend", arguments: [] },
+      { utxo: covenantUtxo("22", 13_000_000n, "bb".repeat(32)), programHex: artifact.programHex, abi: artifact.abi, entrypoint: "spend", arguments: [] }
+    ];
+    const pkg = buildAtomicCovenantPackage({
+      network: "tn10",
+      covenantInputs: inputs,
+      p2pkAuthorization: authorization,
+      outputs: [{ address: owner.address, valueSompi: "29000000" }],
+      feeSompi: "1000000",
+      provenance: { templateId: "kcc721-experimental", operationId: "transfer" }
+    });
+    const inspected = inspectExternalCovenantPackage(pkg);
+    assert.equal(inspected.review.atomic, true);
+    assert.deepEqual(inspected.review.targetInputIndexes, [0, 1]);
+    assert.equal(inspected.review.p2pkAuthorization.signed, false);
+    assert.equal(inspected.review.complete, false);
+    const signed = await signP2pkCoSpendPackage({
+      package: inspected.package,
+      walletId: created.wallet.id,
+      walletSecret: "atomic-wallet-password",
+      confirmation: "SIGN REVIEWED P2PK CO-SPEND"
+    }, wallets);
+    const signedReview = inspectExternalCovenantPackage(signed.package);
+    assert.equal(signedReview.review.p2pkAuthorization.signed, true);
+    assert.equal(signedReview.review.complete, true);
+    const signedTransaction = JSON.parse(signed.package.transactionSafeJson);
+    assert.equal(signedTransaction.inputs[0].signatureScript, "");
+    assert.equal(signedTransaction.inputs[1].signatureScript, "");
+    assert.ok(signedTransaction.inputs[2].signatureScript.length > 0);
+
+    const duplicate = inputs.map((item) => ({ ...item, utxo: { ...item.utxo } }));
+    duplicate[1].utxo.covenantId = duplicate[0].utxo.covenantId;
+    assert.throws(() => buildAtomicCovenantPackage({ network: "tn10", covenantInputs: duplicate, outputs: [{ address: owner.address, valueSompi: "24000000" }], feeSompi: "1000000" }), /one live input per covenant ID/i);
+    assert.throws(() => buildAtomicCovenantPackage({ network: "tn10", covenantInputs: inputs, outputs: [{ address: owner.address, valueSompi: "24000000" }], feeSompi: "999999" }), /explicit fee/i);
+    const wrongNetwork = new kaspa.XOnlyPublicKey(TEMPLATE_KEYS[0]).toAddress("mainnet").toString();
+    assert.throws(() => buildAtomicCovenantPackage({ network: "tn10", covenantInputs: inputs, outputs: [{ address: wrongNetwork, valueSompi: "24000000" }], feeSompi: "1000000" }), /wrong network/i);
+    const forged = structuredClone(pkg);
+    forged.p2pkAuthorization.inputIndex = 0;
+    assert.throws(() => inspectExternalCovenantPackage(forged), /cannot point at a covenant input/i);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("Merkle one-time claim and commit/reveal builders verify proofs before producing signing packages", async () => {
+  const templates = new TemplateStore();
+  const claimantKey = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+  const claimantAddress = new kaspa.XOnlyPublicKey(claimantKey).toAddress("testnet-10").toString();
+  const refundAddress = new kaspa.XOnlyPublicKey(TEMPLATE_KEYS[1]).toAddress("testnet-10").toString();
+  const claimId = "a1".repeat(32);
+  const salt = "b2".repeat(32);
+  const merkleRoot = crypto.createHash("sha256").update(Buffer.concat([
+    Buffer.from(claimantKey, "hex"), Buffer.from(claimId, "hex"), Buffer.from(salt, "hex")
+  ])).digest("hex");
+  const timeout = new Date(Date.now() + 3_600_000).toISOString();
+  const merkleTemplate = templates.get("merkle-one-time-claim");
+  const merkleInput = templates.projectInput(merkleTemplate.id, "tn10", {
+    amountKas: "0.5",
+    claimantAddress,
+    refundAddress,
+    merkleRoot,
+    leafIndex: 0,
+    claimId,
+    timeout
+  });
+  const merkleArtifact = await compileContract(merkleInput);
+
+  const domain = "c3".repeat(32);
+  const payloadHex = Buffer.from("verified delivery", "utf8").toString("hex");
+  const revealSalt = "d4".repeat(32);
+  const commitment = crypto.createHash("sha256").update(Buffer.concat([
+    Buffer.from(domain, "hex"), Buffer.from(payloadHex, "hex"), Buffer.from(revealSalt, "hex")
+  ])).digest("hex");
+  const commitTemplate = templates.get("commit-reveal");
+  const commitInput = templates.projectInput(commitTemplate.id, "tn10", {
+    amountKas: "0.5",
+    senderAddress: refundAddress,
+    recipientAddress: claimantAddress,
+    domain,
+    commitment,
+    timeout
+  });
+  const commitArtifact = await compileContract(commitInput);
+
+  async function build(projectInput, artifact, template, operationInput, covenantByte) {
+    const covenantId = covenantByte.repeat(32);
+    const p2sh = kaspa.payToScriptHashScript(artifact.programHex);
+    const p2shAddress = kaspa.addressFromScriptPublicKey(p2sh, "testnet-10").toString();
+    const project = {
+      id: `proof-${template.id}`,
+      ...projectInput,
+      artifact,
+      deployment: { txid: "ee".repeat(32), covenantId, network: "tn10" },
+      review: { ...projectInput.review, templateId: template.id }
+    };
+    const holder = kaspa.Transaction.deserializeFromSafeJSON(JSON.stringify({
+      id: "00".repeat(32), version: 1,
+      inputs: [{ transactionId: "ee".repeat(32), index: 0, sequence: "0", sigOpCount: 0, computeBudget: 0, signatureScript: "", utxo: { address: p2shAddress, amount: "50000000", scriptPublicKey: `0000${p2sh.script}`, blockDaaScore: "0", isCoinbase: false, covenantId } }],
+      outputs: [{ value: "1", scriptPublicKey: `0000${kaspa.payToAddressScript(claimantAddress).script}`, covenant: null }],
+      subnetworkId: "00".repeat(20), lockTime: "0", gas: "0", storageMass: "0", payload: ""
+    }));
+    const lookup = async () => ({ entry: holder.inputs[0].utxo, address: p2shAddress, covenantId });
+    const preflight = async () => ({ ok: true, verdict: "ready", stage: "draft" });
+    return buildTemplateOperationPackage(operationInput, project, template, lookup, preflight);
+  }
+
+  const merklePackage = await build(merkleInput, merkleArtifact, merkleTemplate, {
+    operationId: "claim", proofHex: "", saltHex: salt, feeKas: "0.01"
+  }, "91");
+  assert.equal(merklePackage.review.operation.kind, "merkle-claim");
+  assert.equal(merklePackage.review.signatureSlots[0].publicKey, claimantKey);
+  await assert.rejects(
+    build(merkleInput, merkleArtifact, merkleTemplate, { operationId: "claim", proofHex: "", saltHex: "00".repeat(32), feeKas: "0.01" }, "92"),
+    (error) => error.code === "MERKLE_PROOF_MISMATCH"
+  );
+
+  const revealPackage = await build(commitInput, commitArtifact, commitTemplate, {
+    operationId: "reveal", payloadHex, saltHex: revealSalt, feeKas: "0.01"
+  }, "93");
+  assert.equal(revealPackage.review.operation.kind, "commit-reveal");
+  assert.equal(revealPackage.review.signatureSlots[0].publicKey, claimantKey);
+  await assert.rejects(
+    build(commitInput, commitArtifact, commitTemplate, { operationId: "reveal", payloadHex: "ff", saltHex: revealSalt, feeKas: "0.01" }, "94"),
+    (error) => error.code === "COMMITMENT_MISMATCH"
+  );
+
+  const claimantPrivateKey = new kaspa.PrivateKey("01".padStart(64, "0"));
+  const originalFetch = globalThis.fetch;
+  function finalizeWithClaimantSignature(built, signatureIndex, mutate = null) {
+    const pkg = structuredClone(built.package);
+    const transaction = kaspa.Transaction.deserializeFromSafeJSON(pkg.transactionSafeJson);
+    const encoded = String(kaspa.createInputSignature(transaction, 0, claimantPrivateKey, 1)).toLowerCase();
+    pkg.covenantInput.arguments[signatureIndex].hex = /^41[0-9a-f]{130}$/.test(encoded) ? encoded.slice(2) : encoded;
+    mutate?.(pkg.covenantInput.arguments);
+    return finalizeExternalCovenantPackage(pkg).package.transactionSafeJson;
+  }
+  try {
+    globalThis.fetch = async () => { throw new Error("all websites unavailable"); };
+    let validMerkle;
+    const validMerkleJson = finalizeWithClaimantSignature(merklePackage, 2);
+    try { validMerkle = await kascovPreflight(validMerkleJson, "tn10", "signed"); }
+    catch (error) { throw new Error(`Valid Merkle execution failed: ${JSON.stringify(error.report || error.message)}`); }
+    assert.equal(validMerkle.verdict, "ready");
+    assert.equal(validMerkle.provider, "local");
+    await assert.rejects(
+      kascovPreflight(finalizeWithClaimantSignature(merklePackage, 2, (args) => { args[1].hex = "00".repeat(32); }), "tn10", "signed"),
+      (error) => error.code === "PREFLIGHT_REJECTED"
+    );
+    const validReveal = await kascovPreflight(finalizeWithClaimantSignature(revealPackage, 2), "tn10", "signed");
+    assert.equal(validReveal.verdict, "ready");
+    await assert.rejects(
+      kascovPreflight(finalizeWithClaimantSignature(revealPackage, 2, (args) => { args[0].hex = "ff"; }), "tn10", "signed"),
+      (error) => error.code === "PREFLIGHT_REJECTED"
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    try { claimantPrivateKey.free(); } catch {}
+  }
+});
+
+test("TN10 Experimental KCC721 pack compiles all pinned contracts and blocks standalone or mainnet deployment", async () => {
+  const templates = new TemplateStore();
+  const pack = templates.get("kcc721-experimental");
+  assert.equal(pack.experimentalOnly, true);
+  assert.deepEqual(pack.networkAllowlist, ["tn10"]);
+  assert.equal(pack.packContracts.length, 4);
+  const compiled = new Map();
+  for (const contract of pack.packContracts) {
+    const artifact = await compileContract({ source: contract.source, constructorArgs: contract.constructorArgs, compilerProfileId: pack.compilerProfileId });
+    assert.ok(artifact.programHex.length > 0, contract.id);
+    assert.equal(artifact.compiler.id, "latest-4b0e1cd");
+    compiled.set(contract.id, artifact);
+  }
+  const configured = templates.projectInput(pack.id, "tn10", configuredTemplateParameters(pack));
+  const expectedMetadata = canonicalKcc721Metadata(pack.parameters.find((field) => field.type === "kcc721Metadata").default);
+  const expectedMetadataDigest = crypto.createHash("sha256").update(expectedMetadata.canonicalJson).digest("hex");
+  assert.equal(configured.templateParameters.collectionMode, "preview");
+  assert.equal(configured.templateParameters.collectionId, null);
+  assert.equal(configured.templateParameters.metadata.digest, expectedMetadataDigest);
+  assert.deepEqual(configured.constructorArgs[0], byteArray(Buffer.alloc(32)));
+  assert.deepEqual(configured.constructorArgs[2], byteArray(Buffer.from(expectedMetadataDigest, "hex")));
+  assert.match(templates.deploymentBlockedReasons(pack.id, { project: configured })[0], /four-contract TN10 experimental pack/i);
+  assert.throws(() => templates.projectInput(pack.id, "mainnet", configuredTemplateParameters(pack, "mainnet")), /restricted to tn10/i);
+
+  const importedParameters = configuredTemplateParameters(pack);
+  importedParameters.collectionMode = "existing";
+  assert.throws(() => templates.projectInput(pack.id, "tn10", importedParameters), /exactly 64 hexadecimal/i);
+  importedParameters.collectionId = "00".repeat(32);
+  assert.throws(() => templates.projectInput(pack.id, "tn10", importedParameters), /all-zero preview sentinel/i);
+  importedParameters.collectionId = "ab".repeat(32);
+  const imported = templates.projectInput(pack.id, "tn10", importedParameters);
+  assert.equal(imported.templateParameters.collectionId, "ab".repeat(32));
+  assert.deepEqual(imported.constructorArgs[0], byteArray(Buffer.from("ab".repeat(32), "hex")));
+
+  const nftContract = pack.packContracts.find((contract) => contract.id === "nft");
+  const currentOwnerPrivateKey = new kaspa.PrivateKey("01".padStart(64, "0"));
+  const nextOwnerPrivateKey = new kaspa.PrivateKey("02".padStart(64, "0"));
+  const currentOwnerKey = currentOwnerPrivateKey.toPublicKey().toXOnlyPublicKey().toString();
+  const nextOwnerKey = nextOwnerPrivateKey.toPublicKey().toXOnlyPublicKey().toString();
+  const currentOwnerAddress = currentOwnerPrivateKey.toAddress("testnet-10").toString();
+  const collectionId = "11".repeat(32);
+  const metadataDigest = "22".repeat(32);
+  const argsFor = (tokenId, ownerKey) => [
+    byteArray(Buffer.from(collectionId, "hex")),
+    { kind: "int", data: tokenId },
+    byteArray(Buffer.from(metadataDigest, "hex")),
+    byteArray(Buffer.from(ownerKey, "hex"))
+  ];
+  const currentArtifacts = [
+    await compileContract({ source: nftContract.source, constructorArgs: argsFor(1, currentOwnerKey) }),
+    await compileContract({ source: nftContract.source, constructorArgs: argsFor(2, currentOwnerKey) })
+  ];
+  const nextArtifacts = [
+    await compileContract({ source: nftContract.source, constructorArgs: argsFor(1, nextOwnerKey) }),
+    await compileContract({ source: nftContract.source, constructorArgs: argsFor(2, nextOwnerKey) })
+  ];
+  const covenantIds = ["a7".repeat(32), "b8".repeat(32)];
+  const covenantUtxo = (index) => {
+    const p2sh = kaspa.payToScriptHashScript(currentArtifacts[index].programHex);
+    return {
+      address: kaspa.addressFromScriptPublicKey(p2sh, "testnet-10").toString(),
+      outpoint: { transactionId: `${index + 3}`.repeat(64), index: 0 },
+      amount: 50_000_000n,
+      scriptPublicKey: p2sh,
+      blockDaaScore: 100n,
+      isCoinbase: false,
+      covenantId: covenantIds[index]
+    };
+  };
+  const ownerUtxo = {
+    address: currentOwnerAddress,
+    outpoint: { transactionId: "c9".repeat(32), index: 0 },
+    amount: 5_000_000n,
+    scriptPublicKey: kaspa.payToAddressScript(currentOwnerAddress),
+    blockDaaScore: 100n,
+    isCoinbase: false
+  };
+  const authorization = createP2pkCoSpendAuthorization({
+    network: "tn10", address: currentOwnerAddress, publicKey: currentOwnerKey, utxo: ownerUtxo, inputIndex: 2
+  });
+  const stateArgument = (tokenId) => ({
+    kind: "state",
+    fields: {
+      collectionId: { kind: "bytes32", hex: collectionId },
+      tokenId: { kind: "int", data: tokenId },
+      metadataDigest: { kind: "bytes32", hex: metadataDigest },
+      owner: { kind: "pubkey", hex: nextOwnerKey }
+    }
+  });
+  const atomic = buildAtomicCovenantPackage({
+    network: "tn10",
+    covenantInputs: [0, 1].map((index) => ({
+      utxo: covenantUtxo(index),
+      programHex: currentArtifacts[index].programHex,
+      abi: currentArtifacts[index].abi,
+      stateFields: currentArtifacts[index].stateFields,
+      entrypoint: "__covenant_entrypoint_auth_transfer",
+      arguments: [stateArgument(index + 1), { kind: "int", data: 2 }]
+    })),
+    p2pkAuthorization: authorization,
+    outputs: [
+      { programHex: nextArtifacts[0].programHex, covenantId: covenantIds[0], valueSompi: "50000000" },
+      { programHex: nextArtifacts[1].programHex, covenantId: covenantIds[1], valueSompi: "50000000" },
+      { address: currentOwnerAddress, valueSompi: "4000000" }
+    ],
+    feeSompi: "1000000",
+    provenance: { templateId: pack.id, operationId: "transfer" }
+  });
+  const p2pkSigner = {
+    async signP2pkInput({ transactionSafeJson, inputIndex }) {
+      const transaction = kaspa.Transaction.deserializeFromSafeJSON(transactionSafeJson);
+      const encoded = String(kaspa.createInputSignature(transaction, inputIndex, currentOwnerPrivateKey, 1)).toLowerCase();
+      const inputs = transaction.inputs;
+      inputs[inputIndex].signatureScript = /^41[0-9a-f]{130}$/.test(encoded) ? encoded : `41${encoded}`;
+      transaction.inputs = inputs;
+      transaction.finalize();
+      return transaction.serializeToSafeJSON();
+    }
+  };
+  const originalFetch = globalThis.fetch;
+  try {
+    const ownerSigned = await signP2pkCoSpendPackage({ package: atomic, confirmation: "SIGN REVIEWED P2PK CO-SPEND" }, p2pkSigner);
+    const finalized = finalizeExternalCovenantPackage(ownerSigned.package);
+    assert.equal(finalized.review.atomic, true);
+    assert.equal(finalized.review.operation.kind, "p2pk-cospend");
+    assert.equal(finalized.review.complete, true);
+    globalThis.fetch = async () => { throw new Error("all websites unavailable"); };
+    const report = await kascovPreflight(finalized.package.transactionSafeJson, "tn10", "signed");
+    assert.equal(report.verdict, "ready");
+    assert.equal(report.executed.length, 3);
+    assert.ok(report.executed.every((entry) => entry.pass));
+  } finally {
+    globalThis.fetch = originalFetch;
+    try { currentOwnerPrivateKey.free(); } catch {}
+    try { nextOwnerPrivateKey.free(); } catch {}
   }
 });
 

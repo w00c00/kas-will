@@ -3,6 +3,7 @@ import fs from "node:fs";
 import { spawn } from "node:child_process";
 import { config, NETWORKS } from "./config.mjs";
 import { sha256, transactionCommitment } from "./security.mjs";
+import { CovenantStateSource, covenantStateProvider } from "./covenant-state-source.mjs";
 
 const require = createRequire(import.meta.url);
 const kaspa = require("@kluster/kaspa-wasm");
@@ -644,23 +645,35 @@ export async function findCovenantUtxo(networkId, programHex, txid, outputIndex 
   const script = kaspa.payToScriptHashScript(assertProgramHex(programHex));
   const address = kaspa.addressFromScriptPublicKey(script, network.kaspaNetworkId)?.toString();
   if (!address) throw new Error("Unable to derive the covenant P2SH address");
-  const response = await withRpc(network, (rpc) => rpc.getUtxosByAddresses([address]));
   const expectedTxid = String(txid || "").toLowerCase();
   const expectedIndex = Number(outputIndex);
-  const entries = response.entries || [];
   const expectedId = String(expectedCovenantId || "").toLowerCase();
-  const exact = entries.find((entry) => entry.outpoint.transactionId.toLowerCase() === expectedTxid && entry.outpoint.index === expectedIndex);
-  const matching = /^[0-9a-f]{64}$/.test(expectedId)
-    ? entries.filter((entry) => String(entry.entry?.covenantId || "").toLowerCase() === expectedId && entry.scriptPublicKey.script === script.script)
-    : [];
-  if (matching.length > 1) throw Object.assign(new Error("Multiple unspent outputs share the expected covenant ID; manual review is required"), { status: 409, code: "AMBIGUOUS_COVENANT_UTXO" });
-  const found = exact && (!expectedId || String(exact.entry?.covenantId || "").toLowerCase() === expectedId) ? exact : matching[0];
-  if (!found) throw Object.assign(new Error("The covenant output is not unspent or is not visible on the selected network"), { status: 404, code: "COVENANT_UTXO_NOT_FOUND" });
-  if (found.scriptPublicKey.script !== script.script) throw new Error("On-chain covenant output does not match the compiled program");
-  const covenantId = String(found.entry?.covenantId || "").toLowerCase();
-  if (!/^[0-9a-f]{64}$/.test(covenantId)) throw new Error("On-chain output has no covenant ID");
-  if (expectedId && covenantId !== expectedId) throw new Error("On-chain covenant ID does not match the expected covenant");
-  return { entry: found, address, covenantId };
+  const result = await withRpc(network, async (rpc) => {
+    const providers = [
+      covenantStateProvider("native-covenant-rpc", async () => {
+        const response = await rpc.getUtxosByCovenantId({ covenantId: expectedId, limit: 300 });
+        return response?.entries || response?.utxos || [];
+      }, () => Boolean(expectedId && typeof rpc.getUtxosByCovenantId === "function")),
+      covenantStateProvider("native-outpoint-rpc", async () => {
+        const response = await rpc.getUtxosByOutpoints([{ transactionId: expectedTxid, index: expectedIndex }]);
+        return response?.entries || response?.utxos || [];
+      }, () => Boolean(expectedTxid && typeof rpc.getUtxosByOutpoints === "function")),
+      covenantStateProvider("p2sh-address-rpc", async () => {
+        const response = await rpc.getUtxosByAddresses([address]);
+        const entries = response?.entries || [];
+        const exact = entries.filter((entry) => String(entry.outpoint?.transactionId || "").toLowerCase() === expectedTxid && Number(entry.outpoint?.index) === expectedIndex);
+        if (exact.length) return exact;
+        return expectedId ? entries.filter((entry) => String(entry.entry?.covenantId || entry.covenantId || "").toLowerCase() === expectedId) : [];
+      })
+    ];
+    return new CovenantStateSource(providers).resolve({
+      network: network.id,
+      covenantId: expectedId,
+      script: script.script,
+      ...(expectedTxid && !expectedId ? { outpoint: { transactionId: expectedTxid, index: expectedIndex } } : {})
+    });
+  });
+  return { ...result, address };
 }
 
 export async function submitReviewedTransaction(networkId, transactionSafeJson) {

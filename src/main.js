@@ -2,6 +2,7 @@ import "./styles.css";
 import { clearProjectScopedTransactionState } from "./project-transaction-state.js";
 import { availableLifecycleOperations, lifecycleInheritanceDistributionAvailable, lifecycleRenewalAvailable } from "./lifecycle-presentation.js";
 import { detectBrowserLanguage } from "./locale.js";
+import { kcc721MetadataDigest } from "./kcc721-metadata.js";
 import { open as openExternalUrl } from "@tauri-apps/plugin-shell";
 
 const $ = (selector) => document.querySelector(selector);
@@ -21,7 +22,7 @@ const copy = {
     generatedDesign: "生成结果", waitingInput: "等待需求", designEmpty: "输入自然语言需求，AI 将先生成状态机、不变量和威胁模型，再给出 SilverScript 源码。",
     applyCandidate: "采纳候选源码", discard: "放弃", normalizeWhitespace: "整理空白", analyze: "静态检查",
     constructorArgs: "构造参数", argsHelp: "使用 silverc 的表达式 JSON 数组格式。无构造参数时填写 []。",
-    compilePinned: "使用固定编译器完整编译", artifact: "编译凭证", compileEmpty: "完整编译后，这里会显示 ABI、程序哈希和启发式安全检查结果。",
+    compilePinned: "使用固定编译器完整编译", artifact: "编译凭证", compileEmpty: "完整编译后，这里会显示 ABI、程序哈希和启发式安全检查结果。", compilerProfile: "编译器兼容档案", checkCompatibility: "检查破坏性变更", applySafeMigration: "应用安全迁移",
     experimentalWarning: "实验性软件", deployWarning: "默认仅使用 TN10。编译成功不代表安全；签名前请审查源码、构造参数、金额和完整交易。",
     fundCovenant: "为 Covenant 创建链上 UTXO", network: "网络", amount: "锁定金额", mainnetPhrase: "主网确认短语",
     walletNotConnected: "钱包未连接", walletHelp: "使用内置加密钱包在本机完成签名", buildDraft: "构建并预检签名草案",
@@ -47,7 +48,7 @@ const copy = {
     backupMnemonic: "立即备份助记词", backupWarning: "这是恢复钱包的唯一凭证，只显示这一次。请离线抄写，不要截图、上传云盘或发送给任何人。", passphraseBackupWarning: "你设置了 BIP39 附加密码。恢复钱包时必须同时拥有助记词和附加密码，请分别离线备份。", shownOnce: "仅显示一次", backupConfirmed: "我已经按顺序离线备份，并理解丢失后无法恢复", finishBackup: "完成备份",
     noProjectHelp: "当前没有打开的工作。选择下方模板直接创建，或点击左侧 ＋ 新建空白工作。", templateIntro: "优先使用已经完整编译验证的模板。点击只会选择并预览，不会创建新工作，也不会调用 AI。", selectTemplate: "选择并预览", viewExample: "查看用例示范", newFromTemplate: "从模板新建工作", applyTemplate: "应用到当前工作", templateParameters: "填写模板信息", templateParametersHint: "参数在本地确定性转换，不会调用 AI", templateParameterBoundary: "钱包字段用于生成契约授权公钥；锁定金额同步到上链步骤。模板不会保存私钥或秘密原文。", useConnectedWallet: "使用当前钱包", describeCustomContract: "自定义契约（AI）", customAiHelp: "只有现有模板无法覆盖需求时才使用 AI。AI 生成的是候选方案，不会替代固定模板。", confirmTemplateApply: "确认应用模板", templateReplaceWarning: "当前源码、构造参数和未上链的编译凭证将被模板内容替换；已经广播的链上交易不受影响。", confirmApply: "确认应用", deleteProject: "删除工作", deleteProjectWarning: "此操作只删除本地工作文件且无法撤销；已经广播的链上交易不会被删除。", confirmDelete: "确认删除", exampleRoles: "参与角色", exampleSteps: "操作步骤", exampleResult: "链上结果", understood: "知道了",
     externalCovenantTitle: "操作包识别、审查与签名", externalCovenantHelp: "导入后会识别续期、多签、领取、退款或付款界面。业务标签只用于辅助理解；真正的授权依据仍是完整交易、UTXO、redeem program、ABI、入口、参数和全部输出。", externalPackage: "交易包 JSON", inspectPackage: "识别并只读审查", importInvitation: "导入操作包", signPackage: "签署匹配槽位", externalConfirmation: "外部签名确认短语", externalConfirmationHelp: "签名前请完整输入：SIGN REVIEWED EXTERNAL COVENANT", externalReviewEmpty: "先粘贴或导入完整操作包。应用会核对 P2SH、covenant ID、输入输出、手续费、ABI 参数和签名槽位。", signedPackage: "最新操作包", copySignedPackage: "复制最新包", broadcastConfirmation: "广播确认短语", broadcastPackage: "预检并广播完整交易", signingInvitationTitle: "异地签名邀请", signingInvitationHelp: "把同一个最新邀请包按顺序发送给签名人。每个人在自己的设备导入、核对交易承诺、签名，再把更新后的包传给下一位。", transactionCommitment: "交易承诺", copyInvitation: "复制邀请", downloadInvitation: "下载邀请文件", shareInvitation: "系统分享", sequentialSigningWarning: "必须传递最新的部分签名包，不能让两个人分别签署两个初始副本。签名前请通过另一条可信渠道比对交易承诺。",
-    lifecycleTitle: "导出或异地处理操作包", lifecycleHelp: "只有需要交给其他电脑或多位签名人时，才在这里构建可携带操作包。本机继承合约续期请直接使用上方“签到续期”。", operation: "操作", operationFee: "显式手续费", operationDestination: "释放到钱包", claimSecretHex: "秘密原文（十六进制）", multisigSigners: "选择本次参与的两个签名钱包", multisigInviteHint: "构建后下载邀请文件，按顺序发送给这两位签名人；每个人都在自己的设备签名。", buildOperationPackage: "构建可导出的操作包", lifecycleDestinationRequired: "请填写释放到钱包的地址", lifecycleDestinationWrongNetwork: "释放地址必须属于当前项目网络", lifecycleDestinationInvalid: "释放地址必须是有效的 P2PK 钱包地址", multisigDeployGuideTitle: "多签邀请要在部署完成后生成", multisigBeforeDeploy: "这里的“构建草案”只负责由出资钱包创建多签 Covenant UTXO，不需要三位成员共同签名。完成签名和广播后，下面会出现“三选二释放”；在那里选择两位成员并构建操作，下载邀请文件。", multisigAfterDeploy: "多签 Covenant 已部署。请在下方“三选二释放”中选择两位签名钱包、填写目标地址，然后点击“构建操作交易包”；下载按钮会立即出现在旁边。", contractSchedule: "合约到期与活动状态", refreshLifecycle: "刷新链上状态", recognizedOperation: "已识别操作", renewNow: "签到续期", inheritNow: "触发继承分配", inheritanceMatureHelp: "等待期已经成熟。任何人都可以准备分配交易；继承地址和比例由链上契约固定，广播前请核对每笔金额。", walletRequired: "此操作需要钱包，请先连接钱包"
+    lifecycleTitle: "导出或异地处理操作包", lifecycleHelp: "只有需要交给其他电脑或多位签名人时，才在这里构建可携带操作包。本机继承合约续期请直接使用上方“签到续期”。", operation: "操作", operationFee: "显式手续费", operationDestination: "释放到钱包", claimSecretHex: "秘密原文（十六进制）", merkleProofHex: "Merkle 证明（十六进制）", revealPayloadHex: "Reveal Payload（十六进制）", revealSaltHex: "32-byte Salt（十六进制）", multisigSigners: "选择本次参与的两个签名钱包", multisigInviteHint: "构建后下载邀请文件，按顺序发送给这两位签名人；每个人都在自己的设备签名。", buildOperationPackage: "构建可导出的操作包", lifecycleDestinationRequired: "请填写释放到钱包的地址", lifecycleDestinationWrongNetwork: "释放地址必须属于当前项目网络", lifecycleDestinationInvalid: "释放地址必须是有效的 P2PK 钱包地址", multisigDeployGuideTitle: "多签邀请要在部署完成后生成", multisigBeforeDeploy: "这里的“构建草案”只负责由出资钱包创建多签 Covenant UTXO，不需要三位成员共同签名。完成签名和广播后，下面会出现“三选二释放”；在那里选择两位成员并构建操作，下载邀请文件。", multisigAfterDeploy: "多签 Covenant 已部署。请在下方“三选二释放”中选择两位签名钱包、填写目标地址，然后点击“构建操作交易包”；下载按钮会立即出现在旁边。", contractSchedule: "合约到期与活动状态", refreshLifecycle: "刷新链上状态", recognizedOperation: "已识别操作", renewNow: "签到续期", inheritNow: "触发继承分配", inheritanceMatureHelp: "等待期已经成熟。任何人都可以准备分配交易；继承地址和比例由链上契约固定，广播前请核对每笔金额。", walletRequired: "此操作需要钱包，请先连接钱包"
   },
   en: {
     connectWallet: "Connect wallet", localWorkspace: "Local workspace", projects: "Contract projects", toolchain: "Toolchain",
@@ -60,7 +61,7 @@ const copy = {
     generatedDesign: "Generated design", waitingInput: "Waiting for intent", designEmpty: "Describe the intent in plain language. AI will design the state machine, invariants and threat model before producing SilverScript source.",
     applyCandidate: "Apply candidate source", discard: "Discard", normalizeWhitespace: "Normalize whitespace", analyze: "Static analysis",
     constructorArgs: "Constructor arguments", argsHelp: "Use silverc expression JSON array format. Enter [] when the contract has no constructor parameters.",
-    compilePinned: "Compile with pinned toolchain", artifact: "Build evidence", compileEmpty: "A full build will show the ABI, program hashes and heuristic security findings here.",
+    compilePinned: "Compile with pinned toolchain", artifact: "Build evidence", compileEmpty: "A full build will show the ABI, program hashes and heuristic security findings here.", compilerProfile: "Compiler compatibility profile", checkCompatibility: "Check breaking changes", applySafeMigration: "Apply safe migration",
     experimentalWarning: "Experimental software", deployWarning: "TN10 is the default. A successful build is not a security proof; review source, arguments, amount and the full transaction before signing.",
     fundCovenant: "Create the covenant UTXO", network: "Network", amount: "Locked amount", mainnetPhrase: "Mainnet confirmation phrase",
     walletNotConnected: "Wallet not connected", walletHelp: "Sign locally with the encrypted Studio wallet", buildDraft: "Build and preflight signing draft",
@@ -86,7 +87,7 @@ const copy = {
     backupMnemonic: "Back up your mnemonic now", backupWarning: "This is the only wallet recovery credential and it is shown once. Write it down offline—never screenshot, upload or send it to anyone.", passphraseBackupWarning: "You set a BIP39 passphrase. Recovery requires both the mnemonic and passphrase; back them up separately offline.", shownOnce: "Shown once", backupConfirmed: "I recorded every word in order offline and understand that loss is unrecoverable", finishBackup: "Finish backup",
     noProjectHelp: "No work is open. Create directly from a template below, or click ＋ in the sidebar for a blank work.", templateIntro: "Start with a fully compiled template whenever possible. Clicking only selects and previews it—it creates no work and never calls AI.", selectTemplate: "Select & preview", viewExample: "View use-case example", newFromTemplate: "New work from template", applyTemplate: "Apply to current work", templateParameters: "Configure template", templateParametersHint: "Parameters are converted deterministically without AI", templateParameterBoundary: "Wallet fields generate covenant authorization keys, and the locked amount is copied to deployment. Templates never store private keys or secret preimages.", useConnectedWallet: "Use connected wallet", describeCustomContract: "Custom contract (AI)", customAiHelp: "Use AI only when the available templates cannot cover the requirement. AI produces a candidate; it does not replace deterministic templates.", confirmTemplateApply: "Confirm template application", templateReplaceWarning: "The current source, constructor arguments and unbroadcast build evidence will be replaced. Transactions already broadcast on-chain are unaffected.", confirmApply: "Apply template", deleteProject: "Delete work", deleteProjectWarning: "This permanently deletes only the local work file. Transactions already broadcast on-chain cannot be deleted.", confirmDelete: "Delete work", exampleRoles: "Participants", exampleSteps: "Walkthrough", exampleResult: "On-chain result", understood: "Got it",
     externalCovenantTitle: "Recognize, review & sign operation packages", externalCovenantHelp: "Imported packages are classified as renewal, multisig, claim, refund or payment. The label is only a review aid; authorization still comes from the complete transaction, UTXOs, redeem program, ABI, entrypoint, arguments and every output.", externalPackage: "Operation package JSON", inspectPackage: "Recognize & inspect", importInvitation: "Import operation package", signPackage: "Sign matching slots", externalConfirmation: "External signing phrase", externalConfirmationHelp: "Before signing, enter exactly: SIGN REVIEWED EXTERNAL COVENANT", externalReviewEmpty: "Paste or import a complete operation package. Studio verifies P2SH, covenant ID, inputs, outputs, fee, ABI arguments and signature slots.", signedPackage: "Latest operation package", copySignedPackage: "Copy latest package", broadcastConfirmation: "Broadcast confirmation phrase", broadcastPackage: "Preflight & broadcast complete transaction", signingInvitationTitle: "Remote signing invitation", signingInvitationHelp: "Send the same latest invitation package sequentially. Each signer imports it on their own device, verifies the commitment, signs, and passes the updated package onward.", transactionCommitment: "Transaction commitment", copyInvitation: "Copy invitation", downloadInvitation: "Download invitation", shareInvitation: "System share", sequentialSigningWarning: "Always pass the latest partially signed package. Never have two people sign separate initial copies. Compare the transaction commitment over another trusted channel before signing.",
-    lifecycleTitle: "Export or remotely process operation packages", lifecycleHelp: "Build a portable package here only when another computer or multiple signers need it. For a local inheritance renewal, use Check in & renew above.", operation: "Operation", operationFee: "Explicit fee", operationDestination: "Release destination", claimSecretHex: "Secret preimage (hex)", multisigSigners: "Select the two participating signer wallets", multisigInviteHint: "After building, download the invitation and send the same latest file sequentially. Each person signs on their own device.", buildOperationPackage: "Build exportable operation package", lifecycleDestinationRequired: "Enter the wallet address that will receive the released funds", lifecycleDestinationWrongNetwork: "The release destination must belong to the current project network", lifecycleDestinationInvalid: "The release destination must be a valid P2PK wallet address", multisigDeployGuideTitle: "Multisig invitations are created after deployment", multisigBeforeDeploy: "Build draft here only lets the funding wallet create the multisig covenant UTXO; the three members do not sign this funding transaction. After signing and broadcasting it, use Two-of-three spend below, select two members, build the operation, and download the invitation.", multisigAfterDeploy: "The multisig covenant is deployed. In Two-of-three spend below, select two signer wallets, enter the destination, then build the operation; the download button will appear beside it.", contractSchedule: "Contract maturity & activity", refreshLifecycle: "Refresh on-chain status", recognizedOperation: "Recognized operation", renewNow: "Check in & renew", inheritNow: "Trigger inheritance distribution", inheritanceMatureHelp: "The inactivity period has matured. Anyone can prepare the distribution transaction; recipient addresses and shares are fixed by the on-chain covenant. Review every amount before broadcast.", walletRequired: "This action requires a wallet. Connect a wallet first."
+    lifecycleTitle: "Export or remotely process operation packages", lifecycleHelp: "Build a portable package here only when another computer or multiple signers need it. For a local inheritance renewal, use Check in & renew above.", operation: "Operation", operationFee: "Explicit fee", operationDestination: "Release destination", claimSecretHex: "Secret preimage (hex)", merkleProofHex: "Merkle proof (hex)", revealPayloadHex: "Reveal payload (hex)", revealSaltHex: "32-byte salt (hex)", multisigSigners: "Select the two participating signer wallets", multisigInviteHint: "After building, download the invitation and send the same latest file sequentially. Each person signs on their own device.", buildOperationPackage: "Build exportable operation package", lifecycleDestinationRequired: "Enter the wallet address that will receive the released funds", lifecycleDestinationWrongNetwork: "The release destination must belong to the current project network", lifecycleDestinationInvalid: "The release destination must be a valid P2PK wallet address", multisigDeployGuideTitle: "Multisig invitations are created after deployment", multisigBeforeDeploy: "Build draft here only lets the funding wallet create the multisig covenant UTXO; the three members do not sign this funding transaction. After signing and broadcasting it, use Two-of-three spend below, select two members, build the operation, and download the invitation.", multisigAfterDeploy: "The multisig covenant is deployed. In Two-of-three spend below, select two signer wallets, enter the destination, then build the operation; the download button will appear beside it.", contractSchedule: "Contract maturity & activity", refreshLifecycle: "Refresh on-chain status", recognizedOperation: "Recognized operation", renewNow: "Check in & renew", inheritNow: "Trigger inheritance distribution", inheritanceMatureHelp: "The inactivity period has matured. Anyone can prepare the distribution transaction; recipient addresses and shares are fixed by the on-chain covenant. Review every amount before broadcast.", walletRequired: "This action requires a wallet. Connect a wallet first."
   }
 };
 
@@ -116,7 +117,8 @@ const state = {
   lifecycleSummary: null,
   localOperationProjectId: "",
   lifecycleInviteProjectId: "",
-  pendingDeleteProjectId: ""
+  pendingDeleteProjectId: "",
+  pendingSourceMigration: null
 };
 
 function tr(key) { return copy[state.language]?.[key] || copy.zh[key] || key; }
@@ -200,6 +202,7 @@ function projectPayload() {
     requirements: $("#requirements").value,
     source: $("#source-editor").value,
     constructorArgs,
+    compilerProfileId: $("#compiler-profile").value || state.config?.compiler?.defaultProfileId || "latest-4b0e1cd",
     templateParameters: state.project?.templateParameters || {},
     deployAmount: $("#deploy-amount").value,
     specification: state.project?.specification || null,
@@ -239,6 +242,9 @@ function resetProjectScopedTransactionWorkspace() {
   $("#lifecycle-operation").innerHTML = "";
   $("#lifecycle-destination").value = "";
   $("#lifecycle-secret").value = "";
+  $("#lifecycle-proof").value = "";
+  $("#lifecycle-payload").value = "";
+  $("#lifecycle-salt").value = "";
   $("#lifecycle-signer-options").innerHTML = "";
   $("#external-covenant-package").value = "";
   $("#external-covenant-confirmation").value = "";
@@ -262,6 +268,8 @@ function loadProjectIntoUi(project) {
   $("#requirements").value = project.requirements || "";
   $("#source-editor").value = project.source || "";
   $("#constructor-args").value = JSON.stringify(project.constructorArgs || [], null, 2);
+  $("#compiler-profile").value = project.compilerProfileId || project.artifact?.compiler?.id || project.review?.compilerProfileId || state.config?.compiler?.defaultProfileId || "latest-4b0e1cd";
+  renderCompilerProfileHelp();
   $("#deploy-amount").value = project.deployAmount || "0.05";
   $("#deploy-network").value = project.network || "tn10";
   updateNetworkControls();
@@ -374,6 +382,7 @@ function initializeTemplateValues(template) {
     if (values[field.id] !== undefined && values[field.id] !== "") continue;
     if (field.type === "heirs") values[field.id] = [{ address: "", shareBps: 5000 }, { address: "", shareBps: 5000 }];
     else if (field.type === "duration") values[field.id] = { value: String(field.defaultValue || 1), unit: field.defaultUnit || "days" };
+    else if (field.type === "kcc721Metadata") values[field.id] = structuredClone(field.default || { name: "", description: "", image: "", externalUrl: "", attributes: [] });
     else if (field.default !== undefined) values[field.id] = String(field.default);
     else if (field.defaultOffsetSeconds) values[field.id] = localDateTimeValue(Date.now() + Number(field.defaultOffsetSeconds) * 1000);
     else if (field.type === "address" && field.useConnectedWallet && state.wallet?.network === $("#deploy-network").value) values[field.id] = state.wallet.address;
@@ -387,19 +396,52 @@ function templateFieldInput(field, value) {
   const placeholder = String(language === "zh" ? field.placeholderZh || "" : field.placeholderEn || "")
     .replace(/^kaspatest:/, $("#deploy-network").value === "mainnet" ? "kaspa:" : "kaspatest:");
   const common = `data-template-parameter="${esc(field.id)}" value="${esc(value)}" placeholder="${esc(placeholder)}" ${field.required === false ? "" : "required"}`;
-  if (field.type === "amount") return `<input ${common} inputmode="decimal" pattern="^(0|[1-9]\\d*)(\\.\\d{1,8})?$" />`;
+  if (field.type === "amount") return `<input ${common} inputmode="decimal" min="${esc(field.minimum || "0")}" pattern="^(0|[1-9]\\d*)(\\.\\d{1,8})?$" />`;
   if (field.type === "datetime") return `<input ${common} type="datetime-local" step="1" />`;
   if (field.type === "sha256") return `<input ${common} inputmode="text" maxlength="66" pattern="^(0x)?[0-9a-fA-F]{64}$" autocomplete="off" spellcheck="false" />`;
+  if (field.type === "choice") return `<select ${common}>${(field.options || []).map((option) => `<option value="${esc(option.value)}" ${String(value) === String(option.value) ? "selected" : ""}>${esc(language === "zh" ? option.labelZh : option.labelEn)}</option>`).join("")}</select>`;
+  if (field.type === "kcc721CollectionId") return `<input ${common} inputmode="text" maxlength="66" pattern="^(0x)?[0-9a-fA-F]{64}$" autocomplete="off" spellcheck="false" />`;
+  if (field.type === "integer") return `<input ${common} type="number" min="${esc(field.minimum ?? Number.MIN_SAFE_INTEGER)}" max="${esc(field.maximum ?? Number.MAX_SAFE_INTEGER)}" step="1" />`;
   return `<input ${common} inputmode="text" autocomplete="off" spellcheck="false" />`;
+}
+
+async function updateKcc721Digest(template) {
+  const output = $("[data-kcc721-digest]");
+  if (!output) return;
+  const metadata = state.templateValues[template.id]?.metadata;
+  try {
+    const { digest } = await kcc721MetadataDigest(metadata);
+    output.textContent = digest;
+    output.classList.remove("bad");
+  } catch (error) {
+    output.textContent = state.language === "zh" ? `元数据未完成：${error.message}` : `Metadata incomplete: ${error.message}`;
+    output.classList.add("bad");
+  }
 }
 
 function renderTemplateParameterFields(template) {
   const values = initializeTemplateValues(template);
   const fields = template.parameters || [];
   $("#template-parameter-form").hidden = !fields.length;
-  $("#template-parameter-fields").innerHTML = fields.map((field) => {
+  const renderedFields = new Map(fields.map((field) => {
     const label = state.language === "zh" ? field.labelZh : field.labelEn;
     const help = state.language === "zh" ? field.helpZh : field.helpEn;
+    if (field.type === "kcc721Metadata") {
+      const metadata = values[field.id] || {};
+      const attributes = JSON.stringify(metadata.attributes || [], null, 2);
+      return [field.id, `<div class="template-field kcc721-metadata-field">
+        <span>${esc(label || field.id)}</span>
+        <div class="kcc721-metadata-grid">
+          <label><b>${state.language === "zh" ? "名称" : "Name"}</b><input data-kcc721-metadata="name" value="${esc(metadata.name || "")}" maxlength="120" required /></label>
+          <label><b>${state.language === "zh" ? "图片 URI" : "Image URI"}</b><input data-kcc721-metadata="image" value="${esc(metadata.image || "")}" maxlength="2048" placeholder="ipfs://... / https://..." /></label>
+          <label class="wide"><b>${state.language === "zh" ? "描述" : "Description"}</b><textarea data-kcc721-metadata="description" maxlength="2000">${esc(metadata.description || "")}</textarea></label>
+          <label class="wide"><b>${state.language === "zh" ? "外部链接（可选）" : "External URL (optional)"}</b><input data-kcc721-metadata="externalUrl" value="${esc(metadata.externalUrl || "")}" maxlength="2048" placeholder="https://..." /></label>
+          <label class="wide"><b>${state.language === "zh" ? "属性 JSON 数组（可选）" : "Attributes JSON array (optional)"}</b><textarea data-kcc721-attributes spellcheck="false">${esc(attributes)}</textarea></label>
+        </div>
+        <small>${esc(help || "")}</small>
+        <div class="kcc721-digest"><b>SHA-256</b><code data-kcc721-digest>${state.language === "zh" ? "正在本地计算…" : "Computing locally…"}</code></div>
+      </div>`];
+    }
     if (field.type === "heirs") {
       const rows = Array.isArray(values[field.id]) ? values[field.id] : [];
       const rowHtml = rows.map((item, index) => `<div class="heir-row">
@@ -408,7 +450,7 @@ function renderTemplateParameterFields(template) {
         <div class="heir-share"><input data-heir-share="${index}" value="${esc(Number(item.shareBps || 0) / 100)}" type="number" min="0.01" max="99.99" step="0.01" required /><span>%</span></div>
         <button type="button" class="icon-button danger" data-remove-heir="${index}" ${rows.length <= Number(field.minimum || 2) ? "disabled" : ""} aria-label="Remove">×</button>
       </div>`).join("");
-      return `<div class="template-field template-heirs" data-heirs-field="${esc(field.id)}"><div class="heir-heading"><span>${esc(label || field.id)}</span><button type="button" class="outline-button small" data-add-heir ${rows.length >= Number(field.maximum || 5) ? "disabled" : ""}>${state.language === "zh" ? "+ 添加继承人" : "+ Add inheritor"}</button></div><div class="heir-list">${rowHtml}</div><small>${esc(help || "")}</small><strong class="heir-total" data-heir-total></strong></div>`;
+      return [field.id, `<div class="template-field template-heirs" data-heirs-field="${esc(field.id)}"><div class="heir-heading"><span>${esc(label || field.id)}</span><button type="button" class="outline-button small" data-add-heir ${rows.length >= Number(field.maximum || 5) ? "disabled" : ""}>${state.language === "zh" ? "+ 添加继承人" : "+ Add inheritor"}</button></div><div class="heir-list">${rowHtml}</div><small>${esc(help || "")}</small><strong class="heir-total" data-heir-total></strong></div>`];
     }
     if (field.type === "duration") {
       const duration = typeof values[field.id] === "object" && values[field.id] ? values[field.id] : { value: String(values[field.id] || field.defaultValue || 1), unit: "days" };
@@ -418,7 +460,7 @@ function renderTemplateParameterFields(template) {
         ["days", state.language === "zh" ? "天" : "Days"],
         ["weeks", state.language === "zh" ? "周" : "Weeks"]
       ];
-      return `<label class="template-field"><span>${esc(label || field.id)}</span><div class="duration-input"><input data-template-duration-value="${esc(field.id)}" value="${esc(duration.value)}" type="number" min="1" step="1" required /><select data-template-duration-unit="${esc(field.id)}">${units.map(([unit, text]) => `<option value="${unit}" ${duration.unit === unit ? "selected" : ""}>${text}</option>`).join("")}</select></div><small>${esc(help || "")}</small></label>`;
+      return [field.id, `<label class="template-field"><span>${esc(label || field.id)}</span><div class="duration-input"><input data-template-duration-value="${esc(field.id)}" value="${esc(duration.value)}" type="number" min="1" step="1" required /><select data-template-duration-unit="${esc(field.id)}">${units.map(([unit, text]) => `<option value="${unit}" ${duration.unit === unit ? "selected" : ""}>${text}</option>`).join("")}</select></div><small>${esc(help || "")}</small></label>`];
     }
     const addon = field.type === "address"
       ? `<button type="button" class="outline-button small" data-template-wallet-field="${esc(field.id)}">${tr("useConnectedWallet")}</button>`
@@ -431,11 +473,39 @@ function renderTemplateParameterFields(template) {
       const text = amount < 3600 ? `+${amount / 60}${state.language === "zh" ? "分钟" : "m"}` : amount < 86400 ? `+${amount / 3600}${state.language === "zh" ? "小时" : "h"}` : `+${amount / 86400}${state.language === "zh" ? "天" : "d"}`;
       return `<button type="button" class="outline-button small" data-time-offset="${amount}" data-time-field="${esc(field.id)}">${text}${amount === 60 ? ` · ${state.language === "zh" ? "TN10 测试" : "TN10 test"}` : ""}</button>`;
     }).join("")}</div>` : "";
-    return `<label class="template-field"><span>${esc(label || field.id)}</span><div class="template-field-input">${templateFieldInput(field, values[field.id] || "")}${addon}</div>${quickButtons}<small>${esc(help || "")}</small></label>`;
-  }).join("");
+    if (field.type === "kcc721CollectionId" && values.collectionMode === "preview") {
+      return [field.id, `<div class="template-field kcc721-pending-id"><span>${esc(label || field.id)}</span><strong>${state.language === "zh" ? "待 Collection 创世交易生成" : "Generated by the Collection genesis transaction"}</strong><small>${esc(help || "")}</small></div>`];
+    }
+    return [field.id, `<label class="template-field"><span>${esc(label || field.id)}</span><div class="template-field-input">${templateFieldInput(field, values[field.id] || "")}${addon}</div>${quickButtons}<small>${esc(help || "")}</small></label>`];
+  }));
+  if (template.parameterLayout === "steps" && Array.isArray(template.parameterSteps)) {
+    $("#template-parameter-fields").innerHTML = template.parameterSteps.map((step) => {
+      const title = state.language === "zh" ? step.titleZh : step.titleEn;
+      const help = state.language === "zh" ? step.helpZh : step.helpEn;
+      const content = fields.filter((field) => field.step === step.id).map((field) => renderedFields.get(field.id) || "").join("");
+      return `<section class="template-parameter-step"><header><b>${String(step.number || "").padStart(2, "0")}</b><div><strong>${esc(title || step.id)}</strong><small>${esc(help || "")}</small></div></header><div class="template-step-fields">${content}</div></section>`;
+    }).join("");
+  } else {
+    $("#template-parameter-fields").innerHTML = fields.map((field) => renderedFields.get(field.id) || "").join("");
+  }
   $$('[data-template-parameter]').forEach((input) => input.addEventListener("input", () => {
     state.templateValues[template.id][input.dataset.templateParameter] = input.value;
+    if (input.dataset.templateParameter === "collectionMode") renderTemplateParameterFields(template);
   }));
+  $$('[data-kcc721-metadata]').forEach((input) => input.addEventListener("input", () => {
+    state.templateValues[template.id].metadata[input.dataset.kcc721Metadata] = input.value;
+    updateKcc721Digest(template);
+  }));
+  $("[data-kcc721-attributes]")?.addEventListener("input", (event) => {
+    const source = event.currentTarget.value.trim();
+    try {
+      state.templateValues[template.id].metadata.attributes = source ? JSON.parse(source) : [];
+      event.currentTarget.setCustomValidity("");
+    } catch {
+      event.currentTarget.setCustomValidity(state.language === "zh" ? "请输入有效的 JSON 数组" : "Enter a valid JSON array");
+    }
+    updateKcc721Digest(template);
+  });
   $$('[data-template-duration-value], [data-template-duration-unit]').forEach((input) => input.addEventListener("input", () => {
     const id = input.dataset.templateDurationValue || input.dataset.templateDurationUnit;
     state.templateValues[template.id][id] = {
@@ -493,6 +563,7 @@ function renderTemplateParameterFields(template) {
     input.value = state.wallet.address;
     state.templateValues[template.id][button.dataset.templateWalletField] = state.wallet.address;
   }));
+  updateKcc721Digest(template);
 }
 
 function configuredTemplateParameters() {
@@ -502,6 +573,8 @@ function configuredTemplateParameters() {
   if (!form.reportValidity()) return null;
   const values = {};
   $$('[data-template-parameter]').forEach((input) => { values[input.dataset.templateParameter] = input.value.trim(); });
+  const metadataField = (template.parameters || []).find((field) => field.type === "kcc721Metadata");
+  if (metadataField) values[metadataField.id] = structuredClone(state.templateValues[template.id][metadataField.id]);
   $$("[data-template-duration-value]").forEach((input) => {
     const id = input.dataset.templateDurationValue;
     values[id] = { value: input.value.trim(), unit: $(`[data-template-duration-unit="${id}"]`)?.value || "days" };
@@ -865,6 +938,7 @@ async function compileCurrent() {
     const { artifact } = await api("/api/contracts/compile", { method: "POST", body: JSON.stringify({
       source: $("#source-editor").value,
       constructorArgs,
+      compilerProfileId: $("#compiler-profile").value,
       templateId: state.project?.review?.templateId || "",
       projectId: state.project?.id || ""
     }) });
@@ -886,13 +960,63 @@ function renderArtifact(artifact) {
   $("#compile-status").textContent = artifact ? (blocked ? "BUILD · CONFIGURE" : "VERIFIED BUILD") : "NOT BUILT";
   $("#artifact-grid").innerHTML = [
     ["Source SHA-256", artifact?.sourceSha256], ["Program SHA-256", artifact?.programSha256],
-    ["Compiler SHA-256", artifact?.compiler?.sha256], ["Upstream Commit", artifact?.compiler?.upstreamCommit || state.config?.compiler?.upstreamCommit || "—"]
+    ["Compiler Profile", artifact?.compiler?.id], ["Compiler SHA-256", artifact?.compiler?.sha256], ["Upstream Commit", artifact?.compiler?.upstreamCommit || state.config?.compiler?.upstreamCommit || "—"]
   ].map(([label, value]) => `<div><span>${label}</span><code title="${esc(value || "")}">${esc(value ? short(value, 12, 10) : "—")}</code></div>`).join("");
   if (artifact?.analysis) {
     renderFindings(artifact.analysis);
     if (blocked) $("#findings").insertAdjacentHTML("afterbegin", `<div class="finding"><b>DEPLOYMENT BLOCKED</b><span>template safety</span><p>${esc(state.language === "zh" ? "必须替换所有模板示例公钥、哈希和超时参数后才能上链。" : "Replace all template example keys, hashes and timeout values before deployment.")}</p></div>`);
   }
   markStep("artifact", Boolean(artifact));
+}
+
+function renderCompilerProfiles() {
+  const profiles = state.config?.compiler?.profiles || [];
+  const select = $("#compiler-profile");
+  select.innerHTML = profiles.map((profile) => `<option value="${esc(profile.id)}" ${profile.id === state.config.compiler.defaultProfileId ? "selected" : ""}>${esc(profile.label)} · ${profile.configured ? "PINNED" : "NOT INSTALLED"}</option>`).join("");
+  renderCompilerProfileHelp();
+}
+
+function renderCompilerProfileHelp() {
+  const profile = (state.config?.compiler?.profiles || []).find((item) => item.id === $("#compiler-profile")?.value);
+  if (!profile) return;
+  const policy = profile.networkPolicy === "tn10-only" ? "TN10 ONLY" : profile.networkPolicy;
+  $("#compiler-profile-help").textContent = `${profile.status.toUpperCase()} · ${policy} · ${profile.upstreamCommit}`;
+}
+
+function renderCompatibility(report) {
+  const element = $("#compatibility-findings");
+  if (!report) { element.innerHTML = ""; return; }
+  if (!report.findings.length) {
+    element.innerHTML = `<div class="clean-result"><i>✓</i><div><strong>${state.language === "zh" ? "未检测到已知破坏性模式" : "No known breaking pattern detected"}</strong><p>${state.language === "zh" ? "仍必须执行真实编译和对抗测试。" : "A real build and adversarial tests are still required."}</p></div></div>`;
+    return;
+  }
+  element.innerHTML = report.findings.map((finding) => `<div class="finding"><b>${esc(finding.severity.toUpperCase())}</b><span>${esc(finding.introducedBy || "profile")} ${finding.line ? `· line ${finding.line}` : ""}</span><p>${esc(state.language === "zh" ? finding.messageZh : finding.messageEn)}</p></div>`).join("");
+}
+
+async function checkCompilerCompatibility(includeMigration = false) {
+  const payload = await api("/api/contracts/compatibility", { method: "POST", body: JSON.stringify({
+    source: $("#source-editor").value,
+    targetProfileId: $("#compiler-profile").value,
+    includeMigration
+  }) });
+  renderCompatibility(payload.report);
+  state.pendingSourceMigration = payload.migration || null;
+  $("#migrate-source").hidden = !payload.migration?.applied?.length;
+  return payload;
+}
+
+function applySafeSourceMigration() {
+  const migration = state.pendingSourceMigration;
+  if (!migration?.applied?.length) return;
+  $("#source-editor").value = migration.source;
+  state.pendingSourceMigration = null;
+  $("#migrate-source").hidden = true;
+  sourceStats();
+  if (state.project) state.project.artifact = null;
+  renderArtifact(null);
+  scheduleSave();
+  renderCompatibility(migration.report);
+  toast(state.language === "zh" ? "已应用无歧义语法迁移，请重新编译并人工审查" : "Applied unambiguous syntax migration; rebuild and review it", "warn");
 }
 
 function updateNetworkControls() {
@@ -1300,6 +1424,9 @@ function renderLifecycleOperations() {
   $("#lifecycle-destination-row").hidden = !operation?.destination;
   renderLifecycleDestinationDefault();
   $("#lifecycle-secret-row").hidden = !operation?.secret;
+  $("#lifecycle-proof-row").hidden = !operation?.proof;
+  $("#lifecycle-payload-row").hidden = !operation?.payload;
+  $("#lifecycle-salt-row").hidden = !operation?.salt;
   $("#lifecycle-signers-row").hidden = !operation?.signers;
   $("#lifecycle-signer-options").innerHTML = operation?.signers
     ? (operation.availableSigners || []).map((address, index) => `<label class="signer-option"><input type="checkbox" data-lifecycle-signer value="${esc(address)}" ${index < 2 ? "checked" : ""} /><span>${state.language === "zh" ? `签名钱包 ${index + 1}` : `Signer wallet ${index + 1}`}<code title="${esc(address)}">${esc(short(address, 18, 12))}</code></span></label>`).join("")
@@ -1426,6 +1553,9 @@ async function buildLifecycleOperation() {
       feeKas: $("#lifecycle-fee").value,
       destinationAddress,
       secretHex: $("#lifecycle-secret").value,
+      proofHex: $("#lifecycle-proof").value,
+      payloadHex: $("#lifecycle-payload").value,
+      saltHex: $("#lifecycle-salt").value,
       signerAddresses
     }) });
     state.externalPackage = payload.package;
@@ -1542,9 +1672,12 @@ function renderExternalCovenantReview(review) {
     $("#external-sign-confirmation-row").hidden = false;
     $("#external-broadcast-confirmation-row").hidden = false;
     $("#external-covenant-sign").textContent = tr("signPackage");
+    $("#external-covenant-confirmation").placeholder = "SIGN REVIEWED EXTERNAL COVENANT";
+    $("#external-confirmation-help").textContent = tr("externalConfirmationHelp");
     return;
   }
   const slots = review.signatureSlots || [];
+  const p2pk = review.p2pkAuthorization || null;
   const outputs = (review.outputs || []).map((output) => `<li>#${output.index} · ${esc(output.valueKas)} ${review.network === "mainnet" ? "KAS" : "TKAS"} → ${esc(output.address ? short(output.address, 14, 10) : "non-address script")}${output.covenantId ? ` · cov ${esc(short(output.covenantId, 8, 7))}` : ""}</li>`).join("");
   el.innerHTML = `<div class="external-review-grid">
     <div><span>${state.language === "zh" ? "网络" : "Network"}</span><code>${esc(review.network)}</code></div>
@@ -1554,10 +1687,14 @@ function renderExternalCovenantReview(review) {
     <div><span>${state.language === "zh" ? "输入／输出" : "Inputs / outputs"}</span><code>${review.inputCount} / ${review.outputCount}</code></div>
     <div><span>${state.language === "zh" ? "手续费" : "Fee"}</span><code>${esc(review.feeKas)} ${review.network === "mainnet" ? "KAS" : "TKAS"}</code></div>
     <div><span>${state.language === "zh" ? "签名槽" : "Signature slots"}</span><code>${slots.filter((slot) => slot.signed).length}/${slots.length}</code></div>
+    ${p2pk ? `<div><span>P2PK co-spend</span><code>${p2pk.signed ? (state.language === "zh" ? "已签名" : "Signed") : (state.language === "zh" ? "等待拥有者" : "Awaiting owner")}</code></div>` : ""}
     <div><span>${state.language === "zh" ? "交易承诺" : "Commitment"}</span><code title="${esc(review.commitment)}">${esc(short(review.commitment, 12, 10))}</code></div>
   </div><ol class="external-outputs">${outputs}</ol><p class="external-warning">${esc(state.language === "zh" ? "ABI 是外部元数据，不能证明 redeem program 的真实语义；签名前必须从可信来源核对源码和 artifact。" : review.warning)}</p>`;
   const hasUnsignedSlot = slots.some((slot) => !slot.signed);
-  const canSign = Boolean(state.wallet?.kind === "local" && slots.some((slot) => !slot.signed && slot.publicKey === state.wallet.publicKey));
+  const hasUnsignedP2pk = Boolean(p2pk && !p2pk.signed);
+  const canSignSlot = Boolean(state.wallet?.kind === "local" && slots.some((slot) => !slot.signed && slot.publicKey === state.wallet.publicKey));
+  const canSignP2pk = Boolean(state.wallet?.kind === "local" && hasUnsignedP2pk && p2pk.publicKey === state.wallet.publicKey && p2pk.address === state.wallet.address);
+  const canSign = canSignSlot || canSignP2pk;
   const localRenewal = isLocalRenewal();
   $("#external-sign-confirmation-row").hidden = localRenewal;
   $("#external-broadcast-confirmation-row").hidden = localRenewal;
@@ -1579,9 +1716,14 @@ function renderExternalCovenantReview(review) {
     "secret-claim": ["确认并签署领取", "Confirm & sign claim"],
     "owner-recovery": ["签署取回资产", "Sign asset recovery"]
   };
-  const label = signLabels[operation.kind] || [tr("signPackage"), tr("signPackage")];
+  const label = operation.kind === "p2pk-cospend" || (!hasUnsignedSlot && hasUnsignedP2pk)
+    ? ["签署 P2PK 钱包授权", "Sign P2PK wallet authorization"]
+    : signLabels[operation.kind] || [tr("signPackage"), tr("signPackage")];
   $("#external-covenant-sign").textContent = label[state.language === "zh" ? 0 : 1];
-  $("#external-covenant-sign").disabled = !hasUnsignedSlot || Boolean(state.wallet && !canSign);
+  const confirmationPhrase = !hasUnsignedSlot && hasUnsignedP2pk ? "SIGN REVIEWED P2PK CO-SPEND" : "SIGN REVIEWED EXTERNAL COVENANT";
+  $("#external-covenant-confirmation").placeholder = confirmationPhrase;
+  $("#external-confirmation-help").textContent = `${state.language === "zh" ? "签名前请完整输入：" : "Before signing, enter exactly: "}${confirmationPhrase}`;
+  $("#external-covenant-sign").disabled = (!hasUnsignedSlot && !hasUnsignedP2pk) || Boolean(state.wallet && !canSign);
   $("#external-covenant-broadcast").disabled = !review.complete;
   renderSigningInvitation(review);
   renderLifecycleInvitationActions();
@@ -1676,32 +1818,39 @@ async function signExternalCovenant(options = {}) {
   if (!state.externalPackage || !state.externalReview) return false;
   if (!(await requireConnectedWallet())) return false;
   const matchingSlot = (state.externalReview.signatureSlots || []).some((slot) => !slot.signed && slot.publicKey === state.wallet.publicKey);
-  if (!matchingSlot) {
+  const p2pk = state.externalReview.p2pkAuthorization;
+  const matchingP2pk = Boolean(p2pk && !p2pk.signed && p2pk.publicKey === state.wallet.publicKey && p2pk.address === state.wallet.address);
+  if (!matchingSlot && !matchingP2pk) {
     toast(state.language === "zh" ? "当前连接的钱包不是这个操作包的授权签名人" : "The connected wallet is not an authorized signer for this operation package", "warn");
     return false;
   }
   const localRenewal = options.localRenewal === true || isLocalRenewal();
   const confirmationInput = $("#external-covenant-confirmation");
-  if (!localRenewal && confirmationInput.value.trim() !== "SIGN REVIEWED EXTERNAL COVENANT") {
+  const confirmationPhrase = matchingSlot ? "SIGN REVIEWED EXTERNAL COVENANT" : "SIGN REVIEWED P2PK CO-SPEND";
+  if (!localRenewal && confirmationInput.value.trim() !== confirmationPhrase) {
     confirmationInput.focus();
     toast(state.language === "zh"
-      ? "请先完整输入签名确认短语：SIGN REVIEWED EXTERNAL COVENANT"
-      : "Enter the complete signing phrase first: SIGN REVIEWED EXTERNAL COVENANT", "warn");
+      ? `请先完整输入签名确认短语：${confirmationPhrase}`
+      : `Enter the complete signing phrase first: ${confirmationPhrase}`, "warn");
     return false;
   }
   const button = $("#external-covenant-sign");
   button.disabled = true;
   try {
     const secrets = await requestSigningSecret();
-    const payload = await api("/api/external-covenants/sign", { method: "POST", body: JSON.stringify({
+    const signedPayload = await api(matchingSlot ? "/api/external-covenants/sign" : "/api/external-covenants/sign-p2pk-cospend", { method: "POST", body: JSON.stringify({
       package: state.externalPackage,
       walletId: state.wallet.walletId,
       publicKey: state.wallet.publicKey,
       ...secrets,
-      confirmation: $("#external-covenant-confirmation").value,
+      confirmation: confirmationPhrase,
       localRenewal,
       mainnetConfirmation: ""
     }) });
+    const payload = matchingSlot ? signedPayload : await api("/api/external-covenants/inspect", {
+      method: "POST",
+      body: JSON.stringify({ package: signedPayload.package })
+    });
     state.externalPackage = payload.package;
     state.externalReview = payload.review;
     renderExternalCovenantReview(payload.review);
@@ -1709,10 +1858,11 @@ async function signExternalCovenant(options = {}) {
     $("#external-signed-package").value = JSON.stringify(payload.package, null, 2);
     $("#external-signed-row").hidden = false;
     $("#external-copy-signed").hidden = false;
-    $("#external-covenant-status").textContent = payload.remainingSignatureSlots ? "PARTIAL" : "PREFLIGHT PASS";
-    toast(payload.remainingSignatureSlots
-      ? (state.language === "zh" ? `已签署，仍需 ${payload.remainingSignatureSlots} 个签名槽` : `Signed; ${payload.remainingSignatureSlots} signature slots remain`)
-      : (state.language === "zh" ? "签名完成并通过脚本引擎预检" : "Signing complete and script-engine preflight passed"));
+    const remaining = (payload.review.signatureSlots || []).filter((slot) => !slot.signed).length + (payload.review.p2pkAuthorization && !payload.review.p2pkAuthorization.signed ? 1 : 0);
+    $("#external-covenant-status").textContent = remaining ? "PARTIAL" : "READY TO PREFLIGHT";
+    toast(remaining
+      ? (state.language === "zh" ? `已签署，仍需 ${remaining} 个授权` : `Signed; ${remaining} authorization(s) remain`)
+      : (state.language === "zh" ? "全部授权完成，可进行预检与广播" : "All authorizations are complete; ready for preflight and broadcast"));
     return true;
   } catch (error) {
     const cancelled = /已取消签名|signature cancelled/i.test(error.message);
@@ -1761,6 +1911,7 @@ async function init() {
   const session = await waitForApi();
   state.token = session.token;
   state.config = await api("/api/config");
+  renderCompilerProfiles();
   $("#compiler-state").textContent = state.config.compiler.configured ? "PINNED" : "SETUP REQUIRED";
   $("#compiler-state").className = state.config.compiler.configured ? "good" : "warn";
   $("#deploy-network option[value='mainnet']").disabled = !state.config.allowMainnet;
@@ -1804,6 +1955,15 @@ $("#discard-ai").addEventListener("click", () => { state.candidate = null; $("#a
 $("#format-source").addEventListener("click", normalizeWhitespace);
 $("#analyze-source").addEventListener("click", analyzeSource);
 $("#compile-contract").addEventListener("click", compileCurrent);
+$("#check-compatibility").addEventListener("click", () => checkCompilerCompatibility(true).catch((error) => toast(error.message, "bad")));
+$("#migrate-source").addEventListener("click", applySafeSourceMigration);
+$("#compiler-profile").addEventListener("change", () => {
+  renderCompilerProfileHelp();
+  if (state.project) state.project.artifact = null;
+  renderArtifact(null);
+  scheduleSave();
+  checkCompilerCompatibility(false).catch((error) => toast(error.message, "bad"));
+});
 $("#refresh-node").addEventListener("click", refreshNode);
 $("#settings-button").addEventListener("click", openSettings);
 $$('[data-settings-tab]').forEach((tab) => tab.addEventListener("click", () => selectSettingsTab(tab.dataset.settingsTab)));

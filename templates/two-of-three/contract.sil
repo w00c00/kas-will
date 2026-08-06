@@ -1,7 +1,7 @@
 pragma silverscript ^0.1.0;
 
 contract TwoOfThree(pubkey key1, pubkey key2, pubkey key3) {
-    entrypoint function spend(pubkey signer1, sig signature1, pubkey signer2, sig signature2) {
+    entry spend(pubkey signer1, sig signature1, pubkey signer2, sig signature2) {
         bool signer1Allowed = signer1 == key1 || signer1 == key2 || signer1 == key3;
         bool signer2Allowed = signer2 == key1 || signer2 == key2 || signer2 == key3;
         require(signer1Allowed && signer2Allowed);

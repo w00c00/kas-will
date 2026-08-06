@@ -196,4 +196,32 @@ export class WalletService {
       try { privateKey?.free(); } catch {}
     }
   }
+
+  async signP2pkInput({ walletId, walletSecret, paymentSecret = "", network = "tn10", transactionSafeJson, inputIndex, expectedAddress }) {
+    const record = this.read(walletId);
+    if (!record) throw Object.assign(new Error("Wallet not found"), { status: 404 });
+    const phrase = await decryptPhrase(record, walletSecret);
+    let privateKey;
+    try {
+      const derived = derive(phrase, network, record.accountIndex, record.receiveIndex, paymentSecret);
+      privateKey = derived.privateKey;
+      if (record.publicKey && derived.publicKey !== record.publicKey) throw Object.assign(new Error("Wallet payment secret is incorrect"), { status: 401 });
+      if (derived.address !== expectedAddress) throw new Error("Selected wallet does not own the P2PK authorization input");
+      const transaction = kaspa.Transaction.deserializeFromSafeJSON(String(transactionSafeJson));
+      if (!Number.isSafeInteger(inputIndex) || inputIndex < 0 || inputIndex >= transaction.inputs.length) throw new Error("P2PK authorization input index is invalid");
+      const target = transaction.inputs[inputIndex];
+      if (!target.utxo || target.utxo.scriptPublicKey.script !== kaspa.payToAddressScript(expectedAddress).script) {
+        throw new Error("P2PK authorization input does not belong to the selected wallet");
+      }
+      const signatureScript = String(kaspa.createInputSignature(transaction, inputIndex, privateKey, 1)).toLowerCase();
+      if (!/^41[0-9a-f]{130}$/.test(signatureScript)) throw new Error("Kaspa signer returned an invalid P2PK signature script");
+      const inputs = transaction.inputs;
+      inputs[inputIndex].signatureScript = signatureScript;
+      transaction.inputs = inputs;
+      transaction.finalize();
+      return transaction.serializeToSafeJSON();
+    } finally {
+      try { privateKey?.free(); } catch {}
+    }
+  }
 }
