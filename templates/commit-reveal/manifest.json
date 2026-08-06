@@ -1,0 +1,54 @@
+{
+  "order": 70,
+  "category": "proof",
+  "titleZh": "Commit / Reveal 托管",
+  "titleEn": "Commit / reveal escrow",
+  "descriptionZh": "部署时固定域和承诺，收款方公开 payload 与 salt 后领取；超时由发送方退款。仅限 TN10 实验。",
+  "descriptionEn": "Deployment fixes a domain and commitment; the recipient reveals payload and salt to claim, or the sender refunds after timeout. TN10 experimental only.",
+  "experimentalOnly": true,
+  "networkAllowlist": ["tn10"],
+  "compilerProfileId": "latest-4b0e1cd",
+  "requirementsEn": "Release a whole escrow only when a domain-separated payload commitment is revealed, with an authenticated timeout refund.",
+  "risk": "experimental",
+  "sourceFile": "contract.sil",
+  "requiredReplacements": [0, 1, 2, 3, 4],
+  "parameters": [
+    { "id": "amountKas", "type": "amount", "projectField": "deployAmount", "required": true, "default": "0.05", "minimum": "0.05", "labelZh": "托管金额", "labelEn": "Escrow value", "helpZh": "Reveal 或退款时扣除显式矿工费后全额支付。", "helpEn": "Reveal or refund pays the full balance minus the explicit miner fee." },
+    { "id": "senderAddress", "type": "address", "argIndex": 0, "required": true, "labelZh": "发送方／退款钱包", "labelEn": "Sender / refund wallet", "placeholderZh": "kaspatest:...", "placeholderEn": "kaspatest:...", "helpZh": "到期后用该钱包签名退款。", "helpEn": "This wallet signs the timeout refund." },
+    { "id": "recipientAddress", "type": "address", "argIndex": 1, "required": true, "labelZh": "Reveal 收款钱包", "labelEn": "Reveal recipient wallet", "placeholderZh": "kaspatest:...", "placeholderEn": "kaspatest:...", "helpZh": "只有该钱包签名并提供正确 payload 与 salt 才能领取。", "helpEn": "Only this wallet can claim with the correct payload and salt." },
+    { "id": "domain", "type": "sha256", "argIndex": 2, "required": true, "labelZh": "协议域", "labelEn": "Protocol domain", "helpZh": "32 字节协议标识，防止承诺跨应用重放。", "helpEn": "A 32-byte protocol identifier preventing cross-application replay." },
+    { "id": "commitment", "type": "sha256", "argIndex": 3, "required": true, "labelZh": "承诺哈希", "labelEn": "Commitment hash", "helpZh": "SHA256(domain32 || payload || salt32)。", "helpEn": "SHA256(domain32 || payload || salt32)." },
+    { "id": "timeout", "type": "datetime", "argIndex": 4, "required": true, "defaultOffsetSeconds": 3600, "quickOffsets": [60, 600, 3600, 86400], "labelZh": "退款时间", "labelEn": "Refund time", "helpZh": "TN10 可用一分钟测试。", "helpEn": "A one-minute shortcut is available on TN10." }
+  ],
+  "constructorArgs": [
+    { "kind": "pubkey", "hex": "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798" },
+    { "kind": "pubkey", "hex": "c6047f9441ed7d6d3045406e95c07cd85a28b8aef3caabac09b95c709ee5bef6" },
+    { "kind": "bytes32", "hex": "3333333333333333333333333333333333333333333333333333333333333333" },
+    { "kind": "bytes32", "hex": "4444444444444444444444444444444444444444444444444444444444444444" },
+    { "kind": "int", "data": 2000000000 }
+  ],
+  "invariants": [
+    "The reveal hash is domain separated and binds the exact payload and 32-byte salt",
+    "Only the configured recipient can claim",
+    "Only the configured sender can refund after timeout",
+    "Both paths terminate with exactly one bounded-fee P2PK output"
+  ],
+  "transactionPlans": [
+    { "transition": "reveal", "inputs": [{ "role": "commitment", "index": 0 }], "outputs": [{ "role": "recipient", "index": 0 }], "conservationChecks": ["commitment matches domain, payload and salt", "input = recipient output + explicit fee"] },
+    { "transition": "refund", "inputs": [{ "role": "expired-commitment", "index": 0 }], "outputs": [{ "role": "sender", "index": 0 }], "conservationChecks": ["timeout reached", "input = sender output + explicit fee"] }
+  ],
+  "example": {
+    "titleZh": "密封交付托管",
+    "titleEn": "Sealed-delivery escrow",
+    "scenarioZh": "双方先固定交付数据的域隔离哈希，收款方公开原文和随机盐后领取，否则发送方到期退款。",
+    "scenarioEn": "The parties first commit to a domain-separated delivery payload; the recipient claims by revealing it and its random salt, or the sender refunds after timeout.",
+    "rolesZh": ["发送方：部署并持有超时退款钱包", "收款方：持有 payload、salt 和领取钱包"],
+    "rolesEn": ["Sender: deploys and holds the timeout refund wallet", "Recipient: holds the payload, salt and claim wallet"],
+    "stepsZh": ["离线计算 domain、payload 与 salt 的承诺", "部署托管 Covenant", "收款方核对输出后 Reveal 并签名", "未 Reveal 时发送方到期退款"],
+    "stepsEn": ["Compute the commitment over domain, payload and salt offline", "Deploy the escrow covenant", "The recipient reviews the output, reveals and signs", "The sender refunds after timeout if no reveal occurs"],
+    "resultZh": "链上验证精确承诺，而不是信任网站解释。",
+    "resultEn": "The chain verifies the exact commitment instead of trusting a website interpretation.",
+    "cautionZh": "payload 和 salt 一旦广播即公开；这不是隐私存储。",
+    "cautionEn": "Payload and salt become public when broadcast; this is not private storage."
+  }
+}

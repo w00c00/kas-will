@@ -18,7 +18,7 @@ contract InheritanceVault(pubkey owner, pubkey[] inheritors, int[] sharesBps, in
         require(tx.inputs[this.activeInputIndex].value > minerFee);
     }
 
-    entrypoint function checkIn(sig ownerSignature, int minerFee) {
+    entry checkIn(sig ownerSignature, int minerFee) {
         require(checkSig(ownerSignature, owner));
         requireFee(minerFee);
         requireSingleCovenantInput();
@@ -30,7 +30,7 @@ contract InheritanceVault(pubkey owner, pubkey[] inheritors, int[] sharesBps, in
         require(tx.outputs[continuation].value == tx.inputs[this.activeInputIndex].value - minerFee);
     }
 
-    entrypoint function recover(sig ownerSignature, int minerFee) {
+    entry recover(sig ownerSignature, int minerFee) {
         require(checkSig(ownerSignature, owner));
         requireFee(minerFee);
         requireSingleCovenantInput();
@@ -41,7 +41,7 @@ contract InheritanceVault(pubkey owner, pubkey[] inheritors, int[] sharesBps, in
         require(tx.outputs[0].value == tx.inputs[this.activeInputIndex].value - minerFee);
     }
 
-    entrypoint function inherit(int minerFee) {
+    entry inherit(int minerFee) {
         require(this.age >= inactivityPeriod);
         requireFee(minerFee);
         requireSingleCovenantInput();

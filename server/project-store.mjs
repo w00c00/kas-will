@@ -5,7 +5,7 @@ import { safeId } from "./security.mjs";
 const SAMPLE_SOURCE = `pragma silverscript ^0.1.0;
 
 contract OwnerVault(pubkey owner) {
-    entrypoint function spend(sig signature) {
+    entry spend(sig signature) {
         require(checkSig(signature, owner));
     }
 }
@@ -52,6 +52,7 @@ export class ProjectStore {
       requirements: String(input.requirements || ""),
       source: String(input.source || SAMPLE_SOURCE),
       constructorArgs: Array.isArray(input.constructorArgs) ? input.constructorArgs : [],
+      compilerProfileId: String(input.compilerProfileId || "latest-4b0e1cd"),
       templateParameters: input.templateParameters && typeof input.templateParameters === "object" ? input.templateParameters : {},
       deployAmount: String(input.deployAmount || "0.05"),
       specification: input.specification || null,
@@ -67,7 +68,7 @@ export class ProjectStore {
   save(id, input) {
     const normalized = safeId(id, "project id");
     const current = this.get(normalized) || {};
-    const allowed = ["name", "network", "requirements", "source", "constructorArgs", "templateParameters", "deployAmount", "specification", "transactionPlans", "review", "artifact", "deployment"];
+    const allowed = ["name", "network", "requirements", "source", "constructorArgs", "compilerProfileId", "templateParameters", "deployAmount", "specification", "transactionPlans", "review", "artifact", "deployment"];
     const next = { ...current, id: normalized };
     for (const key of allowed) if (Object.hasOwn(input, key)) next[key] = input[key];
     next.createdAt ||= new Date().toISOString();

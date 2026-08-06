@@ -3,8 +3,8 @@
 ## Verified snapshot
 
 - Repository: <https://github.com/kaspanet/silverscript>
-- Verified commit: `2a3961cadc76bb16a425042172ffe32481da89b5`
-- Verified date: 2026-07-22
+- Verified commit: `4b0e1cd69739934f92c3ac4df1bb13d912418b2b`
+- Verified date: 2026-08-06
 - Compiler/language status: experimental
 - Official recommendation at this snapshot: use bytecode artifacts on
   testnet-10 until the first stable v1 release.
@@ -15,17 +15,17 @@ deployment, compatibility, or mainnet-readiness questions.
 ## Primary sources
 
 - Project status and debugger:
-  <https://github.com/kaspanet/silverscript/blob/2a3961cadc76bb16a425042172ffe32481da89b5/README.md>
+  <https://github.com/kaspanet/silverscript/blob/4b0e1cd69739934f92c3ac4df1bb13d912418b2b/README.md>
 - Language tutorial:
-  <https://github.com/kaspanet/silverscript/blob/2a3961cadc76bb16a425042172ffe32481da89b5/docs/TUTORIAL.md>
+  <https://github.com/kaspanet/silverscript/blob/4b0e1cd69739934f92c3ac4df1bb13d912418b2b/docs/TUTORIAL.md>
 - Covenant declaration semantics:
-  <https://github.com/kaspanet/silverscript/blob/2a3961cadc76bb16a425042172ffe32481da89b5/docs/DECL.md>
+  <https://github.com/kaspanet/silverscript/blob/4b0e1cd69739934f92c3ac4df1bb13d912418b2b/docs/DECL.md>
 - Built-ins and cross-template validation:
-  <https://github.com/kaspanet/silverscript/blob/2a3961cadc76bb16a425042172ffe32481da89b5/silverscript-lang/std/builtins.sil>
+  <https://github.com/kaspanet/silverscript/blob/4b0e1cd69739934f92c3ac4df1bb13d912418b2b/silverscript-lang/std/builtins.sil>
 - KCC20 book:
   <https://kaspanet.github.io/silverscript/kcc20-book/>
 - Official application examples, including chess:
-  <https://github.com/kaspanet/silverscript/tree/2a3961cadc76bb16a425042172ffe32481da89b5/silverscript-lang/tests/apps>
+  <https://github.com/kaspanet/silverscript/tree/4b0e1cd69739934f92c3ac4df1bb13d912418b2b/silverscript-lang/tests/apps>
 
 ## Snapshot capabilities
 
@@ -51,6 +51,13 @@ deployment, compatibility, or mainnet-readiness questions.
   `#[covenant.allow(rule = manual_entrypoint_in_leader_contract)]`
   acknowledgment and must manually prove singleton, delegate, or complete
   leader-group semantics. The attribute adds no runtime checks.
+- The current compiler uses `entry` for public entrypoints, `checkMsgSig` for
+  arbitrary-message signatures, and `outpointTxId` for input outpoint hashes.
+  The compiled JSON program field is `bytecode`, replacing the older `script`
+  field. Constructor array expressions also carry explicit type metadata.
+- `.reverse()` was removed and bitwise operations now require byte operands.
+  Byte ordering and integer/byte casts therefore require manual review rather
+  than blind source replacement.
 
 ## Terminology discipline
 

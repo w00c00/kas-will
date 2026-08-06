@@ -25,7 +25,14 @@ function parsePackage(input) {
   if (parsed.version !== 1) throw packageError("External covenant package version must be 1");
   if (!NETWORKS[parsed.network]) throw packageError("External covenant package network is unsupported");
   if (typeof parsed.transactionSafeJson !== "string") parsed.transactionSafeJson = JSON.stringify(parsed.transactionSafeJson || {});
-  if (!parsed.covenantInput || typeof parsed.covenantInput !== "object") throw packageError("External covenant package requires covenantInput metadata");
+  const metadata = Array.isArray(parsed.covenantInputs)
+    ? parsed.covenantInputs
+    : parsed.covenantInput && typeof parsed.covenantInput === "object" ? [parsed.covenantInput] : [];
+  if (!metadata.length || metadata.length > 32 || metadata.some((item) => !item || typeof item !== "object")) {
+    throw packageError("External covenant package requires 1-32 covenant input metadata records");
+  }
+  parsed.covenantInputs = metadata;
+  if (metadata.length === 1) parsed.covenantInput = metadata[0];
   return parsed;
 }
 
@@ -45,6 +52,19 @@ function cleanAbi(value) {
   });
 }
 
+function cleanStateFields(value) {
+  if (!Array.isArray(value) || !value.length || value.length > 64) throw packageError("State ABI fields must contain 1-64 records");
+  return value.map((field) => {
+    const name = String(field?.name || "");
+    const type = String(field?.type_name || "");
+    if (!/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(name)) throw packageError("State ABI contains an invalid field name");
+    if (!(["int", "bool", "pubkey", "byte[]"].includes(type) || /^byte\[\d+\]$/.test(type))) {
+      throw packageError(`State witness encoding does not support field type ${type}`);
+    }
+    return { name, type_name: type };
+  });
+}
+
 function transactionFrom(pkg) {
   try { return kaspa.Transaction.deserializeFromSafeJSON(pkg.transactionSafeJson); } catch { throw packageError("Transaction Safe JSON cannot be decoded by Kaspa WASM"); }
 }
@@ -57,9 +77,7 @@ function outputAddress(output, networkId) {
   try { return kaspa.addressFromScriptPublicKey(output.scriptPublicKey, networkId)?.toString() || ""; } catch { return ""; }
 }
 
-function normalized(pkg) {
-  const transaction = transactionFrom(pkg);
-  const metadata = pkg.covenantInput;
+function normalizedCovenant(transaction, metadata) {
   const inputIndex = Number(metadata.index);
   if (!Number.isSafeInteger(inputIndex) || inputIndex < 0 || inputIndex >= transaction.inputs.length) throw packageError("Covenant input index is invalid");
   const input = transaction.inputs[inputIndex];
@@ -80,13 +98,21 @@ function normalized(pkg) {
   if (argumentsList.length !== selected.inputs.length) throw packageError(`Entrypoint ${entrypoint} expects ${selected.inputs.length} arguments`);
   for (let index = 0; index < selected.inputs.length; index += 1) {
     const type = selected.inputs[index].type_name;
-    if (!["sig", "pubkey", "int", "bool", "byte[]"].includes(type) && !/^byte\[\d+\]$/.test(type)) {
+    if (!["sig", "pubkey", "int", "bool", "byte[]", "State"].includes(type) && !/^byte\[\d+\]$/.test(type)) {
       throw packageError(`External signing does not yet support ABI argument type ${type}`);
     }
     if (type === "sig" && !/^[0-9a-f]{64}$/i.test(argumentsList[index]?.publicKey || "")) {
       throw packageError(`Signature slot ${selected.inputs[index].name || index} requires a 32-byte x-only public key`);
     }
   }
+  const stateFields = selected.inputs.some((input) => input.type_name === "State") ? cleanStateFields(metadata.stateFields) : [];
+  return { input, inputIndex, programHex, covenantId, abi, selected, argumentsList, stateFields };
+}
+
+function normalized(pkg) {
+  const transaction = transactionFrom(pkg);
+  const covenants = pkg.covenantInputs.map((metadata) => normalizedCovenant(transaction, metadata));
+  if (new Set(covenants.map((item) => item.inputIndex)).size !== covenants.length) throw packageError("Covenant metadata records must target different transaction inputs");
   let inputTotal = 0n;
   for (const item of transaction.inputs) {
     if (!item.utxo) throw packageError("Every transaction input must include its complete UTXO entry");
@@ -97,7 +123,43 @@ function normalized(pkg) {
   const fee = inputTotal - outputTotal;
   if (fee < 0n) throw packageError("Transaction outputs exceed its inputs");
   if (fee > MAX_EXTERNAL_FEE) throw packageError("External transaction fee exceeds the local 0.1 KAS/TKAS safety cap", "EXTERNAL_FEE_CAP");
-  return { transaction, input, inputIndex, programHex, covenantId, abi, selected, argumentsList, fee };
+  return { transaction, covenants, fee, ...covenants[0] };
+}
+
+function normalizedP2pkAuthorization(pkg, resolved) {
+  if (!pkg.p2pkAuthorization) return null;
+  const metadata = pkg.p2pkAuthorization;
+  const inputIndex = Number(metadata.inputIndex);
+  if (!Number.isSafeInteger(inputIndex) || inputIndex < 0 || inputIndex >= resolved.transaction.inputs.length) {
+    throw packageError("P2PK authorization input index is invalid");
+  }
+  if (resolved.covenants.some((item) => item.inputIndex === inputIndex)) {
+    throw packageError("P2PK authorization cannot point at a covenant input");
+  }
+  const network = NETWORKS[pkg.network];
+  const address = String(metadata.address || "").trim().toLowerCase();
+  const publicKey = String(metadata.publicKey || "").trim().toLowerCase();
+  if (!address.startsWith(`${network.prefix}:`) || !/^[0-9a-f]{64}$/.test(publicKey)) {
+    throw packageError("P2PK authorization wallet metadata is invalid");
+  }
+  let key;
+  try {
+    key = new kaspa.XOnlyPublicKey(publicKey);
+    if (key.toAddress(network.kaspaNetworkId).toString() !== address) throw packageError("P2PK authorization public key does not match its wallet address");
+  } finally { try { key?.free?.(); } catch {} }
+  const input = resolved.transaction.inputs[inputIndex];
+  if (!input.utxo || input.utxo.scriptPublicKey.script !== kaspa.payToAddressScript(address).script) {
+    throw packageError("P2PK authorization wallet does not own the declared transaction input");
+  }
+  const outpoint = input.previousOutpoint || input.utxo.outpoint || {};
+  if (metadata.outpoint && (String(metadata.outpoint.transactionId || "").toLowerCase() !== String(outpoint.transactionId || "").toLowerCase()
+    || Number(metadata.outpoint.index) !== Number(outpoint.index))) {
+    throw packageError("P2PK authorization outpoint metadata does not match the transaction input");
+  }
+  if (metadata.amountSompi && BigInt(metadata.amountSompi) !== BigInt(input.utxo.amount)) {
+    throw packageError("P2PK authorization amount metadata does not match the transaction input");
+  }
+  return { ...metadata, inputIndex, address, publicKey, signed: Boolean(input.signatureScript) };
 }
 
 function bytes(value, exactLength = null) {
@@ -109,7 +171,13 @@ function bytes(value, exactLength = null) {
   return data;
 }
 
-function appendArgument(builder, type, value) {
+function stateObject(value) {
+  const fields = value?.fields || value?.data || value;
+  if (!fields || typeof fields !== "object" || Array.isArray(fields)) throw packageError("State argument must contain a field object");
+  return fields;
+}
+
+function appendArgument(builder, type, value, stateFields = []) {
   if (type === "int") {
     let data;
     try { data = BigInt(value?.data); } catch { throw packageError("Covenant int argument is invalid"); }
@@ -128,6 +196,16 @@ function appendArgument(builder, type, value) {
     builder.addData(bytes(value?.hex, 32));
     return;
   }
+  if (type === "State") {
+    const fields = stateObject(value);
+    const expected = new Set(stateFields.map((field) => field.name));
+    for (const key of Object.keys(fields)) if (!expected.has(key)) throw packageError(`State argument contains unknown field ${key}`);
+    for (const field of stateFields) {
+      if (!(field.name in fields)) throw packageError(`State argument is missing field ${field.name}`);
+      appendArgument(builder, field.type_name, fields[field.name], stateFields);
+    }
+    return;
+  }
   const fixed = type.match(/^byte\[(\d+)\]$/);
   if (type === "byte[]" || fixed) {
     builder.addData(bytes(value?.hex, fixed ? Number(fixed[1]) : null));
@@ -136,18 +214,20 @@ function appendArgument(builder, type, value) {
   throw packageError(`External signing does not yet support ABI argument type ${type}`);
 }
 
-function signatureSlots(selected, values) {
+function signatureSlots(selected, values, context = {}) {
   return selected.inputs.map((input, index) => input.type_name === "sig" ? {
     index,
     name: input.name,
     publicKey: String(values[index]?.publicKey || "").toLowerCase(),
-    signed: /^[0-9a-f]{130}$/i.test(values[index]?.hex || "")
+    signed: /^[0-9a-f]{130}$/i.test(values[index]?.hex || ""),
+    ...context
   } : null).filter(Boolean);
 }
 
 export function inspectExternalCovenantPackage(input) {
   const pkg = parsePackage(input);
   const resolved = normalized(pkg);
+  const p2pkAuthorization = normalizedP2pkAuthorization(pkg, resolved);
   const network = NETWORKS[pkg.network];
   const outputs = resolved.transaction.outputs.map((output, index) => ({
     index,
@@ -156,7 +236,21 @@ export function inspectExternalCovenantPackage(input) {
     address: outputAddress(output, network.kaspaNetworkId),
     covenantId: String(output.covenant?.covenantId || "")
   }));
-  const slots = signatureSlots(resolved.selected, resolved.argumentsList);
+  const slots = resolved.covenants.flatMap((covenant, covenantInputIndex) => signatureSlots(covenant.selected, covenant.argumentsList, {
+    covenantInputIndex,
+    transactionInputIndex: covenant.inputIndex,
+    covenantId: covenant.covenantId,
+    entrypoint: covenant.selected.name
+  }));
+  const normalizedMetadata = resolved.covenants.map((covenant, index) => ({
+    ...pkg.covenantInputs[index],
+    programHex: covenant.programHex,
+    covenantId: covenant.covenantId,
+    abi: covenant.abi,
+    arguments: covenant.argumentsList,
+    stateFields: covenant.stateFields
+  }));
+  const p2pkSigned = !p2pkAuthorization || p2pkAuthorization.signed;
   const operation = operationPresentation({
     templateId: pkg.provenance?.templateId,
     entrypoint: resolved.selected.name,
@@ -168,13 +262,8 @@ export function inspectExternalCovenantPackage(input) {
   return {
     package: {
       ...pkg,
-      covenantInput: {
-        ...pkg.covenantInput,
-        programHex: resolved.programHex,
-        covenantId: resolved.covenantId,
-        abi: resolved.abi,
-        arguments: resolved.argumentsList
-      }
+      covenantInputs: normalizedMetadata,
+      ...(normalizedMetadata.length === 1 ? { covenantInput: normalizedMetadata[0] } : {})
     },
     review: {
       network: pkg.network,
@@ -183,6 +272,7 @@ export function inspectExternalCovenantPackage(input) {
       inputCount: resolved.transaction.inputs.length,
       outputCount: resolved.transaction.outputs.length,
       targetInputIndex: resolved.inputIndex,
+      targetInputIndexes: resolved.covenants.map((item) => item.inputIndex),
       inputOutpoint: {
         transactionId: String(previousOutpoint.transactionId || ""),
         index: Number(previousOutpoint.index || 0)
@@ -194,8 +284,17 @@ export function inspectExternalCovenantPackage(input) {
       feeKas: sompiToKas(resolved.fee),
       outputs,
       signatureSlots: slots,
+      covenantInputs: resolved.covenants.map((item) => ({
+        transactionInputIndex: item.inputIndex,
+        covenantId: item.covenantId,
+        programSha256: sha256(Buffer.from(item.programHex, "hex")),
+        entrypoint: item.selected.name,
+        signatureCount: signatureSlots(item.selected, item.argumentsList).length
+      })),
+      p2pkAuthorization,
       operation,
-      complete: slots.every((slot) => slot.signed),
+      atomic: resolved.covenants.length > 1,
+      complete: slots.every((slot) => slot.signed) && p2pkSigned,
       warning: "The supplied ABI is metadata, not proof of the redeem program semantics. Review trusted source/artifact provenance before signing."
     }
   };
@@ -225,16 +324,17 @@ export function finalizeExternalCovenantPackage(input) {
   const inspected = inspectExternalCovenantPackage(input);
   const pkg = inspected.package;
   const resolved = normalized(pkg);
-  const remaining = signatureSlots(resolved.selected, resolved.argumentsList).filter((slot) => !slot.signed);
+  const remaining = resolved.covenants.flatMap((covenant, covenantInputIndex) => signatureSlots(covenant.selected, covenant.argumentsList, { covenantInputIndex })).filter((slot) => !slot.signed);
   if (remaining.length) throw packageError(`Covenant package still has ${remaining.length} unsigned signature slots`, "SIGNATURE_SLOTS_REMAIN");
-  const argumentScript = new kaspa.ScriptBuilder(COVENANT_SCRIPT_OPTIONS);
-  resolved.selected.inputs.forEach((definition, index) => appendArgument(argumentScript, definition.type_name, resolved.argumentsList[index]));
-  if (resolved.abi.length > 1) argumentScript.addI64(BigInt(resolved.abi.findIndex((entry) => entry.name === resolved.selected.name)));
-  const signatureScript = kaspa.ScriptBuilder
-    .fromScript(resolved.programHex, COVENANT_SCRIPT_OPTIONS)
-    .encodePayToScriptHashSignatureScript(argumentScript.drain());
   const transactionInputs = resolved.transaction.inputs;
-  transactionInputs[resolved.inputIndex].signatureScript = signatureScript;
+  for (const covenant of resolved.covenants) {
+    const argumentScript = new kaspa.ScriptBuilder(COVENANT_SCRIPT_OPTIONS);
+    covenant.selected.inputs.forEach((definition, index) => appendArgument(argumentScript, definition.type_name, covenant.argumentsList[index], covenant.stateFields));
+    if (covenant.abi.length > 1) argumentScript.addI64(BigInt(covenant.abi.findIndex((entry) => entry.name === covenant.selected.name)));
+    transactionInputs[covenant.inputIndex].signatureScript = kaspa.ScriptBuilder
+      .fromScript(covenant.programHex, COVENANT_SCRIPT_OPTIONS)
+      .encodePayToScriptHashSignatureScript(argumentScript.drain());
+  }
   resolved.transaction.inputs = transactionInputs;
   resolved.transaction.finalize();
   pkg.transactionSafeJson = resolved.transaction.serializeToSafeJSON();
@@ -252,21 +352,28 @@ export async function signExternalCovenantPackage(input, walletService) {
   const resolved = normalized(pkg);
   const publicKey = String(input.publicKey || "").toLowerCase();
   if (!/^[0-9a-f]{64}$/.test(publicKey)) throw packageError("Connected wallet public key is invalid");
-  const slots = signatureSlots(resolved.selected, resolved.argumentsList);
+  const slots = resolved.covenants.flatMap((covenant, covenantInputIndex) => signatureSlots(covenant.selected, covenant.argumentsList, {
+    covenantInputIndex,
+    transactionInputIndex: covenant.inputIndex
+  }));
   const matching = slots.filter((slot) => slot.publicKey === publicKey && !slot.signed);
   if (!matching.length) throw packageError("Connected wallet has no unsigned slot in this covenant entrypoint", "NO_MATCHING_SIGNATURE_SLOT");
-  const signature = await walletService.createCovenantInputSignature({
-    walletId: input.walletId,
-    walletSecret: input.walletSecret,
-    paymentSecret: input.paymentSecret,
-    network: pkg.network,
-    transactionSafeJson: pkg.transactionSafeJson,
-    inputIndex: resolved.inputIndex,
-    expectedPublicKey: publicKey
-  });
-  for (const slot of matching) resolved.argumentsList[slot.index] = { ...resolved.argumentsList[slot.index], kind: "signature", publicKey, hex: signature };
-  pkg.covenantInput.arguments = resolved.argumentsList;
-  const remaining = signatureSlots(resolved.selected, resolved.argumentsList).filter((slot) => !slot.signed);
+  for (const slot of matching) {
+    const covenant = resolved.covenants[slot.covenantInputIndex];
+    const signature = await walletService.createCovenantInputSignature({
+      walletId: input.walletId,
+      walletSecret: input.walletSecret,
+      paymentSecret: input.paymentSecret,
+      network: pkg.network,
+      transactionSafeJson: pkg.transactionSafeJson,
+      inputIndex: covenant.inputIndex,
+      expectedPublicKey: publicKey
+    });
+    covenant.argumentsList[slot.index] = { ...covenant.argumentsList[slot.index], kind: "signature", publicKey, hex: signature };
+    pkg.covenantInputs[slot.covenantInputIndex].arguments = covenant.argumentsList;
+  }
+  if (pkg.covenantInputs.length === 1) pkg.covenantInput = pkg.covenantInputs[0];
+  const remaining = resolved.covenants.flatMap((covenant, covenantInputIndex) => signatureSlots(covenant.selected, covenant.argumentsList, { covenantInputIndex })).filter((slot) => !slot.signed);
   let preflight = null;
   if (!remaining.length) {
     const finalized = finalizeExternalCovenantPackage(pkg);

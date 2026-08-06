@@ -28,6 +28,14 @@ const OPERATIONS = {
     { id: "checkIn", titleZh: "拥有者签到续期", titleEn: "Owner check-in" },
     { id: "recover", titleZh: "拥有者取回", titleEn: "Owner recovery" },
     { id: "inherit", titleZh: "到期分配继承", titleEn: "Mature inheritance distribution" }
+  ],
+  "merkle-one-time-claim": [
+    { id: "claim", titleZh: "提交 Merkle 证明领取", titleEn: "Claim with Merkle proof", proof: true, salt: true },
+    { id: "refund", titleZh: "到期退款", titleEn: "Timeout refund" }
+  ],
+  "commit-reveal": [
+    { id: "reveal", titleZh: "公开承诺原文领取", titleEn: "Reveal committed payload", payload: true, salt: true },
+    { id: "refund", titleZh: "到期退款", titleEn: "Timeout refund" }
   ]
 };
 
@@ -57,6 +65,32 @@ function int(data) {
   return { kind: "int", data: Number(data) };
 }
 
+function bytesArgument(hex, kind = "bytes") {
+  return { kind, hex };
+}
+
+function operationHex(value, label, { minimumBytes = 0, maximumBytes = 520, exactBytes = null } = {}) {
+  const hex = String(value || "").trim().toLowerCase().replace(/^0x/, "");
+  if (!/^[0-9a-f]*$/.test(hex) || hex.length % 2) throw operationError(`${label} must be hexadecimal data`);
+  const bytes = hex.length / 2;
+  if (exactBytes !== null && bytes !== exactBytes) throw operationError(`${label} must contain exactly ${exactBytes} bytes`);
+  if (bytes < minimumBytes || bytes > maximumBytes) throw operationError(`${label} must contain ${minimumBytes}-${maximumBytes} bytes`);
+  return hex;
+}
+
+function verifyMerkleProof(publicKey, claimId, saltHex, proofHex, leafIndex, expectedRoot) {
+  let node = crypto.createHash("sha256").update(Buffer.concat([
+    Buffer.from(publicKey, "hex"), Buffer.from(claimId, "hex"), Buffer.from(saltHex, "hex")
+  ])).digest();
+  let cursor = Number(leafIndex);
+  for (let offset = 0; offset < proofHex.length; offset += 64) {
+    const sibling = Buffer.from(proofHex.slice(offset, offset + 64), "hex");
+    node = crypto.createHash("sha256").update(cursor % 2 === 0 ? Buffer.concat([node, sibling]) : Buffer.concat([sibling, node])).digest();
+    cursor = Math.floor(cursor / 2);
+  }
+  if (node.toString("hex") !== String(expectedRoot || "").toLowerCase()) throw operationError("Merkle proof does not match the configured root", "MERKLE_PROOF_MISMATCH");
+}
+
 function templateIdOf(project) {
   const id = String(project?.review?.templateId || "");
   if (!OPERATIONS[id]) throw operationError("This project has no deterministic lifecycle operation builder", "NO_TEMPLATE_OPERATION_BUILDER");
@@ -81,7 +115,8 @@ function exactOperation(templateId, operationId) {
 }
 
 function timeoutOf(project, templateId) {
-  const index = templateId === "timelock-transfer" ? 2 : 3;
+  const indexes = { "timelock-transfer": 2, "hashlock-refund": 3, "merkle-one-time-claim": 5, "commit-reveal": 4 };
+  const index = indexes[templateId];
   const value = Number(project.constructorArgs?.[index]?.data);
   if (!Number.isSafeInteger(value) || value <= 0) throw operationError("Compiled timeout constructor argument is invalid");
   return value;
@@ -197,6 +232,40 @@ export async function buildTemplateOperationPackage(
       args = [int(fee)];
       sequence = BigInt(Number(project.constructorArgs?.[3]?.data || 0));
       if (sequence <= 0n) throw operationError("Inheritance inactivity period is invalid");
+    }
+  } else if (templateId === "merkle-one-time-claim") {
+    const isClaim = operation.id === "claim";
+    const identity = publicKeyOf(isClaim ? parameters.claimantAddress : parameters.refundAddress, network);
+    outputs = [new kaspa.TransactionOutput(payout, kaspa.payToAddressScript(identity.address))];
+    if (isClaim) {
+      const proofHex = operationHex(input.proofHex, "Merkle proof", { maximumBytes: 512 });
+      if ((proofHex.length / 2) % 32 !== 0) throw operationError("Merkle proof must contain complete 32-byte siblings");
+      const saltHex = operationHex(input.saltHex, "Merkle salt", { exactBytes: 32 });
+      verifyMerkleProof(identity.publicKey, parameters.claimId, saltHex, proofHex, parameters.leafIndex, parameters.merkleRoot);
+      args = [bytesArgument(proofHex), bytesArgument(saltHex, "bytes32"), signature(identity.publicKey), int(fee)];
+      sigOps = 1;
+    } else {
+      args = [signature(identity.publicKey), int(fee)];
+      sigOps = 1;
+      lockTime = BigInt(timeoutOf(project, templateId));
+    }
+  } else if (templateId === "commit-reveal") {
+    const isReveal = operation.id === "reveal";
+    const identity = publicKeyOf(isReveal ? parameters.recipientAddress : parameters.senderAddress, network);
+    outputs = [new kaspa.TransactionOutput(payout, kaspa.payToAddressScript(identity.address))];
+    if (isReveal) {
+      const payloadHex = operationHex(input.payloadHex, "Reveal payload", { minimumBytes: 1, maximumBytes: 480 });
+      const saltHex = operationHex(input.saltHex, "Reveal salt", { exactBytes: 32 });
+      const commitment = crypto.createHash("sha256").update(Buffer.concat([
+        Buffer.from(parameters.domain, "hex"), Buffer.from(payloadHex, "hex"), Buffer.from(saltHex, "hex")
+      ])).digest("hex");
+      if (commitment !== parameters.commitment) throw operationError("Reveal payload and salt do not match the configured commitment", "COMMITMENT_MISMATCH");
+      args = [bytesArgument(payloadHex), bytesArgument(saltHex, "bytes32"), signature(identity.publicKey), int(fee)];
+      sigOps = 1;
+    } else {
+      args = [signature(identity.publicKey), int(fee)];
+      sigOps = 1;
+      lockTime = BigInt(timeoutOf(project, templateId));
     }
   }
 

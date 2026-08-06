@@ -1,0 +1,56 @@
+{
+  "order": 60,
+  "category": "proof",
+  "titleZh": "Merkle 一次性领取",
+  "titleEn": "Merkle one-time claim",
+  "descriptionZh": "领取人提交固定 Merkle 证明和盐值后一次性领取；到期未领取则由退款钱包收回。仅限 TN10 实验。",
+  "descriptionEn": "A claimant consumes the UTXO once with a committed Merkle proof and salt; the refund wallet recovers it after timeout. TN10 experimental only.",
+  "experimentalOnly": true,
+  "networkAllowlist": ["tn10"],
+  "compilerProfileId": "latest-4b0e1cd",
+  "requirementsEn": "Allow exactly one claimant to consume a Merkle-committed claim before a timeout, with a signed refund path afterwards.",
+  "risk": "experimental",
+  "sourceFile": "contract.sil",
+  "requiredReplacements": [0, 1, 2, 3, 4, 5],
+  "parameters": [
+    { "id": "amountKas", "type": "amount", "projectField": "deployAmount", "required": true, "default": "0.05", "minimum": "0.05", "labelZh": "领取资金", "labelEn": "Claim value", "helpZh": "扣除显式矿工费后的余额一次性支付给领取人。", "helpEn": "The full balance minus the explicit miner fee is paid once to the claimant." },
+    { "id": "claimantAddress", "type": "address", "argIndex": 0, "required": true, "labelZh": "领取钱包", "labelEn": "Claimant wallet", "placeholderZh": "kaspatest:...", "placeholderEn": "kaspatest:...", "helpZh": "Merkle 叶子和链上签名同时绑定该钱包。", "helpEn": "Both the Merkle leaf and on-chain signature bind this wallet." },
+    { "id": "refundAddress", "type": "address", "argIndex": 1, "required": true, "labelZh": "超时退款钱包", "labelEn": "Timeout refund wallet", "placeholderZh": "kaspatest:...", "placeholderEn": "kaspatest:...", "helpZh": "到期后只有该钱包能退款。", "helpEn": "Only this wallet can refund after timeout." },
+    { "id": "merkleRoot", "type": "sha256", "argIndex": 2, "required": true, "labelZh": "Merkle Root", "labelEn": "Merkle root", "helpZh": "叶子为 SHA256(claimantPubkey || claimId || salt32)。", "helpEn": "Leaf is SHA256(claimantPubkey || claimId || salt32)." },
+    { "id": "leafIndex", "type": "integer", "argIndex": 3, "minimum": 0, "maximum": 65535, "default": 0, "required": true, "labelZh": "叶子索引", "labelEn": "Leaf index", "helpZh": "决定每一层左右拼接顺序。", "helpEn": "Determines left/right concatenation at each level." },
+    { "id": "claimId", "type": "sha256", "argIndex": 4, "required": true, "labelZh": "领取 ID", "labelEn": "Claim ID", "helpZh": "业务域内唯一的 32 字节标识，防止证明跨用途重放。", "helpEn": "A domain-unique 32-byte identifier preventing cross-purpose proof replay." },
+    { "id": "timeout", "type": "datetime", "argIndex": 5, "required": true, "defaultOffsetSeconds": 3600, "quickOffsets": [60, 600, 3600, 86400], "labelZh": "退款时间", "labelEn": "Refund time", "helpZh": "TN10 可用一分钟测试。", "helpEn": "A one-minute shortcut is available on TN10." }
+  ],
+  "constructorArgs": [
+    { "kind": "pubkey", "hex": "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798" },
+    { "kind": "pubkey", "hex": "c6047f9441ed7d6d3045406e95c07cd85a28b8aef3caabac09b95c709ee5bef6" },
+    { "kind": "bytes32", "hex": "1111111111111111111111111111111111111111111111111111111111111111" },
+    { "kind": "int", "data": 0 },
+    { "kind": "bytes32", "hex": "2222222222222222222222222222222222222222222222222222222222222222" },
+    { "kind": "int", "data": 2000000000 }
+  ],
+  "invariants": [
+    "Claimant, claim ID and salt are committed by the verified Merkle root",
+    "The claim and refund paths terminate the covenant with exactly one P2PK output",
+    "The miner fee is explicit and bounded",
+    "No continuation output can preserve a reusable claim"
+  ],
+  "transactionPlans": [
+    { "transition": "claim", "inputs": [{ "role": "claim-ticket", "index": 0 }], "outputs": [{ "role": "claimant", "index": 0 }], "conservationChecks": ["input = claimant output + explicit fee", "no covenant continuation"] },
+    { "transition": "refund", "inputs": [{ "role": "expired-ticket", "index": 0 }], "outputs": [{ "role": "refund-wallet", "index": 0 }], "conservationChecks": ["timeout reached", "input = refund output + explicit fee"] }
+  ],
+  "example": {
+    "titleZh": "一次性白名单领取",
+    "titleEn": "One-time allowlist claim",
+    "scenarioZh": "发行方把领取钱包、领取 ID 和随机盐写入 Merkle 树，领取人用证明一次性取走该 UTXO。",
+    "scenarioEn": "An issuer commits the claimant wallet, claim ID and random salt into a Merkle tree; the claimant consumes this UTXO once with its proof.",
+    "rolesZh": ["发行方：生成并备份树与证明", "领取人：持有证明、盐值和签名钱包", "退款方：超时后收回"],
+    "rolesEn": ["Issuer: generates and backs up the tree and proofs", "Claimant: holds the proof, salt and signing wallet", "Refund wallet: recovers after timeout"],
+    "stepsZh": ["离线生成叶子和 Merkle Root", "部署单个领取 UTXO", "领取人核对 claim ID、证明和输出后签名", "领取或到期退款都会终止该 Covenant"],
+    "stepsEn": ["Generate the leaf and Merkle root offline", "Deploy one claim UTXO", "The claimant verifies the claim ID, proof and output before signing", "Claim or timeout refund terminates the covenant"],
+    "resultZh": "同一 Covenant UTXO 无法领取两次。",
+    "resultEn": "The same covenant UTXO cannot be claimed twice.",
+    "cautionZh": "证明文件丢失会导致到期前无法领取；这是 TN10 实验模板。",
+    "cautionEn": "Losing the proof prevents claiming before timeout; this is a TN10 experimental template."
+  }
+}

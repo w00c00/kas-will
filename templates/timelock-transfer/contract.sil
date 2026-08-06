@@ -1,11 +1,11 @@
 pragma silverscript ^0.1.0;
 
 contract TimelockTransfer(pubkey sender, pubkey recipient, int timeout) {
-    entrypoint function claim(sig recipientSignature) {
+    entry claim(sig recipientSignature) {
         require(checkSig(recipientSignature, recipient));
     }
 
-    entrypoint function refund(sig senderSignature) {
+    entry refund(sig senderSignature) {
         require(checkSig(senderSignature, sender));
         require(tx.time >= timeout);
     }

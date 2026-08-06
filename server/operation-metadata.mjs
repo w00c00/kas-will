@@ -61,6 +61,41 @@ const OPERATIONS = {
     titleEn: "Confirm owner payment",
     descriptionZh: "由拥有者签名，将锁定资产支付到指定地址。",
     descriptionEn: "The owner signs to pay the locked funds to the selected destination."
+  },
+  "merkle-one-time-claim:claim": {
+    kind: "merkle-claim",
+    titleZh: "Merkle 一次性领取",
+    titleEn: "Merkle one-time claim",
+    descriptionZh: "领取钱包提交匹配叶子、索引、盐值的 Merkle 证明并签名，一次性终结该 Covenant。",
+    descriptionEn: "The claimant submits the Merkle proof bound to its leaf, index and salt, signs, and terminates this covenant once."
+  },
+  "merkle-one-time-claim:refund": {
+    kind: "refund",
+    titleZh: "Merkle 领取超时退款",
+    titleEn: "Merkle claim timeout refund",
+    descriptionZh: "领取窗口超时后，由固定退款钱包签名收回。",
+    descriptionEn: "After the claim window expires, the configured refund wallet signs to recover the funds."
+  },
+  "commit-reveal:reveal": {
+    kind: "commit-reveal",
+    titleZh: "公开承诺并领取",
+    titleEn: "Reveal commitment and claim",
+    descriptionZh: "收款钱包公开匹配域隔离承诺的 payload 与 salt 并签名领取。",
+    descriptionEn: "The recipient reveals the payload and salt matching the domain-separated commitment and signs to claim."
+  },
+  "commit-reveal:refund": {
+    kind: "refund",
+    titleZh: "Commit / Reveal 超时退款",
+    titleEn: "Commit / reveal timeout refund",
+    descriptionZh: "未 Reveal 且超时后，由发送方签名退款。",
+    descriptionEn: "If no reveal occurs before timeout, the sender signs to recover the escrow."
+  },
+  "kcc721-experimental:__covenant_entrypoint_auth_transfer": {
+    kind: "p2pk-cospend",
+    titleZh: "KCC721 实验 NFT 转移",
+    titleEn: "Experimental KCC721 NFT transfer",
+    descriptionZh: "由当前拥有者的独立 P2PK 输入授权 Covenant NFT 所有权转移。",
+    descriptionEn: "A separate P2PK input owned by the current holder authorizes the covenant NFT transfer."
   }
 };
 

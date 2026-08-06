@@ -4,7 +4,7 @@ import path from "node:path";
 import express from "express";
 import { config, publicConfig } from "./config.mjs";
 import { generateWithAi } from "./ai-providers.mjs";
-import { compileContract, compilerManifest, staticAnalyze } from "./compiler.mjs";
+import { compileContract, compilerManifest, compilerProfiles, detectBreakingChanges, migrateSourceToProfile, staticAnalyze } from "./compiler.mjs";
 import { DraftStore } from "./draft-store.mjs";
 import { broadcastWalletTransfer, buildDeployDraft, buildWalletTransferDraft, broadcastDeploy, configureNodeAccess, discoverNetworks, findCovenantUtxo, kascovPreflight, nodeStatus, signAndBroadcastWalletTransfer, signDeployDraft, submitReviewedTransaction, transactionEvidence, walletBalance } from "./kaspa-service.mjs";
 import { ProjectStore } from "./project-store.mjs";
@@ -17,6 +17,9 @@ import { exportExternalCovenantPackage, inspectExternalCovenantPackage, signExte
 import { buildTemplateOperationPackage, templateOperations } from "./template-operation-service.mjs";
 import { buildLifecycleStatus, spentLifecycleStatus } from "./lifecycle-status.mjs";
 import { assertInheritanceDistributionOpen, assertLocalRenewalOpen, assertLocalRenewalPackage } from "./local-operation-authorization.mjs";
+import { signP2pkCoSpendPackage } from "./p2pk-cospend.mjs";
+import { createP2pkCoSpendAuthorization, selectP2pkFundingUtxo } from "./p2pk-cospend.mjs";
+import { buildAtomicCovenantPackage } from "./atomic-covenant-builder.mjs";
 
 fs.mkdirSync(config.dataDir, { recursive: true, mode: 0o700 });
 const projects = new ProjectStore(config.dataDir);
@@ -168,6 +171,27 @@ app.get("/api/projects/:id/lifecycle-status", async (req, res, next) => {
     res.json({ status: await lifecycleStatusFor(project) });
   } catch (error) { next(error); }
 });
+app.post("/api/covenants/resolve", async (req, res, next) => {
+  try {
+    const result = await findCovenantUtxo(
+      req.body?.network || "tn10",
+      req.body?.programHex,
+      req.body?.transactionId,
+      req.body?.outputIndex ?? 0,
+      req.body?.covenantId || ""
+    );
+    res.json({ state: {
+      network: req.body?.network || "tn10",
+      covenantId: result.covenantId,
+      outpoint: result.outpoint,
+      amountSompi: result.amountSompi,
+      address: result.address,
+      provider: result.provider,
+      verified: result.verified,
+      attempts: result.attempts
+    } });
+  } catch (error) { next(error); }
+});
 app.post("/api/projects/:id/operations/build", async (req, res, next) => {
   try {
     const project = projects.get(req.params.id);
@@ -211,6 +235,14 @@ app.post("/api/ai/review", async (req, res, next) => {
 app.post("/api/contracts/analyze", async (req, res, next) => {
   try { res.json({ analysis: await staticAnalyze(req.body?.source) }); } catch (error) { next(error); }
 });
+app.post("/api/contracts/compatibility", (req, res, next) => {
+  try {
+    const targetProfileId = req.body?.targetProfileId || config.compiler.defaultProfileId;
+    const report = detectBreakingChanges(req.body?.source, targetProfileId);
+    const migration = req.body?.includeMigration === true ? migrateSourceToProfile(req.body?.source, targetProfileId) : null;
+    res.json({ report, migration });
+  } catch (error) { next(error); }
+});
 app.post("/api/contracts/compile", async (req, res, next) => {
   try {
     const artifact = await compileContract(req.body || {});
@@ -230,9 +262,10 @@ app.post("/api/contracts/compile", async (req, res, next) => {
 app.get("/api/compiler", (_req, res, next) => {
   try {
     const manifest = compilerManifest();
-    res.json({ configured: true, manifest: { ...manifest, bin: path.basename(manifest.bin) } });
+    res.json({ configured: true, manifest: { ...manifest, bin: path.basename(manifest.bin) }, profiles: compilerProfiles() });
   } catch (error) { next(error); }
 });
+app.get("/api/compiler/profiles", (_req, res) => res.json({ defaultProfileId: config.compiler.defaultProfileId, profiles: compilerProfiles() }));
 
 app.post("/api/deploy/draft", async (req, res, next) => {
   try { res.json({ draft: await buildDeployDraft(req.body || {}, drafts) }); } catch (error) { next(error); }
@@ -252,6 +285,18 @@ app.post("/api/deploy/broadcast", async (req, res, next) => {
 app.post("/api/external-covenants/inspect", (req, res, next) => {
   try { res.json(inspectExternalCovenantPackage(req.body?.package)); } catch (error) { next(error); }
 });
+app.post("/api/external-covenants/build-atomic", (req, res, next) => {
+  try { res.json(inspectExternalCovenantPackage(buildAtomicCovenantPackage(req.body || {}))); } catch (error) { next(error); }
+});
+app.post("/api/p2pk-cospend/select", (req, res, next) => {
+  try {
+    const utxo = selectP2pkFundingUtxo(req.body?.utxos, req.body?.requiredSompi);
+    res.json({ utxo: { ...utxo, amount: utxo.amount.toString(), blockDaaScore: utxo.blockDaaScore.toString() } });
+  } catch (error) { next(error); }
+});
+app.post("/api/p2pk-cospend/authorization", (req, res, next) => {
+  try { res.json(createP2pkCoSpendAuthorization(req.body || {})); } catch (error) { next(error); }
+});
 app.post("/api/external-covenants/export", (req, res, next) => {
   try { res.json({ export: exportExternalCovenantPackage(req.body?.package) }); } catch (error) { next(error); }
 });
@@ -266,6 +311,9 @@ app.post("/api/external-covenants/sign", async (req, res, next) => {
     }
     res.json(await signExternalCovenantPackage(input, wallets));
   } catch (error) { next(error); }
+});
+app.post("/api/external-covenants/sign-p2pk-cospend", async (req, res, next) => {
+  try { res.json(await signP2pkCoSpendPackage(req.body || {}, wallets)); } catch (error) { next(error); }
 });
 app.post("/api/external-covenants/broadcast", async (req, res, next) => {
   try {

@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { config } from "./config.mjs";
+import { config, SILVERSCRIPT_COMMIT } from "./config.mjs";
 
 const FILES = [
   "SKILL.md",
@@ -26,7 +26,7 @@ export function loadSkillContext() {
 export function skillManifest() {
   return {
     name: "kaspa-silverscript",
-    upstreamCommit: "2a3961cadc76bb16a425042172ffe32481da89b5",
+    upstreamCommit: SILVERSCRIPT_COMMIT,
     files: FILES.slice()
   };
 }

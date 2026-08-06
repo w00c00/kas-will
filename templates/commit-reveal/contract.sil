@@ -1,0 +1,39 @@
+pragma silverscript ^0.1.0;
+
+contract CommitRevealEscrow(
+    pubkey sender,
+    pubkey recipient,
+    byte[32] domain,
+    byte[32] commitment,
+    int timeout
+) {
+    int constant MAX_REVEAL_BYTES = 480;
+    int constant MAX_MINER_FEE = 10000000;
+
+    function requireTerminalPayment(pubkey payee, int minerFee) {
+        require(tx.inputs.length == 1);
+        require(this.activeInputIndex == 0);
+        require(tx.outputs.length == 1);
+        require(OpAuthOutputCount(this.activeInputIndex) == 0);
+        require(minerFee >= 1000);
+        require(minerFee <= MAX_MINER_FEE);
+        require(tx.inputs[this.activeInputIndex].value > minerFee);
+        byte[34] payeeScript = new ScriptPubKeyP2PK(payee);
+        require(tx.outputs[0].scriptPubKey == byte[](payeeScript));
+        require(tx.outputs[0].value == tx.inputs[this.activeInputIndex].value - minerFee);
+    }
+
+    entry reveal(byte[] payload, byte[32] salt, sig recipientSignature, int minerFee) {
+        require(payload.length >= 1);
+        require(payload.length <= MAX_REVEAL_BYTES);
+        require(sha256(byte[](domain) + payload + byte[](salt)) == commitment);
+        require(checkSig(recipientSignature, recipient));
+        requireTerminalPayment(recipient, minerFee);
+    }
+
+    entry refund(sig senderSignature, int minerFee) {
+        require(tx.time >= timeout);
+        require(checkSig(senderSignature, sender));
+        requireTerminalPayment(sender, minerFee);
+    }
+}

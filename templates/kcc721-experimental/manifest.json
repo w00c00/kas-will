@@ -1,0 +1,114 @@
+{
+  "order": 90,
+  "category": "TN10 EXPERIMENTAL PACK",
+  "titleZh": "KCC721 Covenant NFT 实验包",
+  "titleEn": "KCC721 covenant NFT experimental pack",
+  "descriptionZh": "分步配置 Collection 元数据、NFT 身份和持有人；摘要由本地自动计算。包含四个 Covenant，仅用于 TN10 研究，普通部署保持禁用。",
+  "descriptionEn": "Guided Collection metadata, NFT identity and owner setup with a locally computed digest. Four covenants are included for TN10 research; ordinary deployment remains disabled.",
+  "experimentalOnly": true,
+  "networkAllowlist": ["tn10"],
+  "compilerProfileId": "latest-4b0e1cd",
+  "deploymentMode": "pack-only",
+  "deploymentBlockedReason": "KCC721 is a four-contract TN10 experimental pack; its dedicated independently reviewed genesis/mint builder is not included yet, so standalone deployment is disabled",
+  "requirementsEn": "Research UTXO-native NFTs whose immutable identity and current owner are enforced by a live covenant lineage.",
+  "risk": "high-experimental",
+  "sourceFile": "kcc721-v2-nft.sil",
+  "requiredReplacements": [0, 1, 2, 3],
+  "parameterLayout": "steps",
+  "parameterSteps": [
+    { "id": "metadata", "number": 1, "titleZh": "集合与 NFT 元数据", "titleEn": "Collection and NFT metadata", "helpZh": "填写人类可读信息；Studio 会规范化 JSON 并在本地计算不可变 SHA-256。", "helpEn": "Enter human-readable details; Studio canonicalizes the JSON and computes the immutable SHA-256 locally." },
+    { "id": "identity", "number": 2, "titleZh": "集合身份与 Token ID", "titleEn": "Collection identity and Token ID", "helpZh": "新集合只能先做编译预览；已有集合必须粘贴从创世输出核验得到的 Covenant ID。", "helpEn": "A new collection is compile-preview only; an existing collection requires a Covenant ID verified from its genesis output." },
+    { "id": "owner", "number": 3, "titleZh": "持有人与 Cell 金额", "titleEn": "Owner and cell value", "helpZh": "所有者使用 TN10 P2PK 钱包授权后续转移；Cell 金额不是 NFT 售价。", "helpEn": "The owner authorizes later transfers with a TN10 P2PK wallet; cell value is not the NFT sale price." }
+  ],
+  "parameters": [
+    { "id": "metadata", "type": "kcc721Metadata", "step": "metadata", "argIndex": 2, "required": true, "default": { "name": "My TN10 NFT #1", "description": "TN10 experimental KCC721 research item", "image": "", "externalUrl": "", "attributes": [] }, "labelZh": "NFT 元数据", "labelEn": "NFT metadata", "helpZh": "摘要由以下内容确定，任何字符变化都会产生不同摘要。", "helpEn": "The digest is derived from these values; any character change produces a different digest." },
+    { "id": "collectionMode", "type": "choice", "step": "identity", "required": true, "default": "preview", "options": [{ "value": "preview", "labelZh": "新集合 · 编译预览", "labelEn": "New collection · compile preview" }, { "value": "existing", "labelZh": "导入已有 TN10 集合", "labelEn": "Import existing TN10 collection" }], "labelZh": "集合来源", "labelEn": "Collection source", "helpZh": "编译预览使用内部全零哨兵且永远禁止部署；导入模式才接受真实 ID。", "helpEn": "Preview uses an internal all-zero sentinel and can never deploy; only import mode accepts a real ID." },
+    { "id": "collectionId", "type": "kcc721CollectionId", "step": "identity", "argIndex": 0, "required": false, "labelZh": "已核验 Collection Covenant ID", "labelEn": "Verified Collection covenant ID", "placeholderZh": "64 位十六进制；从创世输出获得", "placeholderEn": "64 hex characters from the genesis output", "helpZh": "不能使用交易 ID、地址或随机构造值；新集合预览无需填写。", "helpEn": "Do not use a transaction ID, address, or invented value; leave blank for a new-collection preview." },
+    { "id": "tokenId", "type": "integer", "step": "identity", "argIndex": 1, "minimum": 1, "maximum": 1000000000, "default": 1, "required": true, "labelZh": "Token ID", "labelEn": "Token ID", "helpZh": "必须在同一 Collection 内唯一，从 1 开始。", "helpEn": "Must be unique inside the Collection and starts at 1." },
+    { "id": "ownerAddress", "type": "address", "step": "owner", "argIndex": 3, "required": true, "useConnectedWallet": true, "labelZh": "初始所有者钱包", "labelEn": "Initial owner wallet", "placeholderZh": "kaspatest:...", "placeholderEn": "kaspatest:...", "helpZh": "转移时通过通用 P2PK co-spend 授权组件签名。", "helpEn": "Transfers are authorized through the generic P2PK co-spend component." },
+    { "id": "amountKas", "type": "amount", "step": "owner", "projectField": "deployAmount", "required": true, "default": "0.5", "minimum": "0.5", "labelZh": "NFT Cell 金额", "labelEn": "NFT cell value", "helpZh": "至少 0.5 TKAS；这是 Covenant UTXO 承载金额，不是铸造价或售价。", "helpEn": "At least 0.5 TKAS; this is covenant UTXO value, not mint price or sale price." }
+  ],
+  "constructorArgs": [
+    { "kind": "bytes32", "hex": "1111111111111111111111111111111111111111111111111111111111111111" },
+    { "kind": "int", "data": 1 },
+    { "kind": "bytes32", "hex": "2222222222222222222222222222222222222222222222222222222222222222" },
+    { "kind": "pubkey", "hex": "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798" }
+  ],
+  "packContracts": [
+    {
+      "id": "nft",
+      "sourceFile": "kcc721-v2-nft.sil",
+      "constructorArgs": [
+        { "kind": "bytes32", "hex": "1111111111111111111111111111111111111111111111111111111111111111" },
+        { "kind": "int", "data": 1 },
+        { "kind": "bytes32", "hex": "2222222222222222222222222222222222222222222222222222222222222222" },
+        { "kind": "pubkey", "hex": "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798" }
+      ]
+    },
+    {
+      "id": "ticket",
+      "sourceFile": "kcc721-v2-ticket.sil",
+      "constructorArgs": [
+        { "kind": "byte[]", "data": [1, 2] }, { "kind": "byte[]", "data": [3, 4] },
+        { "kind": "bytes32", "hex": "3333333333333333333333333333333333333333333333333333333333333333" },
+        { "kind": "bytes32", "hex": "1111111111111111111111111111111111111111111111111111111111111111" },
+        { "kind": "int", "data": 1 }, { "kind": "int", "data": 100 },
+        { "kind": "bytes32", "hex": "2222222222222222222222222222222222222222222222222222222222222222" },
+        { "kind": "bytes32", "hex": "4444444444444444444444444444444444444444444444444444444444444444" },
+        { "kind": "pubkey", "hex": "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798" }
+      ]
+    },
+    {
+      "id": "collection",
+      "sourceFile": "kcc721-v2-collection.sil",
+      "constructorArgs": [
+        { "kind": "pubkey", "hex": "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798" },
+        { "kind": "int", "data": 100 },
+        { "kind": "bytes32", "hex": "2222222222222222222222222222222222222222222222222222222222222222" },
+        { "kind": "bytes32", "hex": "4444444444444444444444444444444444444444444444444444444444444444" },
+        { "kind": "int", "data": 50000000 }, { "kind": "int", "data": 0 }, { "kind": "int", "data": 1 },
+        { "kind": "byte[]", "data": [1, 2] }, { "kind": "byte[]", "data": [3, 4] },
+        { "kind": "bytes32", "hex": "3333333333333333333333333333333333333333333333333333333333333333" }
+      ]
+    },
+    {
+      "id": "migration",
+      "sourceFile": "kcc721-v2-migration.sil",
+      "constructorArgs": [
+        { "kind": "pubkey", "hex": "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798" },
+        { "kind": "int", "data": 100 },
+        { "kind": "bytes32", "hex": "2222222222222222222222222222222222222222222222222222222222222222" },
+        { "kind": "bytes32", "hex": "5555555555555555555555555555555555555555555555555555555555555555" },
+        { "kind": "int", "data": 100 },
+        { "kind": "byte[]", "data": [1, 2] }, { "kind": "byte[]", "data": [3, 4] },
+        { "kind": "bytes32", "hex": "3333333333333333333333333333333333333333333333333333333333333333" }
+      ]
+    }
+  ],
+  "invariants": [
+    "Collection covenant ID is the canonical collection identity",
+    "NFT collection ID, token ID and metadata digest remain immutable across transfers",
+    "Every owner change requires a matching P2PK co-spend input",
+    "Batch transfers preserve one live successor per input covenant ID",
+    "Blind mint and migration proofs must be verified before creating an NFT genesis output"
+  ],
+  "transactionPlans": [
+    { "transition": "transfer", "inputs": [{ "role": "nft-covenant" }, { "role": "owner-p2pk-authorization" }], "outputs": [{ "role": "same-covenant-successor" }], "conservationChecks": ["identity fields unchanged", "same covenant ID", "cell value not reduced"] },
+    { "transition": "atomic-transfer", "inputs": [{ "role": "2-32 nft covenants" }, { "role": "shared owner P2PK authorization" }], "outputs": [{ "role": "one successor per NFT" }], "conservationChecks": ["all-or-nothing", "actual mass recalculated", "every input maps to a unique successor"] },
+    { "transition": "blind-mint", "inputs": [{ "role": "collection controller" }], "outputs": [{ "role": "controller continuation" }, { "role": "mint ticket genesis" }], "conservationChecks": ["mint index increments once", "ticket template and genesis covenant binding verified"] }
+  ],
+  "example": {
+    "titleZh": "TN10 原生 NFT 集合研究",
+    "titleEn": "TN10 native NFT collection research",
+    "scenarioZh": "开发者在 TN10 编译四个相互依赖的 Covenant，测试盲铸造、所有者 P2PK co-spend 和原子批量转移。",
+    "scenarioEn": "A developer compiles four interdependent covenants on TN10 to test blind minting, owner P2PK co-spend and atomic batch transfers.",
+    "rolesZh": ["部署者：固定集合参数和证明根", "持有人：通过普通 P2PK 钱包授权", "索引器：验证完整 Covenant lineage"],
+    "rolesEn": ["Deployer: fixes collection parameters and proof roots", "Holder: authorizes through a normal P2PK wallet", "Indexer: validates the full covenant lineage"],
+    "stepsZh": ["完整编译四个固定提交的源码", "使用专用 builder 创建 Controller 与 Ticket/NFT genesis", "每次转移验证 Covenant ID、状态、金额和所有者输入", "原子批量操作先计算真实 mass 再请求签名"],
+    "stepsEn": ["Fully compile all four pinned sources", "Use a dedicated builder for Controller and Ticket/NFT genesis", "Verify covenant ID, state, value and owner input on every transfer", "Calculate actual mass before requesting an atomic batch signature"],
+    "resultZh": "NFT 当前所有权由活跃 Covenant UTXO 表示，而不是仅由网站数据库声明。",
+    "resultEn": "Current NFT ownership is represented by a live covenant UTXO rather than only a website database claim.",
+    "cautionZh": "这是社区 Draft 的 TN10 研究包，不是 KCC 正式标准，也未达到主网发布条件。",
+    "cautionEn": "This is a TN10 research pack adapted from a community Draft, not a finalized KCC or a mainnet-ready release."
+  }
+}
