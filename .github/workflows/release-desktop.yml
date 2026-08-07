@@ -75,6 +75,60 @@ jobs:
           APPLE_SIGNING_IDENTITY: '-'
         run: npm run desktop:build -- --bundles dmg
 
+      - name: Smoke test packaged macOS local service
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          app_bundle="$(find src-tauri/target/release/bundle/macos -name '*.app' -print -quit)"
+          test -n "$app_bundle"
+          node_bin="$app_bundle/Contents/MacOS/node"
+          runtime="$app_bundle/Contents/Resources/runtime/app"
+          test -x "$node_bin"
+          test -f "$runtime/server/index.mjs"
+
+          # Node/V8 crashes with SIGTRAP on Apple Silicon when Hardened Runtime
+          # is enabled without the allow-jit entitlement.
+          test "$("$node_bin" -e 'console.log(new Function("return 42")())')" = "42"
+
+          log="$RUNNER_TEMP/kaspa-studio-macos-backend.log"
+          data_dir="$RUNNER_TEMP/kaspa-studio-macos-data"
+          mkdir -p "$data_dir"
+          HOST=127.0.0.1 \
+          PORT=4310 \
+          STUDIO_DATA_DIR="$data_dir" \
+          SILVERC_LATEST_BIN="$runtime/bin/silverc-latest" \
+          SILVERC_LEGACY_BIN="$runtime/bin/silverc-legacy" \
+          KASCOV_PREFLIGHT_BIN="$runtime/bin/kascov-preflight" \
+            "$node_bin" "$runtime/server/index.mjs" >"$log" 2>&1 &
+          backend_pid=$!
+          cleanup() {
+            kill "$backend_pid" 2>/dev/null || true
+            wait "$backend_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          healthy=false
+          for attempt in {1..60}; do
+            if curl -fsS --max-time 2 http://127.0.0.1:4310/api/health >"$RUNNER_TEMP/health.json"; then
+              healthy=true
+              break
+            fi
+            if ! kill -0 "$backend_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 0.5
+          done
+          if [ "$healthy" != true ]; then
+            cat "$log"
+            exit 1
+          fi
+
+          curl -fsS --max-time 5 http://127.0.0.1:4310/api/templates >"$RUNNER_TEMP/templates.json"
+          "$node_bin" -e '
+            const payload = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+            if (!Array.isArray(payload.templates) || payload.templates.length < 1) process.exit(1);
+          ' "$RUNNER_TEMP/templates.json"
+
       - name: Stage macOS artifact
         if: matrix.platform == 'macos'
         shell: bash

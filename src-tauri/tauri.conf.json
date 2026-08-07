@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Kaspa SilverScript Studio",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "identifier": "io.kaspa.silverscript-studio",
   "build": {
     "frontendDist": "../dist",
@@ -30,6 +30,9 @@
     "externalBin": ["binaries/node"],
     "resources": ["runtime/**/*"],
     "targets": "all",
+    "macOS": {
+      "entitlements": "entitlements.plist"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

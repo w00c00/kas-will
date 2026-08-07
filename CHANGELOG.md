@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.5 — 2026-08-07
+
+- Added the minimum macOS Hardened Runtime JIT entitlement required by the bundled Node/V8 sidecar, fixing immediate `SIGTRAP` termination and local-service startup failure on Apple Silicon.
+- Added a native macOS post-package smoke test that executes V8 code from the signed sidecar and requires both `/api/health` and `/api/templates` to succeed.
+
+## 0.2.5 — 2026-08-07（中文）
+
+- 为内置 Node/V8 sidecar 增加 macOS Hardened Runtime 所需的最小 JIT entitlement，修复 Apple Silicon 上立即触发 `SIGTRAP`、本地服务无法启动的问题。
+- 增加 macOS 原生打包后冒烟测试：使用已签名 sidecar 执行 V8 代码，并强制验证 `/api/health` 与 `/api/templates`。
+
 ## 0.2.4 — 2026-08-07
 
 - Normalized Windows verbatim resource paths before launching the bundled Node runtime, preventing the local API from exiting with `EISDIR` and restoring templates and node access.
