@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.2 — 2026-08-07
+
+- Fixed Windows desktop runtime detection for Tauri's `http://tauri.localhost` and `https://tauri.localhost` WebView origins.
+- Restored Windows requests to the bundled loopback service, fixing empty template lists and unresponsive wallet creation.
+- Added regression coverage for Windows, macOS/Linux-style Tauri origins, injected Tauri globals, and normal browser mode.
+
+## 0.2.2 — 2026-08-07（中文）
+
+- 修复 Windows Tauri WebView 使用 `http://tauri.localhost` 或 `https://tauri.localhost` 时的桌面运行环境识别。
+- 恢复 Windows 客户端对内置回环服务的请求，修复模板列表为空和创建钱包无反应的问题。
+- 增加 Windows、macOS/Linux 风格 Tauri 地址、Tauri 注入标记及普通浏览器模式的回归测试。
+
 ## 0.2.1 — 2026-08-07
 
 - Added native Windows x64 and Linux x86_64 desktop build and release pipelines alongside macOS Apple Silicon.

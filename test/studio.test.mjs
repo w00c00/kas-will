@@ -23,6 +23,7 @@ import { operationPresentation } from "../server/operation-metadata.mjs";
 import { buildLifecycleStatus, spentLifecycleStatus } from "../server/lifecycle-status.mjs";
 import { assertInheritanceDistributionOpen, assertLocalRenewalOpen, assertLocalRenewalPackage } from "../server/local-operation-authorization.mjs";
 import { detectPreferredLanguage } from "../src/locale.js";
+import { apiBaseForRuntime, isTauriRuntime } from "../src/runtime-environment.js";
 import { CovenantStateSource, covenantStateProvider, verifyCovenantStateCandidate } from "../server/covenant-state-source.mjs";
 import { createP2pkCoSpendAuthorization, selectP2pkFundingUtxo, signP2pkCoSpendPackage } from "../server/p2pk-cospend.mjs";
 import { buildAtomicCovenantPackage } from "../server/atomic-covenant-builder.mjs";
@@ -31,6 +32,24 @@ import { binaryRelativePath, cargoReleaseBinary, executableName } from "../scrip
 
 const require = createRequire(import.meta.url);
 const kaspa = require("@kluster/kaspa-wasm");
+
+test("desktop runtime detection supports Windows Tauri webview origins", () => {
+  const browserGlobal = {};
+
+  for (const locationLike of [
+    { protocol: "tauri:", hostname: "localhost" },
+    { protocol: "http:", hostname: "tauri.localhost" },
+    { protocol: "https:", hostname: "tauri.localhost" }
+  ]) {
+    assert.equal(isTauriRuntime(locationLike, browserGlobal), true);
+    assert.equal(apiBaseForRuntime(locationLike, browserGlobal), "http://127.0.0.1:4310");
+  }
+
+  assert.equal(isTauriRuntime({ protocol: "http:", hostname: "localhost" }, { isTauri: true }), true);
+  assert.equal(isTauriRuntime({ protocol: "http:", hostname: "localhost" }, { __TAURI_INTERNALS__: {} }), true);
+  assert.equal(isTauriRuntime({ protocol: "http:", hostname: "localhost" }, browserGlobal), false);
+  assert.equal(apiBaseForRuntime({ protocol: "http:", hostname: "localhost" }, browserGlobal), "");
+});
 
 function byteArray(bytes) {
   return { kind: "array", data: Array.from(bytes, (data) => ({ kind: "byte", data })) };

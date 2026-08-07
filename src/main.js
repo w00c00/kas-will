@@ -3,12 +3,13 @@ import { clearProjectScopedTransactionState } from "./project-transaction-state.
 import { availableLifecycleOperations, lifecycleInheritanceDistributionAvailable, lifecycleRenewalAvailable } from "./lifecycle-presentation.js";
 import { detectBrowserLanguage } from "./locale.js";
 import { kcc721MetadataDigest } from "./kcc721-metadata.js";
+import { apiBaseForRuntime } from "./runtime-environment.js";
 import { open as openExternalUrl } from "@tauri-apps/plugin-shell";
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
-const IS_TAURI = location.protocol.startsWith("tauri");
-const API_BASE = IS_TAURI ? "http://127.0.0.1:4310" : "";
+const API_BASE = apiBaseForRuntime();
+const IS_TAURI = Boolean(API_BASE);
 
 const copy = {
   zh: {
