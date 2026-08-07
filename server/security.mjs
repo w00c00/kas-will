@@ -67,6 +67,9 @@ export function localCors(req, res, next) {
         res.setHeader("vary", "Origin");
         res.setHeader("access-control-allow-methods", "GET,POST,PUT,DELETE,OPTIONS");
         res.setHeader("access-control-allow-headers", "content-type,x-studio-token");
+        if (String(req.headers["access-control-request-private-network"] || "").toLowerCase() === "true") {
+          res.setHeader("access-control-allow-private-network", "true");
+        }
         if (req.method === "OPTIONS") return res.status(204).end();
       }
     } catch {}

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.4 — 2026-08-07
+
+- Added persistent desktop backend diagnostics and automatic recovery when the bundled local service cannot be reached.
+- Added WebView2 private-network preflight support for the local loopback API.
+- Kept the desktop UI available when sidecar launch fails and reports the exact `backend.log` path instead of a generic `Failed to fetch` message.
+- Added a native Windows post-package smoke test that launches the real Tauri executable and requires both `/api/health` and `/api/templates` to succeed.
+
+## 0.2.4 — 2026-08-07（中文）
+
+- 增加桌面后端永久诊断日志，以及内置本地服务不可达时的自动恢复。
+- 增加 Windows WebView2 访问本机回环 API 所需的私有网络预检响应。
+- sidecar 启动失败时仍保留桌面界面，并显示准确的 `backend.log` 路径，不再只提示 `Failed to fetch`。
+- 增加 Windows 原生打包后冒烟测试：启动真实 Tauri 程序，并强制验证 `/api/health` 与 `/api/templates`。
+
 ## 0.2.3 — 2026-08-07
 
 - Fixed Windows desktop runtime detection for Tauri's `http://tauri.localhost` and `https://tauri.localhost` WebView origins.

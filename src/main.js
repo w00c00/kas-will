@@ -4,6 +4,7 @@ import { availableLifecycleOperations, lifecycleInheritanceDistributionAvailable
 import { detectBrowserLanguage } from "./locale.js";
 import { kcc721MetadataDigest } from "./kcc721-metadata.js";
 import { apiBaseForRuntime } from "./runtime-environment.js";
+import { invoke } from "@tauri-apps/api/core";
 import { open as openExternalUrl } from "@tauri-apps/plugin-shell";
 
 const $ = (selector) => document.querySelector(selector);
@@ -126,11 +127,12 @@ function tr(key) { return copy[state.language]?.[key] || copy.zh[key] || key; }
 function esc(value) { return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]); }
 function short(value, left = 9, right = 7) { const text = String(value || ""); return text.length > left + right + 3 ? `${text.slice(0, left)}…${text.slice(-right)}` : text; }
 
-async function api(path, options = {}) {
+async function rawApi(path, options = {}) {
+  const { backendRetry: _backendRetry, ...fetchOptions } = options;
   const headers = { accept: "application/json", ...(options.headers || {}) };
   if (options.body) headers["content-type"] = "application/json";
   if (!["GET", "HEAD"].includes(options.method || "GET")) headers["x-studio-token"] = state.token;
-  const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const response = await fetch(`${API_BASE}${path}`, { ...fetchOptions, headers });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const error = new Error(payload.error || `HTTP ${response.status}`);
@@ -141,11 +143,60 @@ async function api(path, options = {}) {
   return payload;
 }
 
-async function waitForApi(attempt = 0) {
-  try { return await api("/api/session"); } catch (error) {
-    if (!API_BASE || attempt >= 39) throw error;
+async function desktopBackendDiagnostics() {
+  if (!IS_TAURI) return null;
+  try { return await invoke("backend_diagnostics"); } catch { return null; }
+}
+
+function backendUnavailableError(error, diagnostics) {
+  const logPath = diagnostics?.logPath ? ` ${diagnostics.logPath}` : "";
+  const detail = diagnostics?.logTail?.split("\n").filter(Boolean).slice(-1)[0] || error?.message || "Failed to fetch";
+  return new Error(state.language === "zh"
+    ? `本地服务启动失败：${detail}。诊断日志：${logPath || "应用数据目录/backend.log"}`
+    : `The local service failed to start: ${detail}. Diagnostic log:${logPath || " app data/backend.log"}`);
+}
+
+async function waitForApi(attempt = 0, restarted = false) {
+  try { return await rawApi("/api/session"); } catch (error) {
+    if (!API_BASE) throw error;
+    if (attempt >= 39) {
+      if (IS_TAURI && !restarted) {
+        try {
+          await invoke("restart_backend");
+          return waitForApi(0, true);
+        } catch {}
+      }
+      throw backendUnavailableError(error, await desktopBackendDiagnostics());
+    }
     await new Promise((resolve) => setTimeout(resolve, 250));
-    return waitForApi(attempt + 1);
+    return waitForApi(attempt + 1, restarted);
+  }
+}
+
+let backendRecovery = null;
+
+async function recoverDesktopBackend() {
+  if (!IS_TAURI) throw new Error("Desktop backend recovery is unavailable in browser mode");
+  backendRecovery ||= (async () => {
+    await invoke("restart_backend");
+    const session = await waitForApi(0, true);
+    state.token = session.token;
+    return session;
+  })().finally(() => { backendRecovery = null; });
+  return backendRecovery;
+}
+
+async function api(path, options = {}) {
+  try {
+    return await rawApi(path, options);
+  } catch (error) {
+    if (!IS_TAURI || options.backendRetry || !(error instanceof TypeError)) throw error;
+    try {
+      await recoverDesktopBackend();
+      return await rawApi(path, { ...options, backendRetry: true });
+    } catch (recoveryError) {
+      throw backendUnavailableError(recoveryError, await desktopBackendDiagnostics());
+    }
   }
 }
 

@@ -24,6 +24,7 @@ import { buildLifecycleStatus, spentLifecycleStatus } from "../server/lifecycle-
 import { assertInheritanceDistributionOpen, assertLocalRenewalOpen, assertLocalRenewalPackage } from "../server/local-operation-authorization.mjs";
 import { detectPreferredLanguage } from "../src/locale.js";
 import { apiBaseForRuntime, isTauriRuntime } from "../src/runtime-environment.js";
+import { localCors } from "../server/security.mjs";
 import { CovenantStateSource, covenantStateProvider, verifyCovenantStateCandidate } from "../server/covenant-state-source.mjs";
 import { createP2pkCoSpendAuthorization, selectP2pkFundingUtxo, signP2pkCoSpendPackage } from "../server/p2pk-cospend.mjs";
 import { buildAtomicCovenantPackage } from "../server/atomic-covenant-builder.mjs";
@@ -49,6 +50,30 @@ test("desktop runtime detection supports Windows Tauri webview origins", () => {
   assert.equal(isTauriRuntime({ protocol: "http:", hostname: "localhost" }, { __TAURI_INTERNALS__: {} }), true);
   assert.equal(isTauriRuntime({ protocol: "http:", hostname: "localhost" }, browserGlobal), false);
   assert.equal(apiBaseForRuntime({ protocol: "http:", hostname: "localhost" }, browserGlobal), "");
+});
+
+test("Windows WebView private-network preflight is allowed only for local origins", () => {
+  const headers = {};
+  let status = 0;
+  let ended = false;
+  const response = {
+    setHeader(name, value) { headers[name] = value; },
+    status(value) { status = value; return this; },
+    end() { ended = true; return this; }
+  };
+
+  localCors({
+    method: "OPTIONS",
+    headers: {
+      origin: "https://tauri.localhost",
+      "access-control-request-private-network": "true"
+    }
+  }, response, () => assert.fail("local preflight should end before next middleware"));
+
+  assert.equal(status, 204);
+  assert.equal(ended, true);
+  assert.equal(headers["access-control-allow-origin"], "https://tauri.localhost");
+  assert.equal(headers["access-control-allow-private-network"], "true");
 });
 
 function byteArray(bytes) {

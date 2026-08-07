@@ -1,17 +1,189 @@
-use std::fs;
+use serde::Serialize;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
+use std::net::{SocketAddr, TcpStream};
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use tauri::Manager;
-use tauri_plugin_shell::process::CommandChild;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tauri::{AppHandle, Manager};
+use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 
 #[derive(Default)]
-struct BackendChild(Mutex<Option<CommandChild>>);
+struct BackendState {
+    child: Mutex<Option<CommandChild>>,
+    log_path: Mutex<Option<PathBuf>>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BackendDiagnostics {
+    listening: bool,
+    child_pid: Option<u32>,
+    log_path: String,
+    log_tail: String,
+    missing_files: Vec<String>,
+}
+
+fn append_backend_log(path: &Path, message: &str) {
+    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) {
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|duration| duration.as_secs())
+            .unwrap_or_default();
+        let _ = writeln!(file, "[{timestamp}] {message}");
+    }
+}
+
+fn runtime_paths(app: &AppHandle) -> Result<(PathBuf, PathBuf, PathBuf, PathBuf), String> {
+    let resource_dir = app
+        .path()
+        .resource_dir()
+        .map_err(|error| error.to_string())?;
+    let executable_suffix = if cfg!(windows) { ".exe" } else { "" };
+    Ok((
+        resource_dir.join("runtime/app/server/index.mjs"),
+        resource_dir.join(format!("runtime/app/bin/silverc-latest{executable_suffix}")),
+        resource_dir.join(format!("runtime/app/bin/silverc-legacy{executable_suffix}")),
+        resource_dir.join(format!(
+            "runtime/app/bin/kascov-preflight{executable_suffix}"
+        )),
+    ))
+}
+
+fn spawn_backend(app: &AppHandle) -> Result<(), String> {
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
+    fs::create_dir_all(&app_data_dir).map_err(|error| error.to_string())?;
+    let log_path = app_data_dir.join("backend.log");
+    *app.state::<BackendState>().log_path.lock().unwrap() = Some(log_path.clone());
+
+    let (script, latest_compiler, legacy_compiler, preflight_engine) = runtime_paths(app)?;
+    let required = [
+        &script,
+        &latest_compiler,
+        &legacy_compiler,
+        &preflight_engine,
+    ];
+    let missing = required
+        .iter()
+        .filter(|path| !path.is_file())
+        .map(|path| path.display().to_string())
+        .collect::<Vec<_>>();
+    if !missing.is_empty() {
+        let message = format!(
+            "backend start blocked; missing files: {}",
+            missing.join(", ")
+        );
+        append_backend_log(&log_path, &message);
+        return Err(message);
+    }
+
+    append_backend_log(
+        &log_path,
+        &format!(
+            "starting local service; script={}; data={}",
+            script.display(),
+            app_data_dir.display()
+        ),
+    );
+
+    let (mut events, child) = app
+        .shell()
+        .sidecar("node")
+        .map_err(|error| error.to_string())?
+        .arg(script)
+        .env("HOST", "127.0.0.1")
+        .env("PORT", "4310")
+        .env("STUDIO_DATA_DIR", app_data_dir)
+        .env("SILVERC_LATEST_BIN", latest_compiler)
+        .env("SILVERC_LEGACY_BIN", legacy_compiler)
+        .env("KASCOV_PREFLIGHT_BIN", preflight_engine)
+        .spawn()
+        .map_err(|error| error.to_string())?;
+    let pid = child.pid();
+    *app.state::<BackendState>().child.lock().unwrap() = Some(child);
+    append_backend_log(
+        &log_path,
+        &format!("local service process spawned; pid={pid}"),
+    );
+
+    tauri::async_runtime::spawn(async move {
+        while let Some(event) = events.recv().await {
+            match event {
+                CommandEvent::Stdout(bytes) => append_backend_log(
+                    &log_path,
+                    &format!("stdout: {}", String::from_utf8_lossy(&bytes).trim()),
+                ),
+                CommandEvent::Stderr(bytes) => append_backend_log(
+                    &log_path,
+                    &format!("stderr: {}", String::from_utf8_lossy(&bytes).trim()),
+                ),
+                CommandEvent::Error(error) => {
+                    append_backend_log(&log_path, &format!("process error: {error}"))
+                }
+                CommandEvent::Terminated(payload) => {
+                    append_backend_log(&log_path, &format!("process terminated: {payload:?}"))
+                }
+                _ => {}
+            }
+        }
+    });
+    Ok(())
+}
+
+fn backend_diagnostics_value(app: &AppHandle) -> BackendDiagnostics {
+    let state = app.state::<BackendState>();
+    let log_path = state.log_path.lock().unwrap().clone().unwrap_or_default();
+    let child_pid = state.child.lock().unwrap().as_ref().map(CommandChild::pid);
+    let address = "127.0.0.1:4310".parse::<SocketAddr>().unwrap();
+    let listening = TcpStream::connect_timeout(&address, Duration::from_millis(300)).is_ok();
+    let log = fs::read_to_string(&log_path).unwrap_or_default();
+    let mut lines = log.lines().rev().take(120).collect::<Vec<_>>();
+    lines.reverse();
+    let missing_files = runtime_paths(app)
+        .map(|paths| {
+            [paths.0, paths.1, paths.2, paths.3]
+                .into_iter()
+                .filter(|path| !path.is_file())
+                .map(|path| path.display().to_string())
+                .collect()
+        })
+        .unwrap_or_else(|error| vec![error]);
+    BackendDiagnostics {
+        listening,
+        child_pid,
+        log_path: log_path.display().to_string(),
+        log_tail: lines.join("\n"),
+        missing_files,
+    }
+}
+
+#[tauri::command]
+fn backend_diagnostics(app: AppHandle) -> BackendDiagnostics {
+    backend_diagnostics_value(&app)
+}
+
+#[tauri::command]
+fn restart_backend(app: AppHandle) -> Result<BackendDiagnostics, String> {
+    if let Some(child) = app.state::<BackendState>().child.lock().unwrap().take() {
+        let _ = child.kill();
+    }
+    spawn_backend(&app)?;
+    Ok(backend_diagnostics_value(&app))
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .manage(BackendChild::default())
+        .manage(BackendState::default())
+        .invoke_handler(tauri::generate_handler![
+            backend_diagnostics,
+            restart_backend
+        ])
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -19,40 +191,13 @@ pub fn run() {
                         .level(log::LevelFilter::Info)
                         .build(),
                 )?;
-            }
-
-            if !cfg!(debug_assertions) {
-                let resource_dir = app.path().resource_dir()?;
-                let app_data_dir = app.path().app_data_dir()?;
-                fs::create_dir_all(&app_data_dir)?;
-                let executable_suffix = if cfg!(windows) { ".exe" } else { "" };
-                let script = resource_dir.join("runtime/app/server/index.mjs");
-                let latest_compiler =
-                    resource_dir.join(format!("runtime/app/bin/silverc-latest{executable_suffix}"));
-                let legacy_compiler =
-                    resource_dir.join(format!("runtime/app/bin/silverc-legacy{executable_suffix}"));
-                let preflight_engine = resource_dir.join(format!(
-                    "runtime/app/bin/kascov-preflight{executable_suffix}"
-                ));
-                let (mut events, child) = app
-                    .shell()
-                    .sidecar("node")?
-                    .arg(script)
-                    .env("HOST", "127.0.0.1")
-                    .env("PORT", "4310")
-                    .env("STUDIO_DATA_DIR", app_data_dir)
-                    .env("SILVERC_LATEST_BIN", latest_compiler)
-                    .env("SILVERC_LEGACY_BIN", legacy_compiler)
-                    .env("KASCOV_PREFLIGHT_BIN", preflight_engine)
-                    .spawn()?;
-                *app.state::<BackendChild>().0.lock().unwrap() = Some(child);
-                tauri::async_runtime::spawn(async move {
-                    while let Some(event) = events.recv().await {
-                        if let tauri_plugin_shell::process::CommandEvent::Stderr(bytes) = event {
-                            log::error!("studio sidecar: {}", String::from_utf8_lossy(&bytes));
-                        }
-                    }
-                });
+            } else if let Err(error) = spawn_backend(app.handle()) {
+                if let Ok(app_data_dir) = app.path().app_data_dir() {
+                    append_backend_log(
+                        &app_data_dir.join("backend.log"),
+                        &format!("failed to spawn local service: {error}"),
+                    );
+                }
             }
             Ok(())
         })
@@ -61,7 +206,7 @@ pub fn run() {
 
     app.run(|handle, event| {
         if let tauri::RunEvent::Exit = event {
-            if let Some(child) = handle.state::<BackendChild>().0.lock().unwrap().take() {
+            if let Some(child) = handle.state::<BackendState>().child.lock().unwrap().take() {
                 let _ = child.kill();
             }
         }
