@@ -79,7 +79,23 @@ jobs:
         if: matrix.platform == 'macos'
         shell: bash
         run: |
-          app_bundle="$(find src-tauri/target/release/bundle/macos -name '*.app' -print -quit)"
+          dmg="$(find src-tauri/target/release/bundle/dmg -name '*.dmg' -print -quit)"
+          test -n "$dmg"
+          mount_dir="$RUNNER_TEMP/kaspa-studio-dmg"
+          mkdir -p "$mount_dir"
+          hdiutil attach -quiet -nobrowse -readonly -mountpoint "$mount_dir" "$dmg"
+
+          backend_pid=""
+          cleanup() {
+            if [ -n "$backend_pid" ]; then
+              kill "$backend_pid" 2>/dev/null || true
+              wait "$backend_pid" 2>/dev/null || true
+            fi
+            hdiutil detach -quiet "$mount_dir" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          app_bundle="$(find "$mount_dir" -maxdepth 1 -name '*.app' -print -quit)"
           test -n "$app_bundle"
           node_bin="$app_bundle/Contents/MacOS/node"
           runtime="$app_bundle/Contents/Resources/runtime/app"
@@ -101,11 +117,6 @@ jobs:
           KASCOV_PREFLIGHT_BIN="$runtime/bin/kascov-preflight" \
             "$node_bin" "$runtime/server/index.mjs" >"$log" 2>&1 &
           backend_pid=$!
-          cleanup() {
-            kill "$backend_pid" 2>/dev/null || true
-            wait "$backend_pid" 2>/dev/null || true
-          }
-          trap cleanup EXIT
 
           healthy=false
           for attempt in {1..60}; do
