@@ -2,6 +2,7 @@
 
 ## 0.2.4 — 2026-08-07
 
+- Normalized Windows verbatim resource paths before launching the bundled Node runtime, preventing the local API from exiting with `EISDIR` and restoring templates and node access.
 - Added persistent desktop backend diagnostics and automatic recovery when the bundled local service cannot be reached.
 - Added WebView2 private-network preflight support for the local loopback API.
 - Kept the desktop UI available when sidecar launch fails and reports the exact `backend.log` path instead of a generic `Failed to fetch` message.
@@ -9,6 +10,7 @@
 
 ## 0.2.4 — 2026-08-07（中文）
 
+- 启动内置 Node 运行时前规范化 Windows verbatim 资源路径，避免本地 API 因 `EISDIR` 退出，恢复模板和节点访问。
 - 增加桌面后端永久诊断日志，以及内置本地服务不可达时的自动恢复。
 - 增加 Windows WebView2 访问本机回环 API 所需的私有网络预检响应。
 - sidecar 启动失败时仍保留桌面界面，并显示准确的 `backend.log` 路径，不再只提示 `Failed to fetch`。

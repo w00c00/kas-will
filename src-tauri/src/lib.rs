@@ -51,6 +51,21 @@ fn runtime_paths(app: &AppHandle) -> Result<(PathBuf, PathBuf, PathBuf, PathBuf)
     ))
 }
 
+// Windows may return Tauri resource paths in the verbatim `\\?\` form. Node's
+// CLI does not reliably accept that form as its entry-point argument, so hand
+// child processes an ordinary drive/UNC path while retaining the original
+// PathBuf for filesystem validation inside Rust.
+fn child_process_path(path: &Path) -> String {
+    let value = path.to_string_lossy();
+    if let Some(rest) = value.strip_prefix(r"\\?\UNC\") {
+        format!(r"\\{rest}")
+    } else if let Some(rest) = value.strip_prefix(r"\\?\") {
+        rest.to_string()
+    } else {
+        value.into_owned()
+    }
+}
+
 fn spawn_backend(app: &AppHandle) -> Result<(), String> {
     let app_data_dir = app
         .path()
@@ -90,17 +105,23 @@ fn spawn_backend(app: &AppHandle) -> Result<(), String> {
         ),
     );
 
+    let script_arg = child_process_path(&script);
+    let data_arg = child_process_path(&app_data_dir);
+    let latest_compiler_arg = child_process_path(&latest_compiler);
+    let legacy_compiler_arg = child_process_path(&legacy_compiler);
+    let preflight_engine_arg = child_process_path(&preflight_engine);
+
     let (mut events, child) = app
         .shell()
         .sidecar("node")
         .map_err(|error| error.to_string())?
-        .arg(script)
+        .arg(script_arg)
         .env("HOST", "127.0.0.1")
         .env("PORT", "4310")
-        .env("STUDIO_DATA_DIR", app_data_dir)
-        .env("SILVERC_LATEST_BIN", latest_compiler)
-        .env("SILVERC_LEGACY_BIN", legacy_compiler)
-        .env("KASCOV_PREFLIGHT_BIN", preflight_engine)
+        .env("STUDIO_DATA_DIR", data_arg)
+        .env("SILVERC_LATEST_BIN", latest_compiler_arg)
+        .env("SILVERC_LEGACY_BIN", legacy_compiler_arg)
+        .env("KASCOV_PREFLIGHT_BIN", preflight_engine_arg)
         .spawn()
         .map_err(|error| error.to_string())?;
     let pid = child.pid();
@@ -132,6 +153,28 @@ fn spawn_backend(app: &AppHandle) -> Result<(), String> {
         }
     });
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::child_process_path;
+    use std::path::Path;
+
+    #[test]
+    fn removes_windows_verbatim_drive_prefix_for_child_processes() {
+        assert_eq!(
+            child_process_path(Path::new(r"\\?\D:\Studio\runtime\index.mjs")),
+            r"D:\Studio\runtime\index.mjs"
+        );
+    }
+
+    #[test]
+    fn converts_windows_verbatim_unc_prefix_for_child_processes() {
+        assert_eq!(
+            child_process_path(Path::new(r"\\?\UNC\server\share\index.mjs")),
+            r"\\server\share\index.mjs"
+        );
+    }
 }
 
 fn backend_diagnostics_value(app: &AppHandle) -> BackendDiagnostics {
