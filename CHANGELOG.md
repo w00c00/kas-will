@@ -1,12 +1,12 @@
 # Changelog
 
-## 0.2.2 — 2026-08-07
+## 0.2.3 — 2026-08-07
 
 - Fixed Windows desktop runtime detection for Tauri's `http://tauri.localhost` and `https://tauri.localhost` WebView origins.
 - Restored Windows requests to the bundled loopback service, fixing empty template lists and unresponsive wallet creation.
 - Added regression coverage for Windows, macOS/Linux-style Tauri origins, injected Tauri globals, and normal browser mode.
 
-## 0.2.2 — 2026-08-07（中文）
+## 0.2.3 — 2026-08-07（中文）
 
 - 修复 Windows Tauri WebView 使用 `http://tauri.localhost` 或 `https://tauri.localhost` 时的桌面运行环境识别。
 - 恢复 Windows 客户端对内置回环服务的请求，修复模板列表为空和创建钱包无反应的问题。

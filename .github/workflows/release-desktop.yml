@@ -149,10 +149,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           notes="docs/releases/${GITHUB_REF_NAME}.md"
-          test -f "$notes"
+          if test -f "$notes"; then
+            notes_args=(--notes-file "$notes")
+          else
+            notes_args=(--generate-notes)
+          fi
           gh release create "$GITHUB_REF_NAME" release-assets/* \
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
             --latest \
             --title "Kaspa SilverScript Studio ${GITHUB_REF_NAME}" \
-            --notes-file "$notes"
+            "${notes_args[@]}"

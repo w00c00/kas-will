@@ -149,7 +149,7 @@ npm run desktop:build
 - 固定版本本地预检引擎。
 - Kaspa WASM、契约模板、知识库和第三方许可证。
 
-原生安装包必须在对应系统上构建和测试，macOS、Windows 和 Linux 的二进制不能互相替代。v0.2.2 发布流程在原生 GitHub Runner 上分别生成 macOS Apple Silicon DMG、Windows x64 NSIS/MSI，以及 Linux x86_64 DEB/AppImage，并附带 SHA-256 校验文件。
+原生安装包必须在对应系统上构建和测试，macOS、Windows 和 Linux 的二进制不能互相替代。v0.2.3 发布流程在原生 GitHub Runner 上分别生成 macOS Apple Silicon DMG、Windows x64 NSIS/MSI，以及 Linux x86_64 DEB/AppImage，并附带 SHA-256 校验文件。
 
 公开包目前没有商业代码签名：macOS 使用 ad-hoc 签名且未公证，Windows 未进行 Authenticode 签名，Linux 未进行发行版签名。首次启动可能出现系统安全提示；请只从本仓库 Release 下载并核对 SHA-256。
 
@@ -375,7 +375,7 @@ npm run desktop:build
 
 The desktop bundle contains the frontend, local Node.js sidecar, pinned `silverc`, pinned local preflight engine, Kaspa WASM, templates, knowledge resources, and third-party license notices.
 
-Native installers must be built and tested on their target operating systems; macOS, Windows, and Linux binaries are not interchangeable. The v0.2.2 release pipeline produces a macOS Apple Silicon DMG, Windows x64 NSIS/MSI packages, and Linux x86_64 DEB/AppImage packages on native GitHub Runners, with SHA-256 checksum files.
+Native installers must be built and tested on their target operating systems; macOS, Windows, and Linux binaries are not interchangeable. The v0.2.3 release pipeline produces a macOS Apple Silicon DMG, Windows x64 NSIS/MSI packages, and Linux x86_64 DEB/AppImage packages on native GitHub Runners, with SHA-256 checksum files.
 
 The public packages are not commercially code-signed: macOS is ad-hoc signed and not notarized, Windows is not Authenticode-signed, and Linux is not distribution-signed. The operating system may show a warning on first launch. Download only from this repository's Releases and verify the SHA-256 checksum.
 
