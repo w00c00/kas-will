@@ -146,6 +146,18 @@ test("desktop runtime includes server-imported KCC721 metadata code", () => {
   assert.match(prepareDesktop, /src\/kcc721-metadata\.js/);
 });
 
+test("0.2.9 capabilities have visible bilingual UI entrypoints", () => {
+  const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const uiSource = fs.readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
+  for (const id of ["feature-open-compiler", "feature-scan-kcc20", "feature-open-atomic", "feature-open-kcc721", "atomic-builder-input", "atomic-builder-build"]) {
+    assert.match(html, new RegExp(`id=["']${id}["']`), `${id} must be visible in the app shell`);
+  }
+  assert.match(html, /Research profile · not deployable|研究档案 · 不可部署/);
+  assert.match(uiSource, /api\/external-covenants\/build-atomic/);
+  assert.match(uiSource, /0\.2\.9 atomic-builder UI is TN10 only/);
+  assert.match(uiSource, /scanCurrentKcc20Source/);
+});
+
 test("desktop helpers use native executable names on Windows and Unix", () => {
   assert.equal(executableName("silverc-latest", "win32"), "silverc-latest.exe");
   assert.equal(executableName("silverc-latest", "linux"), "silverc-latest");

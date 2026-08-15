@@ -9,6 +9,7 @@
 - Aligned KCC721 metadata with the KCC-0021 draft image-integrity rule: HTTPS images require a committed SHA-256, while IPFS URIs remain content-addressed.
 - Updated the TN10 x402 interoperability profile to `kaspa-x402@alpha.10` (`78f2ada`) and documented stable `kaspa-escrow-v2` lineage plus partial-claim, top-up, and refund semantics without promoting it to a deployable built-in template.
 - Documented the community TN10 cross-Covenant fusion transaction as evidence only; unavailable source and reproducibility data remain an explicit admission blocker.
+- Added a visible 0.2.9 capability hub and a real TN10 atomic-builder interface in the Operation Center; KCC20 scan, compiler, and KCC721 actions now open their actual workflows, while x402 is clearly labeled research-only.
 
 ## 0.2.9 — 2026-08-15（中文）
 
@@ -19,6 +20,7 @@
 - KCC721 元数据采用 KCC-0021 Draft 图片完整性规则：HTTPS 图片必须提交 SHA-256，IPFS URI 继续依赖内容寻址。
 - TN10 x402 互操作档案升级到 `kaspa-x402@alpha.10`（`78f2ada`），记录稳定的 `kaspa-escrow-v2` lineage 与部分领取、追加和退款语义，但仍不伪装成可部署内置模板。
 - 将社区 TN10 跨 Covenant fusion 交易作为链上证据记录；缺少源码与可复现数据仍是正式准入阻断项。
+- 增加醒目的 0.2.9 功能入口区和操作中心 TN10 原子构建界面；KCC20 检查、编译器和 KCC721 按钮会进入真实操作流程，x402 明确标为仅研究、不可部署。
 
 ## 0.2.8 — 2026-08-10
 

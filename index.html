@@ -38,6 +38,7 @@
         <div class="project-list" id="project-list"></div>
         <div class="side-card">
           <span class="eyebrow" data-i18n="toolchain">工具链</span>
+          <div class="check-row"><span data-i18n="studioVersion">Studio 版本</span><strong class="good">0.2.9</strong></div>
           <div class="check-row"><span data-i18n="skillKnowledge">SilverScript Skill</span><strong class="good" id="skill-state">—</strong></div>
           <div class="check-row"><span data-i18n="compiler">本地编译器</span><strong id="compiler-state">—</strong></div>
           <div class="check-row"><span data-i18n="defaultNetwork">默认网络</span><strong id="default-network-state">TN10</strong></div>
@@ -67,6 +68,44 @@
         </nav>
 
         <section class="panel active" data-panel="design">
+          <article class="release-hub">
+            <div class="card-heading">
+              <div><span class="eyebrow">STUDIO 0.2.9 · VISIBLE CAPABILITIES</span><h3 data-i18n="releaseHubTitle">0.2.9 新功能入口</h3></div>
+              <span class="step-chip">TN10 FIRST</span>
+            </div>
+            <p class="release-hub-intro" data-i18n="releaseHubHelp">这里区分可直接操作的功能和仅供研究的互操作档案。点击可用功能会进入对应界面，不再把底层 API 当成已经完成的产品入口。</p>
+            <div class="release-feature-grid">
+              <article class="release-feature live">
+                <span class="release-feature-status" data-i18n="availableNow">可直接使用</span>
+                <h4 data-i18n="latestCompilerTitle">最新编译器与兼容档案</h4>
+                <p data-i18n="latestCompilerHelp">使用官方 14dce9a 完整编译，并可切回 0.2.8、0.2.7 与旧版档案复现项目。</p>
+                <button type="button" class="outline-button small" id="feature-open-compiler" data-i18n="openCompiler">打开编译审查</button>
+              </article>
+              <article class="release-feature live">
+                <span class="release-feature-status" data-i18n="availableNow">可直接使用</span>
+                <h4 data-i18n="kcc20GuardTitle">KCC20 安全初筛</h4>
+                <p data-i18n="kcc20GuardHelp">对当前源码检查借用接收、minter leader、Token 状态、KAS value 和共同授权边界。</p>
+                <button type="button" class="outline-button small" id="feature-scan-kcc20" data-i18n="scanCurrentSource">检查当前源码</button>
+              </article>
+              <article class="release-feature live">
+                <span class="release-feature-status" data-i18n="tn10Experimental">TN10 实验功能</span>
+                <h4 data-i18n="atomicBuilderTitle">原子多 Covenant 构建器</h4>
+                <p data-i18n="atomicBuilderShortHelp">构建 2–32 个 Covenant 输入的单笔交易，并支持由已核验输入授权创建新 lineage。</p>
+                <button type="button" class="outline-button small" id="feature-open-atomic" data-i18n="openAtomicBuilder">打开构建器</button>
+              </article>
+              <article class="release-feature live">
+                <span class="release-feature-status" data-i18n="tn10Experimental">TN10 实验功能</span>
+                <h4 data-i18n="kcc721IntegrityTitle">KCC721 图片完整性</h4>
+                <p data-i18n="kcc721IntegrityHelp">HTTPS 图片必须填写 SHA-256；IPFS 继续使用内容寻址。摘要会提交全部元数据。</p>
+                <button type="button" class="outline-button small" id="feature-open-kcc721" data-i18n="openKcc721">打开 KCC721 模板</button>
+              </article>
+              <article class="release-feature research">
+                <span class="release-feature-status" data-i18n="researchProfile">研究档案 · 不可部署</span>
+                <h4>Kaspa x402 alpha.10</h4>
+                <p data-i18n="x402ProfileHelp">已记录 escrow-v2、部分领取、追加和退款语义；尚未达到内置模板的源码迁移、编译和对抗测试门槛。</p>
+              </article>
+            </div>
+          </article>
           <article class="template-section">
             <div class="card-heading">
               <div><span class="eyebrow">COMPILE-VERIFIED · NO AI REQUIRED</span><h3 data-i18n="templates">功能模板</h3></div>
@@ -224,6 +263,24 @@
               <button class="primary-button" type="button" id="lifecycle-build" data-i18n="buildOperationPackage">构建操作交易包</button>
               <button class="outline-button" type="button" id="lifecycle-download-invitation" data-i18n="downloadInvitation" hidden>下载邀请文件</button>
               <button class="outline-button" type="button" id="lifecycle-copy-invitation" data-i18n="copyInvitation" hidden>复制邀请</button>
+            </div>
+          </article>
+          <article class="card atomic-builder-card" id="atomic-builder-card">
+            <div class="card-heading"><div><span class="eyebrow">ATOMIC COVENANT TRANSACTION</span><h3 data-i18n="atomicBuilderTitle">原子多 Covenant 构建器</h3></div><span class="result-status" id="atomic-builder-status">TN10 · IDLE</span></div>
+            <p class="muted" data-i18n="atomicBuilderHelp">粘贴完整构建描述，Studio 会核对 2–32 个不同 Covenant ID、redeem program、UTXO、金额和显式手续费。新 lineage 输出使用 genesisAuthorizerCovenantId 指向一个已核验输入；本步骤只构建并审查，不会签名或广播。</p>
+            <div class="atomic-builder-grid">
+              <div>
+                <label><span data-i18n="atomicBuildJson">构建描述 JSON</span><textarea id="atomic-builder-input" spellcheck="false" placeholder='{"network":"tn10","covenantInputs":[...],"outputs":[...],"feeSompi":"..."}'></textarea></label>
+                <div class="button-row"><button type="button" class="outline-button" id="atomic-builder-example" data-i18n="fillFormatExample">填入格式示例</button><button type="button" class="primary-button" id="atomic-builder-build" data-i18n="buildAndReviewAtomic">构建并进入审查</button></div>
+              </div>
+              <div class="atomic-builder-boundary">
+                <strong data-i18n="atomicBoundaryTitle">构建边界</strong>
+                <ul>
+                  <li data-i18n="atomicBoundaryOne">仅开放 TN10；主网请求会在界面立即拒绝。</li>
+                  <li data-i18n="atomicBoundaryTwo">延续输出必须携带现有 covenantId，新 lineage 输出不能伪装成延续。</li>
+                  <li data-i18n="atomicBoundaryThree">构建成功后自动送入下方操作包审查，再由各授权钱包分别签名。</li>
+                </ul>
+              </div>
             </div>
           </article>
           <article class="card external-covenant-card">

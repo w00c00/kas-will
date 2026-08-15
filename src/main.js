@@ -17,7 +17,13 @@ const copy = {
     connectWallet: "连接钱包", localWorkspace: "本地工作区", projects: "契约项目", toolchain: "工具链",
     skillKnowledge: "SilverScript Skill", compiler: "本地编译器", defaultNetwork: "默认网络",
     localSafety: "源码和项目保存在本机。AI 密钥仅通过本机回环写入加密保险库，钱包私钥永不离开钱包。",
-    savedLocal: "已保存到本机", design: "需求设计", source: "契约源码", compile: "编译审查", deploy: "签名上链", operationCenter: "操作中心", operationCenterHelp: "统一处理续签、多签、领取、退款和确认付款。导入操作包后会自动识别对应界面，但签名前仍必须核对程序哈希、交易承诺和全部输出。",
+    savedLocal: "已保存到本机", design: "需求设计", source: "契约源码", compile: "编译审查", deploy: "签名上链", operationCenter: "操作中心", operationCenterHelp: "统一处理续签、多签、领取、退款和确认付款。导入操作包后会自动识别对应界面，但签名前仍必须核对程序哈希、交易承诺和全部输出。", studioVersion: "Studio 版本",
+    releaseHubTitle: "0.2.9 新功能入口", releaseHubHelp: "这里区分可直接操作的功能和仅供研究的互操作档案。点击可用功能会进入对应界面，不再把底层 API 当成已经完成的产品入口。", availableNow: "可直接使用", tn10Experimental: "TN10 实验功能", researchProfile: "研究档案 · 不可部署",
+    latestCompilerTitle: "最新编译器与兼容档案", latestCompilerHelp: "使用官方 14dce9a 完整编译，并可切回 0.2.8、0.2.7 与旧版档案复现项目。", openCompiler: "打开编译审查",
+    kcc20GuardTitle: "KCC20 安全初筛", kcc20GuardHelp: "对当前源码检查借用接收、minter leader、Token 状态、KAS value 和共同授权边界。", scanCurrentSource: "检查当前源码",
+    atomicBuilderTitle: "原子多 Covenant 构建器", atomicBuilderShortHelp: "构建 2–32 个 Covenant 输入的单笔交易，并支持由已核验输入授权创建新 lineage。", openAtomicBuilder: "打开构建器",
+    kcc721IntegrityTitle: "KCC721 图片完整性", kcc721IntegrityHelp: "HTTPS 图片必须填写 SHA-256；IPFS 继续使用内容寻址。摘要会提交全部元数据。", openKcc721: "打开 KCC721 模板", x402ProfileHelp: "已记录 escrow-v2、部分领取、追加和退款语义；尚未达到内置模板的源码迁移、编译和对抗测试门槛。",
+    atomicBuilderHelp: "粘贴完整构建描述，Studio 会核对 2–32 个不同 Covenant ID、redeem program、UTXO、金额和显式手续费。新 lineage 输出使用 genesisAuthorizerCovenantId 指向一个已核验输入；本步骤只构建并审查，不会签名或广播。", atomicBuildJson: "构建描述 JSON", fillFormatExample: "填入格式示例", buildAndReviewAtomic: "构建并进入审查", atomicBoundaryTitle: "构建边界", atomicBoundaryOne: "仅开放 TN10；主网请求会在界面立即拒绝。", atomicBoundaryTwo: "延续输出必须携带现有 covenantId，新 lineage 输出不能伪装成延续。", atomicBoundaryThree: "构建成功后自动送入下方操作包审查，再由各授权钱包分别签名。",
     describeContract: "描述你需要的契约", requirementsPlaceholder: "例如：双方各锁定 100 TKAS，胜负由双方签名确认；超时后任何一方可以退款……",
     aiProvider: "AI 接口", model: "模型", generate: "生成规范与契约", reviewCurrent: "审查当前源码",
     aiBoundary: "AI 只生成候选方案。必须经过本地编译、静态检查、交易预检和人工确认后才能签名。",
@@ -56,7 +62,13 @@ const copy = {
     connectWallet: "Connect wallet", localWorkspace: "Local workspace", projects: "Contract projects", toolchain: "Toolchain",
     skillKnowledge: "SilverScript Skill", compiler: "Local compiler", defaultNetwork: "Default network",
     localSafety: "Source and projects stay local. AI keys only cross the local loopback into the encrypted vault, and wallet keys never leave the wallet.",
-    savedLocal: "Saved locally", design: "Design", source: "Contract source", compile: "Compile & review", deploy: "Sign & deploy", operationCenter: "Operation Center", operationCenterHelp: "Handle renewals, multisig, claims, refunds and payment confirmations in one place. Imported packages select the matching interface automatically, but you must still verify the program hash, commitment and every output.",
+    savedLocal: "Saved locally", design: "Design", source: "Contract source", compile: "Compile & review", deploy: "Sign & deploy", operationCenter: "Operation Center", operationCenterHelp: "Handle renewals, multisig, claims, refunds and payment confirmations in one place. Imported packages select the matching interface automatically, but you must still verify the program hash, commitment and every output.", studioVersion: "Studio version",
+    releaseHubTitle: "What's new in 0.2.9", releaseHubHelp: "This area separates features you can operate now from research-only interoperability profiles. Available actions open their real workflow instead of presenting a backend API as a finished product surface.", availableNow: "Available now", tn10Experimental: "TN10 experimental", researchProfile: "Research profile · not deployable",
+    latestCompilerTitle: "Latest compiler and profiles", latestCompilerHelp: "Fully compile with official 14dce9a, or select the isolated 0.2.8, 0.2.7, and legacy profiles for reproducibility.", openCompiler: "Open compile review",
+    kcc20GuardTitle: "KCC20 security triage", kcc20GuardHelp: "Scan the current source for borrowed receive, minter leaders, token state, KAS value, and co-spend authorization boundaries.", scanCurrentSource: "Scan current source",
+    atomicBuilderTitle: "Atomic multi-Covenant builder", atomicBuilderShortHelp: "Build one transaction from 2–32 Covenant inputs, including fresh lineages authorized by verified inputs.", openAtomicBuilder: "Open builder",
+    kcc721IntegrityTitle: "KCC721 image integrity", kcc721IntegrityHelp: "HTTPS images require SHA-256; IPFS remains content-addressed. The digest commits to all metadata.", openKcc721: "Open KCC721 template", x402ProfileHelp: "The escrow-v2, partial claim, top-up, and refund semantics are recorded, but source migration, compilation, and adversarial-test admission gates are not yet satisfied.",
+    atomicBuilderHelp: "Paste a complete build descriptor. Studio verifies 2–32 distinct Covenant IDs, redeem programs, UTXOs, amounts, and the explicit fee. A fresh lineage uses genesisAuthorizerCovenantId to reference one verified input. This step only builds and reviews; it never signs or broadcasts.", atomicBuildJson: "Build descriptor JSON", fillFormatExample: "Fill format example", buildAndReviewAtomic: "Build and review", atomicBoundaryTitle: "Builder boundaries", atomicBoundaryOne: "TN10 only; mainnet requests are rejected immediately by the UI.", atomicBoundaryTwo: "Continuation outputs require an existing covenantId; fresh lineages cannot masquerade as continuations.", atomicBoundaryThree: "Successful builds enter the package review below, where each authorized wallet signs separately.",
     describeContract: "Describe the contract you need", requirementsPlaceholder: "Example: both parties lock 100 TKAS; a mutually signed result releases the pot, with a timeout refund path…",
     aiProvider: "AI provider", model: "Model", generate: "Generate spec & contract", reviewCurrent: "Review current source",
     aiBoundary: "AI produces a candidate only. Local compilation, static checks, transaction preflight and human confirmation are required before signing.",
@@ -974,6 +986,98 @@ async function analyzeSource() {
     selectTab("compile");
     toast(analysis.findingCount ? `${analysis.findingCount} findings` : (state.language === "zh" ? "未发现已知静态模式问题" : "No known static pattern findings"), analysis.findingCount ? "warn" : "good");
   } catch (error) { toast(error.message, "bad"); }
+}
+
+async function scanCurrentKcc20Source() {
+  if (!state.project) {
+    selectTab("source");
+    return toast(state.language === "zh" ? "请先新建或打开一个工作，再粘贴 KCC20 源码" : "Create or open a work, then paste the KCC20 source", "warn");
+  }
+  try {
+    const { analysis } = await api("/api/contracts/analyze", { method: "POST", body: JSON.stringify({ source: $("#source-editor").value }) });
+    renderFindings(analysis);
+    selectTab("compile");
+    const findings = analysis.findings.filter((finding) => String(finding.code || "").startsWith("KCC2"));
+    toast(findings.length
+      ? (state.language === "zh" ? `发现 ${findings.length} 个 KCC20 专项检查项` : `${findings.length} KCC20-specific finding(s)`)
+      : (state.language === "zh" ? "未发现 KCC20 专项风险模式；仍需完整编译和交易级审查" : "No KCC20-specific pattern found; full compilation and transaction-level review are still required"),
+    findings.length ? "warn" : "good");
+  } catch (error) { toast(error.message, "bad"); }
+}
+
+function openLatestCompiler() {
+  selectTab("compile");
+  const latest = state.config?.compiler?.defaultProfileId;
+  if (latest) $("#compiler-profile").value = latest;
+  renderCompilerProfileHelp();
+  $("#compiler-profile")?.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function openKcc721Template() {
+  selectTab("design");
+  selectTemplate("kcc721-experimental");
+  requestAnimationFrame(() => $("#template-preview")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+}
+
+function openAtomicBuilder() {
+  selectTab("operations");
+  requestAnimationFrame(() => $("#atomic-builder-card")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+}
+
+function atomicBuilderExample() {
+  const script = "aa20ce57216285125006ec18197bd8184221cefa559bb0798410d99a5bba5b07cd1d87";
+  const exampleInput = (transactionId, covenantId, amount) => ({
+    utxo: {
+      outpoint: { transactionId, index: 0 },
+      amount,
+      scriptPublicKey: { version: 0, script },
+      blockDaaScore: "0",
+      isCoinbase: false,
+      covenantId
+    },
+    programHex: "51",
+    abi: { contract: "REPLACE_WITH_COMPILED_ABI" },
+    entrypoint: "REPLACE_WITH_ENTRYPOINT",
+    arguments: []
+  });
+  $("#atomic-builder-input").value = JSON.stringify({
+    network: "tn10",
+    covenantInputs: [
+      exampleInput("aa".repeat(32), "11".repeat(32), "50000000"),
+      exampleInput("bb".repeat(32), "22".repeat(32), "50000000")
+    ],
+    outputs: [
+      { programHex: "REPLACE_WITH_COMPILED_PROGRAM", covenantId: "11".repeat(32), valueSompi: "50000000" },
+      { programHex: "REPLACE_WITH_COMPILED_PROGRAM", genesisAuthorizerCovenantId: "22".repeat(32), valueSompi: "49000000" }
+    ],
+    feeSompi: "1000000",
+    provenance: { operationId: "REPLACE_WITH_OPERATION_ID" }
+  }, null, 2);
+  toast(state.language === "zh" ? "已填入结构示例；必须替换全部 REPLACE 值和示例 UTXO 后才能构建" : "Format example filled. Replace every REPLACE value and example UTXO before building", "warn");
+}
+
+async function buildAtomicFromUi() {
+  const button = $("#atomic-builder-build");
+  button.disabled = true;
+  $("#atomic-builder-status").textContent = "TN10 · BUILDING";
+  try {
+    const descriptor = JSON.parse($("#atomic-builder-input").value || "{}");
+    if ((descriptor.network || "tn10") !== "tn10") throw new Error(state.language === "zh" ? "0.2.9 原子构建器界面仅开放 TN10" : "The 0.2.9 atomic-builder UI is TN10 only");
+    descriptor.network = "tn10";
+    if (JSON.stringify(descriptor).includes("REPLACE_WITH_")) throw new Error(state.language === "zh" ? "请先替换格式示例中的全部 REPLACE 值" : "Replace every REPLACE value in the format example first");
+    const payload = await api("/api/external-covenants/build-atomic", { method: "POST", body: JSON.stringify(descriptor) });
+    state.externalPackage = payload.package;
+    state.externalReview = payload.review;
+    $("#external-covenant-package").value = JSON.stringify(payload.package, null, 2);
+    renderExternalCovenantReview(payload.review);
+    $("#external-covenant-status").textContent = "REVIEWED";
+    $("#atomic-builder-status").textContent = "TN10 · BUILT";
+    $("#external-covenant-package")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    toast(state.language === "zh" ? "原子操作包已构建，并送入下方只读审查" : "Atomic package built and loaded into read-only review", "good");
+  } catch (error) {
+    $("#atomic-builder-status").textContent = "TN10 · REJECTED";
+    toast(error.message, "bad");
+  } finally { button.disabled = false; }
 }
 
 function renderFindings(analysis) {
@@ -2050,6 +2154,10 @@ $("#apply-ai").addEventListener("click", applyCandidate);
 $("#discard-ai").addEventListener("click", () => { state.candidate = null; $("#ai-result").hidden = true; $("#ai-actions").hidden = true; $("#ai-empty").hidden = false; $("#ai-status").textContent = tr("waitingInput"); });
 $("#format-source").addEventListener("click", normalizeWhitespace);
 $("#analyze-source").addEventListener("click", analyzeSource);
+$("#feature-open-compiler").addEventListener("click", openLatestCompiler);
+$("#feature-scan-kcc20").addEventListener("click", scanCurrentKcc20Source);
+$("#feature-open-atomic").addEventListener("click", openAtomicBuilder);
+$("#feature-open-kcc721").addEventListener("click", openKcc721Template);
 $("#compile-contract").addEventListener("click", compileCurrent);
 $("#check-compatibility").addEventListener("click", () => checkCompilerCompatibility(true).catch((error) => toast(error.message, "bad")));
 $("#migrate-source").addEventListener("click", applySafeSourceMigration);
@@ -2098,6 +2206,8 @@ $("#recovery-dialog").addEventListener("close", () => {
 });
 $("#wallet-dialog").addEventListener("close", clearWalletSecrets);
 $("#build-draft").addEventListener("click", buildAndBroadcast);
+$("#atomic-builder-example").addEventListener("click", atomicBuilderExample);
+$("#atomic-builder-build").addEventListener("click", buildAtomicFromUi);
 $("#external-covenant-inspect").addEventListener("click", inspectExternalCovenant);
 $("#external-covenant-sign").addEventListener("click", signExternalCovenant);
 $("#external-covenant-broadcast").addEventListener("click", broadcastExternalCovenant);

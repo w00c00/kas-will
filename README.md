@@ -50,6 +50,7 @@ AI 只负责生成候选方案和辅助审查，不能解锁钱包、签名交�
 - 通用 P2PK co-spend 授权只签指定普通钱包输入，并锁定整笔交易承诺；原子构建器支持 2–32 个不同 Covenant 输入、同 lineage 延续和由已核验输入授权的新 lineage 输出。
 - KCC20 安全初筛覆盖借用接收、minter leader、Token 状态不变量、KAS value 保持、预签 outpoint 失效与共同输入授权边界。
 - Kascov 是首选可视化和第二份报告来源，但不是签名、预检或广播的运行依赖。
+- 首页提供 0.2.9 功能入口；操作中心包含 TN10 原子多 Covenant JSON 构建与只读审查界面。研究档案会明确标记为不可部署。
 
 ### 内置模板
 
@@ -308,6 +309,7 @@ AI is limited to candidate generation and review assistance. It cannot unlock wa
 - Generic isolated P2PK co-spend authorization plus an atomic builder for 2–32 distinct Covenant inputs, same-lineage continuations, and fresh lineages authorized by verified input Covenant IDs.
 - KCC20 security triage covers borrowed receive, minter leaders, token-state invariants, KAS-value preservation, pre-signed outpoint invalidation, and co-spend consent boundaries.
 - Kascov is the preferred visual and secondary-report layer, not a signing, preflight, or broadcast dependency.
+- The home screen exposes the 0.2.9 workflows, and the Operation Center includes a TN10 atomic multi-Covenant JSON builder with read-only package review. Research profiles are visibly marked non-deployable.
 
 ### Built-in templates
 

@@ -130,6 +130,18 @@ button:disabled { opacity: .45; cursor: not-allowed; transform: none !important;
 .panel.active { display: block; animation: enter .22s ease-out; }
 @keyframes enter { from { opacity: 0; transform: translateY(4px); } }
 .panel-grid { display: grid; gap: 18px; }
+.release-hub { border: 1px solid rgba(81,246,193,.32); background: linear-gradient(135deg, rgba(81,246,193,.09), rgba(81,246,193,.015) 55%); padding: 20px 24px; margin-bottom: 18px; }
+.release-hub h3 { margin: 4px 0 0; font-size: 20px; }
+.release-hub-intro { color: var(--muted); font-size: 11px; line-height: 1.65; margin: 11px 0 0; max-width: 900px; }
+.release-feature-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; margin-top: 16px; }
+.release-feature { min-width: 0; min-height: 190px; border: 1px solid var(--line); background: #090d0f; padding: 14px; display: flex; flex-direction: column; align-items: flex-start; }
+.release-feature.live { border-top-color: var(--mint); }
+.release-feature.research { border-top-color: var(--amber); }
+.release-feature-status { color: var(--mint); font: 8px "DM Mono"; letter-spacing: .08em; text-transform: uppercase; }
+.release-feature.research .release-feature-status { color: var(--amber); }
+.release-feature h4 { margin: 11px 0 0; font-size: 13px; }
+.release-feature p { color: var(--muted); font-size: 9px; line-height: 1.6; margin: 9px 0 14px; }
+.release-feature button { width: 100%; margin-top: auto; }
 .template-section { border: 1px solid var(--line); background: var(--panel); padding: 20px 24px; margin-bottom: 18px; }
 .template-section h3 { margin: 4px 0 0; font-size: 18px; }
 .template-intro { color: var(--muted); font-size: 11px; line-height: 1.6; margin: 11px 0 0; }
@@ -202,6 +214,12 @@ button:disabled { opacity: .45; cursor: not-allowed; transform: none !important;
 .design-grid { grid-template-columns: minmax(360px, .9fr) minmax(360px, 1.1fr); }
 .compile-grid, .deploy-grid { grid-template-columns: minmax(340px, .8fr) minmax(420px, 1.2fr); }
 .external-covenant-card { min-height: 0; margin-top: 18px; }
+.atomic-builder-card { min-height: 0; margin-top: 18px; }
+.atomic-builder-grid { display: grid; grid-template-columns: minmax(420px, 1.25fr) minmax(260px, .75fr); gap: 18px; margin-top: 15px; }
+.atomic-builder-grid textarea { width: 100%; min-height: 270px; resize: vertical; padding: 12px; font: 10px/1.55 "DM Mono"; }
+.atomic-builder-boundary { border: 1px solid rgba(244,184,96,.32); background: rgba(244,184,96,.05); padding: 15px; }
+.atomic-builder-boundary strong { color: var(--amber); font-size: 11px; }
+.atomic-builder-boundary ul { margin: 12px 0 0; padding-left: 18px; color: var(--muted); font-size: 10px; line-height: 1.8; }
 .lifecycle-card { min-height: 0; margin-top: 18px; }
 .operation-center-hero { border: 1px solid var(--line); background: linear-gradient(120deg, rgba(81,246,193,.08), transparent 55%); padding: 22px 24px; display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; }
 .operation-center-hero h2 { margin: 6px 0 8px; font-size: 24px; }
@@ -425,6 +443,8 @@ label input, label select { height: 42px; padding: 0 11px; text-transform: none;
   .workspace { padding: 22px 18px 40px; }
   .design-grid, .compile-grid, .deploy-grid { grid-template-columns: 1fr; }
   .external-covenant-grid { grid-template-columns: 1fr; }
+  .release-feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .atomic-builder-grid { grid-template-columns: 1fr; }
   .lifecycle-overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .example-grid { grid-template-columns: 1fr; }
   .lifecycle-signers > div { grid-template-columns: 1fr; }
@@ -449,6 +469,8 @@ label input, label select { height: 42px; padding: 0 11px; text-transform: none;
   .project-header { align-items: flex-start; }
   .save-state { display: none; }
   .tabs { overflow-x: auto; grid-template-columns: repeat(5, minmax(112px, 1fr)); }
+  .release-feature-grid { grid-template-columns: 1fr; }
+  .release-feature { min-height: auto; }
   .lifecycle-overview-grid { grid-template-columns: 1fr; }
   .card { padding: 17px; min-height: auto; }
   .provider-row, .form-grid, .artifact-grid, .spec-columns { grid-template-columns: 1fr; }
