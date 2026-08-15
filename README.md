@@ -1,5 +1,9 @@
 # Kaspa SilverScript Studio
 
+[![Latest release](https://img.shields.io/github/v/release/w00c00/kaspa-silverscript-studio?display_name=tag)](https://github.com/w00c00/kaspa-silverscript-studio/releases/latest)
+[![Desktop release](https://github.com/w00c00/kaspa-silverscript-studio/actions/workflows/release-desktop.yml/badge.svg)](https://github.com/w00c00/kaspa-silverscript-studio/actions/workflows/release-desktop.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-51f6c1.svg)](LICENSE)
+
 本地优先、中英双语的 Kaspa SilverScript 契约开发、编译、签名与操作桌面工作台。
 
 A local-first bilingual desktop workbench for designing, compiling, signing, and operating Kaspa SilverScript covenants.
@@ -10,6 +14,38 @@ A local-first bilingual desktop workbench for designing, compiling, signing, and
 > SilverScript 仍处于实验阶段。成功编译、静态检查和交易预检都不等于安全审计。默认使用 TN10；未经完整对抗性测试和独立审查，请勿使用真实主网资金。
 >
 > SilverScript remains experimental. Successful compilation, static checks, and transaction preflight are not a security audit. Use TN10 by default and do not risk real mainnet funds without full adversarial testing and independent review.
+
+## 下载 / Download v0.2.9
+
+| 平台 / Platform | 安装包 / Package | 校验文件 / Checksums |
+|---|---|---|
+| macOS Apple Silicon | [DMG](https://github.com/w00c00/kaspa-silverscript-studio/releases/download/v0.2.9/Kaspa-SilverScript-Studio-0.2.9-macos-arm64.dmg) | [SHA256SUMS-macos.txt](https://github.com/w00c00/kaspa-silverscript-studio/releases/download/v0.2.9/SHA256SUMS-macos.txt) |
+| Windows x64 | [Setup EXE](https://github.com/w00c00/kaspa-silverscript-studio/releases/download/v0.2.9/Kaspa-SilverScript-Studio-0.2.9-windows-x64-setup.exe) · [MSI](https://github.com/w00c00/kaspa-silverscript-studio/releases/download/v0.2.9/Kaspa-SilverScript-Studio-0.2.9-windows-x64.msi) | [SHA256SUMS-windows.txt](https://github.com/w00c00/kaspa-silverscript-studio/releases/download/v0.2.9/SHA256SUMS-windows.txt) |
+| Linux x86_64 | [AppImage](https://github.com/w00c00/kaspa-silverscript-studio/releases/download/v0.2.9/Kaspa-SilverScript-Studio-0.2.9-linux-x86_64.AppImage) · [DEB](https://github.com/w00c00/kaspa-silverscript-studio/releases/download/v0.2.9/Kaspa-SilverScript-Studio-0.2.9-linux-amd64.deb) | [SHA256SUMS-linux.txt](https://github.com/w00c00/kaspa-silverscript-studio/releases/download/v0.2.9/SHA256SUMS-linux.txt) |
+
+[完整发布说明 / Full release notes](https://github.com/w00c00/kaspa-silverscript-studio/releases/tag/v0.2.9) · [三平台构建记录 / Native build run](https://github.com/w00c00/kaspa-silverscript-studio/actions/runs/31870349542)
+
+公开安装包目前没有商业代码签名：macOS 使用 ad-hoc 签名且未公证，Windows 未使用 Authenticode，Linux 未进行发行版签名。请只从本仓库 Release 下载并核对 SHA-256。
+
+Public installers are not commercially code-signed: macOS is ad-hoc signed and not notarized, Windows is not Authenticode-signed, and Linux is not distribution-signed. Download only from this repository and verify SHA-256.
+
+## v0.2.9 一览 / At a glance
+
+- 默认固定官方 `kaspanet/silverscript@14dce9a5ce8769cdfbd0c8965f8764fa9c325067`，并保留三个隔离的旧版复现档案。 / The default compiler is pinned to official `14dce9a`, with three isolated historical profiles retained for reproducibility.
+- 新增 KCC20 安全初筛、TN10 原子多 Covenant 构建界面，以及 KCC721 HTTPS 图片 SHA-256 完整性规则。 / Adds KCC20 security triage, a real TN10 atomic multi-Covenant builder UI, and KCC721 HTTPS image-integrity checks.
+- 原子构建结果进入只读操作包审查，再由各授权钱包跨设备分别签名；不会静默签名或广播。 / Atomic builds enter read-only package review before separate authorized wallets sign across devices; Studio never silently signs or broadcasts.
+- x402 alpha.10 与社区 fusion 交易仍是研究档案，不会伪装成可部署模板。 / x402 alpha.10 and the community fusion transaction remain research evidence, not deployable built-in templates.
+- `45/45` 项自动化测试与 macOS、Windows、Linux 原生发布构建均已通过。 / All `45/45` automated tests and native macOS, Windows, and Linux release builds passed.
+
+### 功能预览 / Screenshots
+
+| 0.2.9 功能入口 / Visible workflows | 原子多 Covenant 构建器 / Atomic builder |
+|---|---|
+| ![Studio 0.2.9 visible workflows](docs/images/v0.2.9/new-features-overview.png) | ![Atomic multi-Covenant builder](docs/images/v0.2.9/atomic-covenant-builder.png) |
+
+| 固定编译器档案 / Pinned compiler profiles | KCC721 图片完整性 / KCC721 image integrity |
+|---|---|
+| ![Pinned SilverScript compiler profiles](docs/images/v0.2.9/pinned-compiler-profiles.png) | ![KCC721 image integrity workflow](docs/images/v0.2.9/kcc721-image-integrity.png) |
 
 ---
 
