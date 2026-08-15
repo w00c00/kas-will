@@ -6,6 +6,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { config } from "./config.mjs";
 import { boundedText, sha256 } from "./security.mjs";
+import { analyzeKcc20Source } from "./kcc20-security.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -65,7 +66,7 @@ function lineAt(source, offset) {
 }
 
 function latestHardeningFindings(source, target) {
-  if (!["cb34aa5e6a598f9e461c4ad7014279ba89251d8d", "6f9e078b1d8b5389212755183b592704de99fea5"].includes(target.upstreamCommit)) return [];
+  if (!["cb34aa5e6a598f9e461c4ad7014279ba89251d8d", "6f9e078b1d8b5389212755183b592704de99fea5", "14dce9a5ce8769cdfbd0c8965f8764fa9c325067"].includes(target.upstreamCommit)) return [];
   const findings = [];
   const declarations = new Map();
   const functionPattern = /\b(?:entry|function)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/g;
@@ -136,7 +137,7 @@ function latestHardeningFindings(source, target) {
 }
 
 function scalarConversionFindings(source, target) {
-  if (target.upstreamCommit !== "6f9e078b1d8b5389212755183b592704de99fea5") return [];
+  if (!["6f9e078b1d8b5389212755183b592704de99fea5", "14dce9a5ce8769cdfbd0c8965f8764fa9c325067"].includes(target.upstreamCommit)) return [];
   const findings = [];
   const scalarByteCast = /\bbyte\s*\(\s*([^()\n]+?)\s*\)/g;
   let match;
@@ -349,6 +350,7 @@ export async function staticAnalyze(source) {
       message: "review fee-output aliasing across multiple contract executions"
     });
   }
+  findings.push(...analyzeKcc20Source(text));
   return {
     kind: "heuristic-triage",
     findings,

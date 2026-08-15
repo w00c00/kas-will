@@ -255,7 +255,7 @@ function projectPayload() {
     requirements: $("#requirements").value,
     source: $("#source-editor").value,
     constructorArgs,
-    compilerProfileId: $("#compiler-profile").value || state.config?.compiler?.defaultProfileId || "latest-6f9e078",
+    compilerProfileId: $("#compiler-profile").value || state.config?.compiler?.defaultProfileId || "latest-14dce9a",
     templateParameters: state.project?.templateParameters || {},
     deployAmount: $("#deploy-amount").value,
     specification: state.project?.specification || null,
@@ -323,7 +323,7 @@ function loadProjectIntoUi(project) {
   $("#requirements").value = project.requirements || "";
   $("#source-editor").value = project.source || "";
   $("#constructor-args").value = JSON.stringify(project.constructorArgs || [], null, 2);
-  $("#compiler-profile").value = project.compilerProfileId || project.artifact?.compiler?.id || project.review?.compilerProfileId || state.config?.compiler?.defaultProfileId || "latest-6f9e078";
+  $("#compiler-profile").value = project.compilerProfileId || project.artifact?.compiler?.id || project.review?.compilerProfileId || state.config?.compiler?.defaultProfileId || "latest-14dce9a";
   renderCompilerProfileHelp();
   $("#deploy-amount").value = Number(project.deployAmount || 0) >= 0.5 ? project.deployAmount : "0.5";
   $("#deploy-network").value = project.network || "tn10";
@@ -437,7 +437,7 @@ function initializeTemplateValues(template) {
     if (values[field.id] !== undefined && values[field.id] !== "") continue;
     if (field.type === "heirs") values[field.id] = [{ address: "", shareBps: 5000 }, { address: "", shareBps: 5000 }];
     else if (field.type === "duration") values[field.id] = { value: String(field.defaultValue || 1), unit: field.defaultUnit || "days" };
-    else if (field.type === "kcc721Metadata") values[field.id] = structuredClone(field.default || { name: "", description: "", image: "", externalUrl: "", attributes: [] });
+    else if (field.type === "kcc721Metadata") values[field.id] = structuredClone(field.default || { name: "", description: "", image: "", imageHash: "", externalUrl: "", attributes: [] });
     else if (field.default !== undefined) values[field.id] = String(field.default);
     else if (field.defaultOffsetSeconds) values[field.id] = localDateTimeValue(Date.now() + Number(field.defaultOffsetSeconds) * 1000);
     else if (field.type === "address" && field.useConnectedWallet && state.wallet?.network === $("#deploy-network").value) values[field.id] = state.wallet.address;
@@ -490,6 +490,7 @@ function renderTemplateParameterFields(template) {
         <div class="kcc721-metadata-grid">
           <label><b>${state.language === "zh" ? "名称" : "Name"}</b><input data-kcc721-metadata="name" value="${esc(metadata.name || "")}" maxlength="120" required /></label>
           <label><b>${state.language === "zh" ? "图片 URI" : "Image URI"}</b><input data-kcc721-metadata="image" value="${esc(metadata.image || "")}" maxlength="2048" placeholder="ipfs://... / https://..." /></label>
+          <label class="wide"><b>${state.language === "zh" ? "图片 SHA-256（HTTPS 必填）" : "Image SHA-256 (required for HTTPS)"}</b><input data-kcc721-metadata="imageHash" value="${esc(metadata.imageHash || metadata.image_hash || "")}" maxlength="66" pattern="^(0x)?[0-9a-fA-F]{64}$" placeholder="64 hex" autocomplete="off" spellcheck="false" /></label>
           <label class="wide"><b>${state.language === "zh" ? "描述" : "Description"}</b><textarea data-kcc721-metadata="description" maxlength="2000">${esc(metadata.description || "")}</textarea></label>
           <label class="wide"><b>${state.language === "zh" ? "外部链接（可选）" : "External URL (optional)"}</b><input data-kcc721-metadata="externalUrl" value="${esc(metadata.externalUrl || "")}" maxlength="2048" placeholder="https://..." /></label>
           <label class="wide"><b>${state.language === "zh" ? "属性 JSON 数组（可选）" : "Attributes JSON array (optional)"}</b><textarea data-kcc721-attributes spellcheck="false">${esc(attributes)}</textarea></label>
@@ -979,7 +980,7 @@ function renderFindings(analysis) {
   const el = $("#findings");
   if (!analysis) return;
   el.innerHTML = analysis.findingCount
-    ? `<h4>${analysis.findingCount} heuristic findings</h4>${analysis.findings.map((finding) => `<div class="finding"><b>${esc(finding.code)}</b><span>line ${finding.line}</span><p>${esc(finding.message)}</p></div>`).join("")}`
+    ? `<h4>${analysis.findingCount} heuristic findings</h4>${analysis.findings.map((finding) => `<div class="finding"><b>${esc(finding.code)}</b><span>${esc((finding.severity || "review").toUpperCase())} · line ${finding.line}</span><p>${esc(state.language === "zh" ? finding.messageZh || finding.message : finding.messageEn || finding.message)}</p></div>`).join("")}`
     : `<div class="clean-result"><i>✓</i><div><strong>${state.language === "zh" ? "启发式检查未发现问题" : "No heuristic findings"}</strong><p>${state.language === "zh" ? "这不是安全证明，仍需完整编译和对抗性交易测试。" : "This is not a security proof. Full compilation and adversarial transaction tests are still required."}</p></div></div>`;
 }
 

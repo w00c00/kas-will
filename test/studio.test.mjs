@@ -681,26 +681,26 @@ contract Compatibility(pubkey owner) {
   }
 }`;
   const profiles = compilerProfiles();
-  assert.deepEqual(profiles.map((profile) => profile.id), ["latest-6f9e078", "latest-cb34aa5", "legacy-2a3961c"]);
+  assert.deepEqual(profiles.map((profile) => profile.id), ["latest-14dce9a", "latest-6f9e078", "latest-cb34aa5", "legacy-2a3961c"]);
   assert.ok(profiles.every((profile) => profile.configured));
-  const report = detectBreakingChanges(`${legacySource}\n// checkSigFromStack and tx.inputs[0].outpointTransactionHash.reverse()`, "latest-6f9e078");
+  const report = detectBreakingChanges(`${legacySource}\n// checkSigFromStack and tx.inputs[0].outpointTransactionHash.reverse()`, "latest-14dce9a");
   assert.equal(report.compatible, false);
   assert.ok(report.findings.some((finding) => finding.id === "entry-syntax" && finding.line === 3));
   assert.ok(report.findings.some((finding) => finding.id === "reverse-removed" && finding.replacement === null));
-  const migrated = migrateSourceToProfile(legacySource, "latest-6f9e078");
+  const migrated = migrateSourceToProfile(legacySource, "latest-14dce9a");
   assert.deepEqual(migrated.applied, ["entry-syntax"]);
   assert.equal(migrated.report.compatible, true);
   const owner = byteArray(new Uint8Array(32).fill(3));
   const legacyArtifact = await compileContract({ source: legacySource, constructorArgs: [owner], compilerProfileId: "legacy-2a3961c" });
-  const latestArtifact = await compileContract({ source: migrated.source, constructorArgs: [owner], compilerProfileId: "latest-6f9e078" });
+  const latestArtifact = await compileContract({ source: migrated.source, constructorArgs: [owner], compilerProfileId: "latest-14dce9a" });
   assert.equal(legacyArtifact.compiler.artifactBytecodeField, "script");
   assert.equal(latestArtifact.compiler.artifactBytecodeField, "bytecode");
-  const encoded = encodeConstructorArgsForProfile(migrated.source, [owner], "latest-6f9e078");
+  const encoded = encodeConstructorArgsForProfile(migrated.source, [owner], "latest-14dce9a");
   assert.equal(encoded[0].data.type_ref.base, "byte");
   assert.deepEqual(encoded[0].data.type_ref.array_dims, [{ kind: "fixed", value: 32 }]);
 });
 
-test("latest compiler profile detects cb34aa5 hardening and 6f9e078 scalar conversions", async () => {
+test("latest compiler profile detects cb34aa5, 6f9e078 and 14dce9a hardening", async () => {
   const duplicate = `pragma silverscript ^0.1.0;
 contract Duplicate() {
   function same() { require(true); }
@@ -715,15 +715,17 @@ contract Shadow() {
 contract Ordered() {
   entry spend() { require("b" > "a"); }
 }`;
-  assert.ok(detectBreakingChanges(duplicate, "latest-6f9e078").findings.some((finding) => finding.id === "duplicate-function-name"));
-  assert.ok(detectBreakingChanges(shadow, "latest-6f9e078").findings.some((finding) => finding.id === "entry-parameter-shadows-field"));
-  assert.ok(detectBreakingChanges(ordered, "latest-6f9e078").findings.some((finding) => finding.id === "ordered-comparison-numeric-only"));
-  const conversions = detectBreakingChanges(`contract Cast() { entry run(int value, byte witness) { byte b = byte(value); int i = int(witness); } }`, "latest-6f9e078");
+  assert.ok(detectBreakingChanges(duplicate, "latest-14dce9a").findings.some((finding) => finding.id === "duplicate-function-name"));
+  assert.ok(detectBreakingChanges(shadow, "latest-14dce9a").findings.some((finding) => finding.id === "entry-parameter-shadows-field"));
+  assert.ok(detectBreakingChanges(ordered, "latest-14dce9a").findings.some((finding) => finding.id === "ordered-comparison-numeric-only"));
+  const conversions = detectBreakingChanges(`contract Cast() { entry run(int value, byte witness) { byte b = byte(value); int i = int(witness); } }`, "latest-14dce9a");
   assert.ok(conversions.findings.some((finding) => finding.id === "explicit-runtime-int-to-byte"));
   assert.ok(conversions.findings.some((finding) => finding.id === "explicit-byte-signedness"));
-  await assert.rejects(compileContract({ source: duplicate, compilerProfileId: "latest-6f9e078" }), /duplicate function name/i);
-  await assert.rejects(compileContract({ source: shadow, compilerProfileId: "latest-6f9e078" }), /conflicts with contract field/i);
-  await assert.rejects(compileContract({ source: ordered, compilerProfileId: "latest-6f9e078" }), /ordered comparison requires numeric operands/i);
+  assert.ok(detectBreakingChanges(`contract Split() { entry run(byte[] value) { byte[] left = value.split(1)[0]; } }`, "latest-14dce9a").findings.some((finding) => finding.id === "split-result-typing"));
+  assert.ok(detectBreakingChanges(`contract Loop() { entry run() { for (int i = 0; i < 3; i++) { i += 1; } } }`, "latest-14dce9a").findings.some((finding) => finding.id === "for-iterator-immutable"));
+  await assert.rejects(compileContract({ source: duplicate, compilerProfileId: "latest-14dce9a" }), /duplicate function name/i);
+  await assert.rejects(compileContract({ source: shadow, compilerProfileId: "latest-14dce9a" }), /(?:conflicts with contract field|already defined)/i);
+  await assert.rejects(compileContract({ source: ordered, compilerProfileId: "latest-14dce9a" }), /ordered comparison requires numeric operands/i);
 });
 
 test("CovenantStateSource rejects false matches, records fallback and fails on ambiguity", async () => {
@@ -890,6 +892,34 @@ contract AtomicCell() { entry spend() { require(true); } }`;
     assert.equal(signedTransaction.inputs[1].signatureScript, "");
     assert.ok(signedTransaction.inputs[2].signatureScript.length > 0);
 
+    const lineage = buildAtomicCovenantPackage({
+      network: "tn10",
+      covenantInputs: inputs,
+      outputs: [
+        { programHex: artifact.programHex, covenantId: "aa".repeat(32), valueSompi: "12000000" },
+        { programHex: artifact.programHex, genesisAuthorizerCovenantId: "bb".repeat(32), valueSompi: "12000000" }
+      ],
+      feeSompi: "1000000",
+      provenance: { operationId: "split-lineage" }
+    });
+    assert.equal(lineage.genesisCovenants.length, 1);
+    assert.equal(lineage.genesisCovenants[0].outputIndex, 1);
+    assert.equal(lineage.genesisCovenants[0].authorizingInputIndex, 1);
+    assert.match(lineage.genesisCovenants[0].covenantId, /^[0-9a-f]{64}$/);
+    const lineageTransaction = JSON.parse(lineage.transactionSafeJson);
+    assert.equal(lineageTransaction.outputs[1].covenant.authorizingInput, 1);
+    assert.equal(lineageTransaction.outputs[1].covenant.covenantId, lineage.genesisCovenants[0].covenantId);
+    assert.equal(inspectExternalCovenantPackage(lineage).review.atomic, true);
+    assert.throws(() => buildAtomicCovenantPackage({
+      network: "tn10",
+      covenantInputs: inputs,
+      outputs: [
+        { programHex: artifact.programHex, covenantId: "aa".repeat(32), valueSompi: "12000000" },
+        { programHex: artifact.programHex, covenantId: "bb".repeat(32), genesisAuthorizerCovenantId: "bb".repeat(32), valueSompi: "12000000" }
+      ],
+      feeSompi: "1000000"
+    }), /must not declare a pre-existing covenant ID/i);
+
     const duplicate = inputs.map((item) => ({ ...item, utxo: { ...item.utxo } }));
     duplicate[1].utxo.covenantId = duplicate[0].utxo.covenantId;
     assert.throws(() => buildAtomicCovenantPackage({ network: "tn10", covenantInputs: duplicate, outputs: [{ address: owner.address, valueSompi: "24000000" }], feeSompi: "1000000" }), /one live input per covenant ID/i);
@@ -1030,7 +1060,7 @@ test("TN10 Experimental KCC721 pack compiles all pinned contracts and blocks sta
   for (const contract of pack.packContracts) {
     const artifact = await compileContract({ source: contract.source, constructorArgs: contract.constructorArgs, compilerProfileId: pack.compilerProfileId });
     assert.ok(artifact.programHex.length > 0, contract.id);
-    assert.equal(artifact.compiler.id, "latest-6f9e078");
+    assert.equal(artifact.compiler.id, "latest-14dce9a");
     compiled.set(contract.id, artifact);
   }
   const configured = templates.projectInput(pack.id, "tn10", configuredTemplateParameters(pack));
@@ -1041,6 +1071,10 @@ test("TN10 Experimental KCC721 pack compiles all pinned contracts and blocks sta
   assert.equal(configured.templateParameters.metadata.digest, expectedMetadataDigest);
   assert.deepEqual(configured.constructorArgs[0], byteArray(Buffer.alloc(32)));
   assert.deepEqual(configured.constructorArgs[2], byteArray(Buffer.from(expectedMetadataDigest, "hex")));
+  assert.throws(() => canonicalKcc721Metadata({ name: "HTTPS NFT", image: "https://example.test/nft.png" }), /require an immutable image SHA-256/i);
+  const hashedImage = canonicalKcc721Metadata({ name: "HTTPS NFT", image: "https://example.test/nft.png", imageHash: "cd".repeat(32) });
+  assert.equal(hashedImage.metadata.image_hash, "cd".repeat(32));
+  assert.equal(canonicalKcc721Metadata({ name: "IPFS NFT", image: "ipfs://bafy-example" }).metadata.image, "ipfs://bafy-example");
   assert.match(templates.deploymentBlockedReasons(pack.id, { project: configured })[0], /four-contract TN10 experimental pack/i);
   assert.throws(() => templates.projectInput(pack.id, "mainnet", configuredTemplateParameters(pack, "mainnet")), /restricted to tn10/i);
 
@@ -1292,6 +1326,35 @@ contract Risky() {
     }
   }`);
   assert.equal(sameInputScript.findings.some((finding) => finding.code === "SS002"), false);
+});
+
+test("KCC20 security triage blocks borrowed minter and value-drain patterns", async () => {
+  const vulnerable = await staticAnalyze(`contract Token() {
+    struct State { byte[] ownerIdentifier; int identifierType; int amount; bool isMinter; }
+    const int BORROWED_RECEIVE = 7;
+    entry receive(State[] prevStates, State[] newStates) {
+      require(BORROWED_RECEIVE == 7);
+    }
+  }`);
+  assert.deepEqual(
+    vulnerable.findings.filter((item) => item.code.startsWith("KCC2")).map((item) => item.code),
+    ["KCC201", "KCC202", "KCC203", "KCC204"]
+  );
+  assert.ok(vulnerable.findings.filter((item) => ["KCC201", "KCC202", "KCC203"].includes(item.code)).every((item) => item.severity === "error"));
+
+  const hardened = await staticAnalyze(`contract Token() {
+    struct State { byte[] ownerIdentifier; int identifierType; int amount; bool isMinter; }
+    const int BORROWED_RECEIVE = 7;
+    entry receive(State[] prevStates, State[] newStates) {
+      require(!prevStates[0].isMinter);
+      require(newStates[0].ownerIdentifier == prevStates[0].ownerIdentifier);
+      require(newStates[0].identifierType == prevStates[0].identifierType);
+      require(newStates[0].amount > prevStates[0].amount);
+      require(tx.outputs[0].value >= tx.inputs[0].value);
+    }
+  }`);
+  assert.equal(hardened.findings.some((item) => ["KCC201", "KCC202", "KCC203"].includes(item.code)), false);
+  assert.ok(hardened.findings.some((item) => item.code === "KCC204" && item.severity === "manual-review"));
 });
 
 test("deployment builder rejects source edited after compilation before network access", async () => {

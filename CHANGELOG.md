@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.2.9 — 2026-08-15
+
+- Updated the default SHA-256-pinned official SilverScript compiler to `14dce9a5ce8769cdfbd0c8965f8764fa9c325067`; retained `6f9e078`, `cb34aa5`, and `2a3961c` as isolated reproducibility profiles.
+- Added compatibility findings for declaration shadowing, `.split()` result typing, immutable `for` iterators, and the 10,000-iteration compiler limit introduced by the latest hardening changes.
+- Added KCC20 security triage for borrowed-receive paths, including minter-leader rejection, token-state invariants, KAS-value preservation, pre-signed outpoint invalidation, and co-spend consent review.
+- Extended the atomic multi-Covenant builder with explicit fresh-lineage outputs authorized by a verified input Covenant ID; genesis bindings are populated by the Kaspa transaction library and recorded in the operation package.
+- Aligned KCC721 metadata with the KCC-0021 draft image-integrity rule: HTTPS images require a committed SHA-256, while IPFS URIs remain content-addressed.
+- Updated the TN10 x402 interoperability profile to `kaspa-x402@alpha.10` (`78f2ada`) and documented stable `kaspa-escrow-v2` lineage plus partial-claim, top-up, and refund semantics without promoting it to a deployable built-in template.
+- Documented the community TN10 cross-Covenant fusion transaction as evidence only; unavailable source and reproducibility data remain an explicit admission blocker.
+
+## 0.2.9 — 2026-08-15（中文）
+
+- 默认官方 SilverScript 编译器升级并固定到 `14dce9a5ce8769cdfbd0c8965f8764fa9c325067`；隔离保留 `6f9e078`、`cb34aa5` 和 `2a3961c` 复现档案。
+- 增加最新编译器强化变更的兼容提示：声明名称遮蔽、`.split()` 结果类型、不可修改的 `for` 迭代变量，以及 10,000 次循环上限。
+- 增加 KCC20 安全初筛：检查借用接收路径的 minter leader 拒绝、Token 状态不变量、KAS value 保持、预签 outpoint 失效风险和共同输入授权语义。
+- 原子多 Covenant 构建器支持由已核验输入 Covenant ID 授权的新 lineage 输出；由 Kaspa 交易库填充 genesis binding，并将结果写入操作包。
+- KCC721 元数据采用 KCC-0021 Draft 图片完整性规则：HTTPS 图片必须提交 SHA-256，IPFS URI 继续依赖内容寻址。
+- TN10 x402 互操作档案升级到 `kaspa-x402@alpha.10`（`78f2ada`），记录稳定的 `kaspa-escrow-v2` lineage 与部分领取、追加和退款语义，但仍不伪装成可部署内置模板。
+- 将社区 TN10 跨 Covenant fusion 交易作为链上证据记录；缺少源码与可复现数据仍是正式准入阻断项。
+
 ## 0.2.8 — 2026-08-10
 
 - Updated the default SHA-256-pinned official SilverScript compiler to `6f9e078b1d8b5389212755183b592704de99fea5`; retained `cb34aa5` for Studio 0.2.7 reproducibility and `2a3961c` for older projects.

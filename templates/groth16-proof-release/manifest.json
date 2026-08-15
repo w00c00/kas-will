@@ -7,7 +7,7 @@
   "descriptionEn": "Verify a Groth16 proof against a fixed verifying key and five 32-byte public inputs, then pay the full value minus an explicit fee to a fixed recipient.",
   "experimentalOnly": true,
   "networkAllowlist": ["tn10"],
-  "compilerProfileId": "latest-6f9e078",
+  "compilerProfileId": "latest-14dce9a",
   "descriptorProfileId": "silverstudio/groth16-proof-release/v1",
   "requirementsEn": "Release funds only after the pinned Kaspa script engine accepts a Groth16 proof for the exact five configured public inputs.",
   "risk": "experimental",

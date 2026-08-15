@@ -35,7 +35,7 @@ fn append_backend_log(path: &Path, message: &str) {
     }
 }
 
-fn runtime_paths(app: &AppHandle) -> Result<(PathBuf, PathBuf, PathBuf, PathBuf, PathBuf), String> {
+fn runtime_paths(app: &AppHandle) -> Result<(PathBuf, PathBuf, PathBuf, PathBuf, PathBuf, PathBuf), String> {
     let resource_dir = app
         .path()
         .resource_dir()
@@ -44,6 +44,7 @@ fn runtime_paths(app: &AppHandle) -> Result<(PathBuf, PathBuf, PathBuf, PathBuf,
     Ok((
         resource_dir.join("runtime/app/server/index.mjs"),
         resource_dir.join(format!("runtime/app/bin/silverc-latest{executable_suffix}")),
+        resource_dir.join(format!("runtime/app/bin/silverc-6f9e078{executable_suffix}")),
         resource_dir.join(format!(
             "runtime/app/bin/silverc-cb34aa5{executable_suffix}"
         )),
@@ -78,12 +79,13 @@ fn spawn_backend(app: &AppHandle) -> Result<(), String> {
     let log_path = app_data_dir.join("backend.log");
     *app.state::<BackendState>().log_path.lock().unwrap() = Some(log_path.clone());
 
-    let (script, latest_compiler, previous_compiler, legacy_compiler, preflight_engine) =
+    let (script, latest_compiler, previous_compiler, older_compiler, legacy_compiler, preflight_engine) =
         runtime_paths(app)?;
     let required = [
         &script,
         &latest_compiler,
         &previous_compiler,
+        &older_compiler,
         &legacy_compiler,
         &preflight_engine,
     ];
@@ -114,6 +116,7 @@ fn spawn_backend(app: &AppHandle) -> Result<(), String> {
     let data_arg = child_process_path(&app_data_dir);
     let latest_compiler_arg = child_process_path(&latest_compiler);
     let previous_compiler_arg = child_process_path(&previous_compiler);
+    let older_compiler_arg = child_process_path(&older_compiler);
     let legacy_compiler_arg = child_process_path(&legacy_compiler);
     let preflight_engine_arg = child_process_path(&preflight_engine);
 
@@ -127,6 +130,7 @@ fn spawn_backend(app: &AppHandle) -> Result<(), String> {
         .env("STUDIO_DATA_DIR", data_arg)
         .env("SILVERC_LATEST_BIN", latest_compiler_arg)
         .env("SILVERC_PREVIOUS_BIN", previous_compiler_arg)
+        .env("SILVERC_OLDER_BIN", older_compiler_arg)
         .env("SILVERC_LEGACY_BIN", legacy_compiler_arg)
         .env("KASCOV_PREFLIGHT_BIN", preflight_engine_arg)
         .spawn()

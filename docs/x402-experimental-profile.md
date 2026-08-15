@@ -1,12 +1,23 @@
 # Kaspa x402 TN10 experimental profile / Kaspa x402 TN10 实验档案
 
-Studio tracks the public Kaspa x402 alpha at source commit
-`7cae0eeea174f4ed077c96f376af69a38d18eddb`. This is an interoperability
+Studio tracks Kaspa x402 `v0.1.0-alpha.10` at the peeled source commit
+`78f2ada2b2dd3d54116b4cbca1fe9ec08691efc0`. This is an interoperability
 profile, not a mainnet-readiness claim and not an authorization source.
 
-Studio 跟踪公开的 Kaspa x402 alpha 源码提交
-`7cae0eeea174f4ed077c96f376af69a38d18eddb`。这是互操作档案，不代表主网成熟，
+Studio 跟踪 Kaspa x402 `v0.1.0-alpha.10` 对应的源码提交
+`78f2ada2b2dd3d54116b4cbca1fe9ec08691efc0`。这是互操作档案，不代表主网成熟，
 也不能作为资金授权来源。
+
+Alpha.10 keeps `standard-native` and `additive` exact payments and replaces the
+previous batch design with `kaspa-escrow-v2`. The batch profile uses a stable
+KIP-20 lineage, lifetime accounting, partial claims, same-lineage top-ups,
+refunds, and an explicit claim reserve. Studio records these semantics for
+portable-package interoperability only; the upstream release remains TN10-only.
+
+Alpha.10 保留 `standard-native` 与 `additive` 单次付款，并用
+`kaspa-escrow-v2` 替换旧批量方案。批量档案使用稳定 KIP-20 lineage、全生命周期
+记账、部分领取、同 lineage 充值、退款和显式领取预留。Studio 目前只把这些语义用于
+操作包互操作档案；上游版本仍仅限 TN10。
 
 ## Network identifiers / 网络标识
 
@@ -28,9 +39,9 @@ Kaspa node network.
 |---|---|
 | payment requirements | read-only request metadata; never wallet authority |
 | exact payment | ordinary reviewed wallet-transfer draft |
-| batch escrow deposit | compiled covenant deployment with exact artifact evidence |
+| `kaspa-escrow-v2` deposit/top-up | stable KIP-20 lineage plus exact artifact evidence |
 | voucher | domain-separated off-chain message signature bound to network, script and active outpoint |
-| claim/refund | versioned `.ssinvite` operation package and local engine preflight |
+| partial claim/refund | versioned `.ssinvite` package, lifetime-accounting checks and local engine preflight |
 | settlement evidence | node txid plus optional Kascov visualization |
 
 Every future executable x402 template must pin the upstream source and compiler,
@@ -45,4 +56,6 @@ upstream alpha escrow as a deployable built-in template.
 延续、退款、重放、错误网络、错误 outpoint、价值守恒和手续费边界测试。在这些门槛完成前，
 Studio 不会把上游 alpha 托管合约伪装成可直接部署的成熟内置模板。
 
-Primary source: <https://github.com/elldeeone/kaspa-x402/tree/7cae0eeea174f4ed077c96f376af69a38d18eddb>
+Primary source: <https://github.com/elldeeone/kaspa-x402/tree/78f2ada2b2dd3d54116b4cbca1fe9ec08691efc0>
+
+Release: <https://github.com/elldeeone/kaspa-x402/releases/tag/v0.1.0-alpha.10>

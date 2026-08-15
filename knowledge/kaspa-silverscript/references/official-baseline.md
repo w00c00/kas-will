@@ -3,8 +3,8 @@
 ## Verified snapshot
 
 - Repository: <https://github.com/kaspanet/silverscript>
-- Verified commit: `6f9e078b1d8b5389212755183b592704de99fea5`
-- Verified date: 2026-08-10
+- Verified commit: `14dce9a5ce8769cdfbd0c8965f8764fa9c325067`
+- Verified date: 2026-08-15
 - Compiler/language status: experimental
 - Official recommendation at this snapshot: use bytecode artifacts on
   testnet-10 until the first stable v1 release.
@@ -15,17 +15,17 @@ deployment, compatibility, or mainnet-readiness questions.
 ## Primary sources
 
 - Project status and debugger:
-  <https://github.com/kaspanet/silverscript/blob/6f9e078b1d8b5389212755183b592704de99fea5/README.md>
+  <https://github.com/kaspanet/silverscript/blob/14dce9a5ce8769cdfbd0c8965f8764fa9c325067/README.md>
 - Language tutorial:
-  <https://github.com/kaspanet/silverscript/blob/6f9e078b1d8b5389212755183b592704de99fea5/docs/TUTORIAL.md>
+  <https://github.com/kaspanet/silverscript/blob/14dce9a5ce8769cdfbd0c8965f8764fa9c325067/docs/TUTORIAL.md>
 - Covenant declaration semantics:
-  <https://github.com/kaspanet/silverscript/blob/6f9e078b1d8b5389212755183b592704de99fea5/docs/DECL.md>
+  <https://github.com/kaspanet/silverscript/blob/14dce9a5ce8769cdfbd0c8965f8764fa9c325067/docs/DECL.md>
 - Built-ins and cross-template validation:
-  <https://github.com/kaspanet/silverscript/blob/6f9e078b1d8b5389212755183b592704de99fea5/silverscript-lang/std/builtins.sil>
+  <https://github.com/kaspanet/silverscript/blob/14dce9a5ce8769cdfbd0c8965f8764fa9c325067/silverscript-lang/std/builtins.sil>
 - KCC20 book:
   <https://kaspanet.github.io/silverscript/kcc20-book/>
 - Official application examples, including chess:
-  <https://github.com/kaspanet/silverscript/tree/6f9e078b1d8b5389212755183b592704de99fea5/silverscript-lang/tests/apps>
+  <https://github.com/kaspanet/silverscript/tree/14dce9a5ce8769cdfbd0c8965f8764fa9c325067/silverscript-lang/tests/apps>
 
 ## Snapshot capabilities
 
@@ -67,6 +67,11 @@ deployment, compatibility, or mainnet-readiness questions.
   integer uses checked `value as byte`. Scalar byte to integer conversion must
   choose `signed(byteValue)` or `unsigned(byteValue)`, and scalar bytes cannot
   participate directly in arithmetic operators.
+- Commit `c1ed163` hardens entrypoint arguments and constant evaluation and caps
+  bounded-loop `max_iterations` at 10,000.
+- Commit `14dce9a` rejects declaration shadowing and builtin overrides and fixes
+  struct assignment/lowering, ternary lowering, bool-array normalization,
+  `.split()` result typing, and scalar-cast validation.
 
 ## Terminology discipline
 

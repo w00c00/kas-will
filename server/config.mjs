@@ -8,8 +8,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 dotenv.config({ path: path.join(ROOT, ".env") });
 dotenv.config({ path: path.join(ROOT, ".env.local"), override: true });
 
-export const SILVERSCRIPT_COMMIT = "6f9e078b1d8b5389212755183b592704de99fea5";
-export const SILVERSCRIPT_PREVIOUS_COMMIT = "cb34aa5e6a598f9e461c4ad7014279ba89251d8d";
+export const SILVERSCRIPT_COMMIT = "14dce9a5ce8769cdfbd0c8965f8764fa9c325067";
+export const SILVERSCRIPT_PREVIOUS_COMMIT = "6f9e078b1d8b5389212755183b592704de99fea5";
+export const SILVERSCRIPT_OLDER_COMMIT = "cb34aa5e6a598f9e461c4ad7014279ba89251d8d";
 export const SILVERSCRIPT_LEGACY_COMMIT = "2a3961cadc76bb16a425042172ffe32481da89b5";
 
 export const NETWORKS = Object.freeze({
@@ -56,12 +57,17 @@ function loadCompilerConfig() {
       ? stored
       : {};
     const isPrevious = definition.upstreamCommit === SILVERSCRIPT_PREVIOUS_COMMIT;
+    const isOlder = definition.upstreamCommit === SILVERSCRIPT_OLDER_COMMIT;
     const environmentBin = isLatest
       ? process.env.SILVERC_LATEST_BIN || process.env.SILVERC_BIN
-      : isPrevious ? process.env.SILVERC_PREVIOUS_BIN : process.env.SILVERC_LEGACY_BIN;
+      : isPrevious ? process.env.SILVERC_PREVIOUS_BIN || process.env.SILVERC_6F9E078_BIN
+        : isOlder ? process.env.SILVERC_OLDER_BIN || process.env.SILVERC_CB34AA5_BIN
+          : process.env.SILVERC_LEGACY_BIN;
     const environmentSha = isLatest
       ? process.env.SILVERC_LATEST_SHA256 || process.env.SILVERC_SHA256
-      : isPrevious ? process.env.SILVERC_PREVIOUS_SHA256 : process.env.SILVERC_LEGACY_SHA256;
+      : isPrevious ? process.env.SILVERC_PREVIOUS_SHA256 || process.env.SILVERC_6F9E078_SHA256
+        : isOlder ? process.env.SILVERC_OLDER_SHA256 || process.env.SILVERC_CB34AA5_SHA256
+          : process.env.SILVERC_LEGACY_SHA256;
     return [definition.id, Object.freeze({
       ...definition,
       bin: path.resolve(environmentBin || local.bin || legacyStored.bin || path.join(ROOT, definition.binary)),
@@ -71,7 +77,7 @@ function loadCompilerConfig() {
   }));
   const defaultProfileId = profiles[stored.defaultProfileId]
     ? stored.defaultProfileId
-    : compatibility.defaultProfileId || "latest-6f9e078";
+    : compatibility.defaultProfileId || "latest-14dce9a";
   return Object.freeze({
     defaultProfileId,
     profiles: Object.freeze(profiles),

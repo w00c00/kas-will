@@ -7,7 +7,7 @@
   "descriptionEn": "Guided Collection metadata, NFT identity and owner setup with a locally computed digest. Four covenants are included for TN10 research; ordinary deployment remains disabled.",
   "experimentalOnly": true,
   "networkAllowlist": ["tn10"],
-  "compilerProfileId": "latest-6f9e078",
+  "compilerProfileId": "latest-14dce9a",
   "deploymentMode": "pack-only",
   "deploymentBlockedReason": "KCC721 is a four-contract TN10 experimental pack; its dedicated independently reviewed genesis/mint builder is not included yet, so standalone deployment is disabled",
   "requirementsEn": "Research UTXO-native NFTs whose immutable identity and current owner are enforced by a live covenant lineage.",
@@ -21,7 +21,7 @@
     { "id": "owner", "number": 3, "titleZh": "持有人与 Cell 金额", "titleEn": "Owner and cell value", "helpZh": "所有者使用 TN10 P2PK 钱包授权后续转移；Cell 金额不是 NFT 售价。", "helpEn": "The owner authorizes later transfers with a TN10 P2PK wallet; cell value is not the NFT sale price." }
   ],
   "parameters": [
-    { "id": "metadata", "type": "kcc721Metadata", "step": "metadata", "argIndex": 2, "required": true, "default": { "name": "My TN10 NFT #1", "description": "TN10 experimental KCC721 research item", "image": "", "externalUrl": "", "attributes": [] }, "labelZh": "NFT 元数据", "labelEn": "NFT metadata", "helpZh": "摘要由以下内容确定，任何字符变化都会产生不同摘要。", "helpEn": "The digest is derived from these values; any character change produces a different digest." },
+    { "id": "metadata", "type": "kcc721Metadata", "step": "metadata", "argIndex": 2, "required": true, "default": { "name": "My TN10 NFT #1", "description": "TN10 experimental KCC721 research item", "image": "", "imageHash": "", "externalUrl": "", "attributes": [] }, "labelZh": "NFT 元数据", "labelEn": "NFT metadata", "helpZh": "采用 KCC-0021 Draft 的图片完整性约束：HTTPS 图片必须同时填写 SHA-256；IPFS 可由 CID 校验。摘要由全部元数据确定。", "helpEn": "Uses the KCC-0021 Draft image-integrity rule: HTTPS images require SHA-256, while IPFS can be verified by CID. The digest commits to all metadata." },
     { "id": "collectionMode", "type": "choice", "step": "identity", "required": true, "default": "preview", "options": [{ "value": "preview", "labelZh": "新集合 · 编译预览", "labelEn": "New collection · compile preview" }, { "value": "existing", "labelZh": "导入已有 TN10 集合", "labelEn": "Import existing TN10 collection" }], "labelZh": "集合来源", "labelEn": "Collection source", "helpZh": "编译预览使用内部全零哨兵且永远禁止部署；导入模式才接受真实 ID。", "helpEn": "Preview uses an internal all-zero sentinel and can never deploy; only import mode accepts a real ID." },
     { "id": "collectionId", "type": "kcc721CollectionId", "step": "identity", "argIndex": 0, "required": false, "labelZh": "已核验 Collection Covenant ID", "labelEn": "Verified Collection covenant ID", "placeholderZh": "64 位十六进制；从创世输出获得", "placeholderEn": "64 hex characters from the genesis output", "helpZh": "不能使用交易 ID、地址或随机构造值；新集合预览无需填写。", "helpEn": "Do not use a transaction ID, address, or invented value; leave blank for a new-collection preview." },
     { "id": "tokenId", "type": "integer", "step": "identity", "argIndex": 1, "minimum": 1, "maximum": 1000000000, "default": 1, "required": true, "labelZh": "Token ID", "labelEn": "Token ID", "helpZh": "必须在同一 Collection 内唯一，从 1 开始。", "helpEn": "Must be unique inside the Collection and starts at 1." },

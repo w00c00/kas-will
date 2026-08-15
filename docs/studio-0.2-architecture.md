@@ -4,7 +4,7 @@
 
 ### 编译器兼容档案
 
-`config/compiler-profiles.json` 是可提交的兼容性清单，`config/compiler.json` 是本机生成的二进制路径、构建时间和 SHA-256 清单。默认档案固定官方 SilverScript `6f9e078b1d8b5389212755183b592704de99fea5`；`cb34aa5` 保留用于复现 Studio 0.2.7 项目，`2a3961c` 保留用于更早的旧版项目。
+`config/compiler-profiles.json` 是可提交的兼容性清单，`config/compiler.json` 是本机生成的二进制路径、构建时间和 SHA-256 清单。默认档案固定官方 SilverScript `14dce9a5ce8769cdfbd0c8965f8764fa9c325067`；`6f9e078`、`cb34aa5` 和 `2a3961c` 隔离保留，用于复现 Studio 0.2.8、0.2.7 与更早项目。
 
 升级检查会报告已知变化，并只自动替换无歧义的名称。`6f9e078` 要求标量 byte 转 int 时明确使用 `signed()` 或 `unsigned()`，运行时 int 转 byte 使用 `as byte`；这些语义不能自动猜测。`.reverse()` 删除、字节序、位运算类型和任何状态布局变化也必须人工审查。迁移后仍必须使用真实构造参数完整编译并进行对抗性交易测试。
 
@@ -54,7 +54,7 @@ Studio 新生成的 `.ssinvite` 为每个 Covenant 输入附带 canonical v1 des
 
 ### Compiler compatibility profiles
 
-`config/compiler-profiles.json` is the committed compatibility catalog. The generated `config/compiler.json` records local binary paths, build times, and SHA-256 hashes. The default profile pins official SilverScript commit `6f9e078b1d8b5389212755183b592704de99fea5`; `cb34aa5` reproduces Studio 0.2.7 projects and `2a3961c` remains for older legacy projects.
+`config/compiler-profiles.json` is the committed compatibility catalog. The generated `config/compiler.json` records local binary paths, build times, and SHA-256 hashes. The default profile pins official SilverScript commit `14dce9a5ce8769cdfbd0c8965f8764fa9c325067`; isolated `6f9e078`, `cb34aa5`, and `2a3961c` profiles reproduce Studio 0.2.8, 0.2.7, and older projects.
 
 Compatibility checks report known changes and automatically apply only unambiguous renames. Commit `6f9e078` requires explicit `signed()`/`unsigned()` conversion from scalar byte and `as byte` for checked runtime int conversion; Studio never guesses that meaning. Removed `.reverse()`, byte ordering, bitwise typing, and state-layout changes also require manual review. Every migration still requires a full compile with realistic constructor arguments and adversarial transaction tests.
 

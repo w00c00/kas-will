@@ -11,6 +11,12 @@ function cleanText(value, label, maximum, required = false) {
   return text;
 }
 
+function cleanImageHash(value) {
+  const text = String(value ?? "").trim().toLowerCase().replace(/^0x/, "");
+  if (text && !/^[0-9a-f]{64}$/.test(text)) metadataError("NFT image SHA-256 must contain exactly 64 hexadecimal characters");
+  return text;
+}
+
 function stable(value) {
   if (Array.isArray(value)) return value.map(stable);
   if (!value || typeof value !== "object") return value;
@@ -26,6 +32,9 @@ export function canonicalKcc721Metadata(value) {
   const name = cleanText(input.name, "NFT name", 120, true);
   const description = cleanText(input.description, "NFT description", 2_000);
   const image = cleanText(input.image, "NFT image URI", 2_048);
+  const imageHash = cleanImageHash(input.imageHash ?? input.image_hash);
+  if (image && !/^(?:https:\/\/|ipfs:\/\/)/i.test(image)) metadataError("NFT image URI must use https:// or ipfs://");
+  if (/^https:\/\//i.test(image) && !imageHash) metadataError("HTTPS NFT images require an immutable image SHA-256");
   const externalUrl = cleanText(input.externalUrl ?? input.external_url, "NFT external URL", 2_048);
   let attributes = input.attributes ?? [];
   if (typeof attributes === "string") {
@@ -45,6 +54,7 @@ export function canonicalKcc721Metadata(value) {
     name,
     ...(description ? { description } : {}),
     ...(image ? { image } : {}),
+    ...(imageHash ? { image_hash: imageHash } : {}),
     ...(externalUrl ? { external_url: externalUrl } : {}),
     ...(attributes.length ? { attributes } : {})
   };

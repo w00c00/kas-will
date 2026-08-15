@@ -53,19 +53,34 @@ function outputFrom(descriptor, network, inputIndexById) {
   const value = BigInt(descriptor.valueSompi);
   if (value <= 0n) throw builderError("Every atomic output must have positive value");
   if (descriptor.address) {
+    if (descriptor.genesisAuthorizerCovenantId) throw builderError("An address output cannot also be a fresh covenant lineage");
     const address = String(descriptor.address).trim().toLowerCase();
     if (!address.startsWith(`${network.prefix}:`)) throw builderError("Atomic output address is on the wrong network");
-    return new kaspa.TransactionOutput(value, kaspa.payToAddressScript(address));
+    return { output: new kaspa.TransactionOutput(value, kaspa.payToAddressScript(address)), genesisAuthorizingInput: null };
   }
   const programHex = cleanHex(descriptor.programHex);
+  if (descriptor.genesisAuthorizerCovenantId) {
+    if (descriptor.covenantId) throw builderError("A fresh covenant lineage output must not declare a pre-existing covenant ID");
+    const authorizerId = cleanHex(descriptor.genesisAuthorizerCovenantId, 32);
+    const authorizingInput = inputIndexById.get(authorizerId);
+    if (!Number.isSafeInteger(authorizingInput)) throw builderError("Fresh covenant lineage authorizer does not map to an input covenant ID");
+    return {
+      output: new kaspa.TransactionOutput(value, kaspa.payToScriptHashScript(programHex)),
+      genesisAuthorizingInput: authorizingInput,
+      programSha256: sha256(Buffer.from(programHex, "hex"))
+    };
+  }
   const covenantId = cleanHex(descriptor.covenantId, 32);
   const sourceInputIndex = inputIndexById.get(covenantId);
   if (!Number.isSafeInteger(sourceInputIndex)) throw builderError("Covenant continuation output does not map to an input covenant ID");
-  return new kaspa.TransactionOutput(
-    value,
-    kaspa.payToScriptHashScript(programHex),
-    new kaspa.CovenantBinding(sourceInputIndex, new kaspa.Hash(covenantId))
-  );
+  return {
+    output: new kaspa.TransactionOutput(
+      value,
+      kaspa.payToScriptHashScript(programHex),
+      new kaspa.CovenantBinding(sourceInputIndex, new kaspa.Hash(covenantId))
+    ),
+    genesisAuthorizingInput: null
+  };
 }
 
 export function buildAtomicCovenantPackage({ network: networkId = "tn10", covenantInputs, outputs, p2pkAuthorization = null, feeSompi, provenance = {} }) {
@@ -147,7 +162,8 @@ export function buildAtomicCovenantPackage({ network: networkId = "tn10", covena
     transactionInputs.push(authInput);
   }
   const inputIndexById = new Map(metadata.map((item) => [item.covenantId, item.index]));
-  const transactionOutputs = outputs.map((output) => outputFrom(output, network, inputIndexById));
+  const outputPlans = outputs.map((output) => outputFrom(output, network, inputIndexById));
+  const transactionOutputs = outputPlans.map((plan) => plan.output);
   const inputTotal = covenantInputs.reduce((sum, item) => sum + amountOf(item.utxo), 0n)
     + (p2pkAuthorization?.input ? amountOf(p2pkAuthorization.input.utxo) : 0n);
   const outputTotal = outputs.reduce((sum, output) => sum + BigInt(output.valueSompi), 0n);
@@ -163,6 +179,28 @@ export function buildAtomicCovenantPackage({ network: networkId = "tn10", covena
     gas: 0n,
     payload: ""
   });
+  const genesisGroups = new Map();
+  outputPlans.forEach((plan, outputIndex) => {
+    if (!Number.isSafeInteger(plan.genesisAuthorizingInput)) return;
+    const indexes = genesisGroups.get(plan.genesisAuthorizingInput) || [];
+    indexes.push(outputIndex);
+    genesisGroups.set(plan.genesisAuthorizingInput, indexes);
+  });
+  if (genesisGroups.size) {
+    transaction.populateGenesisCovenants([...genesisGroups].map(([authorizingInput, genesisOutputs]) => ({
+      authorizingInput,
+      outputs: genesisOutputs
+    })));
+  }
+  const genesisCovenants = outputPlans.flatMap((plan, outputIndex) => {
+    if (!Number.isSafeInteger(plan.genesisAuthorizingInput)) return [];
+    const covenantId = String(transaction.outputs[outputIndex].covenant?.covenantId || "").toLowerCase();
+    if (!/^[0-9a-f]{64}$/.test(covenantId)) throw builderError("Fresh covenant lineage ID was not populated", "GENESIS_COVENANT_POPULATION_FAILED");
+    if (Number(transaction.outputs[outputIndex].covenant?.authorizingInput) !== plan.genesisAuthorizingInput) {
+      throw builderError("Fresh covenant lineage has the wrong authorizing input", "GENESIS_COVENANT_AUTHORIZATION_MISMATCH");
+    }
+    return [{ outputIndex, authorizingInputIndex: plan.genesisAuthorizingInput, covenantId, programSha256: plan.programSha256 }];
+  });
   const covenantSignatures = metadata.reduce((sum, item) => sum + (item.arguments || []).filter((argument) => argument?.kind === "signature").length, 0);
   const sigOps = Math.max(1, covenantSignatures + (p2pkAuthorization?.input ? 1 : 0));
   if (!kaspa.updateTransactionMass(network.kaspaNetworkId, transaction, sigOps, true)) throw builderError("Atomic covenant transaction exceeds the current mass limit", "ATOMIC_MASS_LIMIT");
@@ -172,11 +210,13 @@ export function buildAtomicCovenantPackage({ network: networkId = "tn10", covena
     networkCaip2: caip2Network(network.id),
     transactionSafeJson: transaction.serializeToSafeJSON(),
     covenantInputs: metadata,
+    ...(genesisCovenants.length ? { genesisCovenants } : {}),
     ...(p2pkAuthorization?.metadata ? { p2pkAuthorization: { ...p2pkAuthorization.metadata, signed: false } } : {}),
     provenance: {
       kind: "silverstudio-atomic-covenant",
       atomic: true,
       inputCount: metadata.length,
+      genesisOutputCount: genesisCovenants.length,
       ...provenance
     }
   };

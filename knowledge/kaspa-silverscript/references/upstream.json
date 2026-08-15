@@ -1,8 +1,8 @@
 {
   "repository": "https://github.com/kaspanet/silverscript.git",
   "branch": "master",
-  "verified_commit": "6f9e078b1d8b5389212755183b592704de99fea5",
-  "verified_at": "2026-08-10",
+  "verified_commit": "14dce9a5ce8769cdfbd0c8965f8764fa9c325067",
+  "verified_at": "2026-08-15",
   "status": "experimental",
   "recommended_network": "testnet-10"
 }
