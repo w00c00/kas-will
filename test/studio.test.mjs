@@ -28,11 +28,18 @@ import { localCors } from "../server/security.mjs";
 import { CovenantStateSource, covenantStateProvider, verifyCovenantStateCandidate } from "../server/covenant-state-source.mjs";
 import { createP2pkCoSpendAuthorization, selectP2pkFundingUtxo, signP2pkCoSpendPackage } from "../server/p2pk-cospend.mjs";
 import { buildAtomicCovenantPackage } from "../server/atomic-covenant-builder.mjs";
+import { buildKcc20WillOperationPackage, decodeKcc20TokenState } from "../server/kcc20-will-service.mjs";
 import { canonicalKcc721Metadata } from "../src/kcc721-metadata.js";
 import { binaryRelativePath, cargoReleaseBinary, executableName } from "../scripts/platform-binaries.mjs";
 
 const require = createRequire(import.meta.url);
 const kaspa = require("@kluster/kaspa-wasm");
+
+function randomPrivateKey() {
+  for (;;) {
+    try { return new kaspa.PrivateKey(crypto.randomBytes(32).toString("hex")); } catch {}
+  }
+}
 
 test("desktop runtime detection supports Windows Tauri webview origins", () => {
   const browserGlobal = {};
@@ -43,7 +50,7 @@ test("desktop runtime detection supports Windows Tauri webview origins", () => {
     { protocol: "https:", hostname: "tauri.localhost" }
   ]) {
     assert.equal(isTauriRuntime(locationLike, browserGlobal), true);
-    assert.equal(apiBaseForRuntime(locationLike, browserGlobal), "http://127.0.0.1:4310");
+    assert.equal(apiBaseForRuntime(locationLike, browserGlobal), "http://127.0.0.1:4320");
   }
 
   assert.equal(isTauriRuntime({ protocol: "http:", hostname: "localhost" }, { isTauri: true }), true);
@@ -146,16 +153,16 @@ test("desktop runtime includes server-imported KCC721 metadata code", () => {
   assert.match(prepareDesktop, /src\/kcc721-metadata\.js/);
 });
 
-test("0.2.9 capabilities have visible bilingual UI entrypoints", () => {
+test("Kas Will has visible bilingual inheritance, package and local-wallet entrypoints", () => {
   const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
   const uiSource = fs.readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
-  for (const id of ["feature-open-compiler", "feature-scan-kcc20", "feature-open-atomic", "feature-open-kcc721", "atomic-builder-input", "atomic-builder-build"]) {
+  for (const id of ["will-form", "kcc20-fields", "operate-project", "package-file", "wallet-select", "disconnect-wallet"]) {
     assert.match(html, new RegExp(`id=["']${id}["']`), `${id} must be visible in the app shell`);
   }
-  assert.match(html, /Research profile · not deployable|研究档案 · 不可部署/);
-  assert.match(uiSource, /api\/external-covenants\/build-atomic/);
-  assert.match(uiSource, /0\.2\.9 atomic-builder UI is TN10 only/);
-  assert.match(uiSource, /scanCurrentKcc20Source/);
+  assert.match(html, /多人操作包|Multi-party packages/);
+  assert.match(html, /不依赖任何网站|No website dependency/);
+  assert.match(uiSource, /detectPreferredLanguage/);
+  assert.match(uiSource, /kcc20-inheritance-vault/);
 });
 
 test("desktop helpers use native executable names on Windows and Unix", () => {
@@ -302,8 +309,8 @@ test("switching project context clears portable packages and lifecycle invitatio
   assert.equal(workspace.unrelatedPreference, "keep");
 
   const uiSource = fs.readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
-  assert.match(uiSource, /function loadProjectIntoUi\(project\) \{\s+resetProjectScopedTransactionWorkspace\(\);/);
-  assert.match(uiSource, /function showNoProject\(\)[\s\S]*?resetProjectScopedTransactionWorkspace\(\);/);
+  assert.match(uiSource, /clearProjectScopedTransactionState\(state\)/);
+  assert.match(uiSource, /state\.package=null;state\.review=null/);
 });
 
 test("a deterministic template can replace a local work without AI and clears stale evidence", () => {
@@ -693,7 +700,7 @@ contract Compatibility(pubkey owner) {
   }
 }`;
   const profiles = compilerProfiles();
-  assert.deepEqual(profiles.map((profile) => profile.id), ["latest-14dce9a", "latest-6f9e078", "latest-cb34aa5", "legacy-2a3961c"]);
+  assert.deepEqual(profiles.map((profile) => profile.id), ["latest-023c7ee", "latest-14dce9a", "latest-6f9e078", "latest-cb34aa5", "legacy-2a3961c"]);
   assert.ok(profiles.every((profile) => profile.configured));
   const report = detectBreakingChanges(`${legacySource}\n// checkSigFromStack and tx.inputs[0].outpointTransactionHash.reverse()`, "latest-14dce9a");
   assert.equal(report.compatible, false);
@@ -738,6 +745,9 @@ contract Ordered() {
   await assert.rejects(compileContract({ source: duplicate, compilerProfileId: "latest-14dce9a" }), /duplicate function name/i);
   await assert.rejects(compileContract({ source: shadow, compilerProfileId: "latest-14dce9a" }), /(?:conflicts with contract field|already defined)/i);
   await assert.rejects(compileContract({ source: ordered, compilerProfileId: "latest-14dce9a" }), /ordered comparison requires numeric operands/i);
+  assert.ok(detectBreakingChanges(duplicate, "latest-023c7ee").findings.some((finding) => finding.id === "duplicate-function-name"));
+  assert.ok(detectBreakingChanges(`contract Split() { entry run(byte[] value) { byte[2] left = value.split(2)[0]; } }`, "latest-023c7ee").findings.some((finding) => finding.id === "split-results-dynamic"));
+  assert.ok(detectBreakingChanges(`contract Cast() { entry run(byte[] value) { pubkey key = pubkey(value); } }`, "latest-023c7ee").findings.some((finding) => finding.id === "unchecked-fixed-cast"));
 });
 
 test("CovenantStateSource rejects false matches, records fallback and fails on ambiguity", async () => {
@@ -948,7 +958,8 @@ contract AtomicCell() { entry spend() { require(true); } }`;
 
 test("Merkle one-time claim and commit/reveal builders verify proofs before producing signing packages", async () => {
   const templates = new TemplateStore();
-  const claimantKey = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+  const claimantPrivateKey = randomPrivateKey();
+  const claimantKey = claimantPrivateKey.toPublicKey().toXOnlyPublicKey().toString();
   const claimantAddress = new kaspa.XOnlyPublicKey(claimantKey).toAddress("testnet-10").toString();
   const refundAddress = new kaspa.XOnlyPublicKey(TEMPLATE_KEYS[1]).toAddress("testnet-10").toString();
   const claimId = "a1".repeat(32);
@@ -1028,7 +1039,6 @@ test("Merkle one-time claim and commit/reveal builders verify proofs before prod
     (error) => error.code === "COMMITMENT_MISMATCH"
   );
 
-  const claimantPrivateKey = new kaspa.PrivateKey("01".padStart(64, "0"));
   const originalFetch = globalThis.fetch;
   function finalizeWithClaimantSignature(built, signatureIndex, mutate = null) {
     const pkg = structuredClone(built.package);
@@ -1101,8 +1111,8 @@ test("TN10 Experimental KCC721 pack compiles all pinned contracts and blocks sta
   assert.deepEqual(imported.constructorArgs[0], byteArray(Buffer.from("ab".repeat(32), "hex")));
 
   const nftContract = pack.packContracts.find((contract) => contract.id === "nft");
-  const currentOwnerPrivateKey = new kaspa.PrivateKey("01".padStart(64, "0"));
-  const nextOwnerPrivateKey = new kaspa.PrivateKey("02".padStart(64, "0"));
+  const currentOwnerPrivateKey = randomPrivateKey();
+  const nextOwnerPrivateKey = randomPrivateKey();
   const currentOwnerKey = currentOwnerPrivateKey.toPublicKey().toXOnlyPublicKey().toString();
   const nextOwnerKey = nextOwnerPrivateKey.toPublicKey().toXOnlyPublicKey().toString();
   const currentOwnerAddress = currentOwnerPrivateKey.toAddress("testnet-10").toString();
@@ -1369,6 +1379,107 @@ test("KCC20 security triage blocks borrowed minter and value-drain patterns", as
   assert.ok(hardened.findings.some((item) => item.code === "KCC204" && item.severity === "manual-review"));
 });
 
+test("KCC20 will atomically distributes a descriptor-bound non-minter token without a website", async () => {
+  const source = fs.readFileSync(new URL("./fixtures/kcc20.sil", import.meta.url), "utf8");
+  const keys = [randomPrivateKey(), randomPrivateKey(), randomPrivateKey()];
+  const ownerAddress = keys[0].toAddress("testnet-10").toString();
+  const tokenCovenantId = "b7".repeat(32);
+  const controllerCovenantId = "c8".repeat(32);
+  const tokenArtifact = await compileContract({ source, constructorArgs: [
+    byteArray(Buffer.from(controllerCovenantId, "hex")), { kind: "int", data: 10_000 },
+    { kind: "byte", data: 2 }, { kind: "bool", data: false }, { kind: "int", data: 2 }, { kind: "int", data: 5 }
+  ] });
+  const tokenProgram = Buffer.from(tokenArtifact.programHex, "hex");
+  assert.equal(tokenProgram[0], 0x6b);
+  assert.equal(tokenProgram[47], 0x6c);
+  const prefix = tokenProgram.subarray(0, 1);
+  const suffix = tokenProgram.subarray(47);
+  const i64 = (value) => { const bytes = Buffer.alloc(8); bytes.writeBigInt64LE(BigInt(value)); return bytes; };
+  const templatePreimage = Buffer.concat([i64(prefix.length), prefix, i64(suffix.length), suffix]);
+  const tokenTemplateHash = kaspa.payToScriptHashScript(templatePreimage.toString("hex")).script.slice(4, 68);
+  const templateSettings = { tokenTemplatePrefixLength: prefix.length, tokenTemplateSuffixLength: suffix.length, tokenTemplateHash };
+  const decoded = decodeKcc20TokenState(tokenArtifact.programHex, { templateParameters: templateSettings });
+  assert.deepEqual({ owner: decoded.ownerIdentifier, amount: decoded.amount, minter: decoded.isMinter }, {
+    owner: controllerCovenantId, amount: 10_000n, minter: false
+  });
+
+  const templates = new TemplateStore();
+  const template = templates.get("kcc20-inheritance-vault");
+  const configured = templates.projectInput(template.id, "tn10", {
+    amountKas: "0.5", ownerAddress,
+    inheritors: keys.slice(1).map((key, index) => ({ address: key.toAddress("testnet-10").toString(), shareBps: index ? 4000 : 6000 })),
+    inactivityDays: { value: 1, unit: "minutes" }, tokenCovenantId, ...templateSettings
+  });
+  const controllerArtifact = await compileContract(configured);
+  const project = {
+    id: "kcc20-will-distribution", ...configured, artifact: controllerArtifact,
+    deployment: { txid: "d9".repeat(32), activeTxid: "d9".repeat(32), activeOutputIndex: 0, covenantId: controllerCovenantId, network: "tn10" },
+    review: { ...configured.review, templateId: template.id }
+  };
+  const sourceFor = (programHex, covenantId, transactionId, amount) => {
+    const script = kaspa.payToScriptHashScript(programHex);
+    const holder = kaspa.Transaction.deserializeFromSafeJSON(JSON.stringify({
+      id: "00".repeat(32), version: 1,
+      inputs: [{ transactionId, index: 0, sequence: "0", sigOpCount: 0, computeBudget: 0, signatureScript: "", utxo: {
+        address: kaspa.addressFromScriptPublicKey(script, "testnet-10").toString(), amount: String(amount),
+        scriptPublicKey: `0000${script.script}`, blockDaaScore: "1", isCoinbase: false, covenantId
+      } }],
+      outputs: [{ value: "1", scriptPublicKey: `0000${kaspa.payToAddressScript(ownerAddress).script}`, covenant: null }],
+      subnetworkId: "00".repeat(20), lockTime: "0", gas: "0", storageMass: "0", payload: ""
+    }));
+    return { entry: holder.inputs[0].utxo, covenantId };
+  };
+  const tokenUtxo = sourceFor(tokenArtifact.programHex, tokenCovenantId, "e1".repeat(32), 100_000_000);
+  const controllerUtxo = sourceFor(controllerArtifact.programHex, controllerCovenantId, "d9".repeat(32), 50_000_000);
+  const built = await buildKcc20WillOperationPackage({
+    operationId: "inherit", tokenProgramHex: tokenArtifact.programHex,
+    tokenTransactionId: "e1".repeat(32), tokenOutputIndex: 0, feeKas: "0.02"
+  }, project, {
+    findUtxo: async (_network, programHex) => programHex === tokenArtifact.programHex ? tokenUtxo : controllerUtxo,
+    preflight: kascovPreflight
+  });
+  assert.equal(built.review.complete, true);
+  assert.equal(built.review.atomic, true);
+  assert.equal(built.review.inputCount, 2);
+  assert.equal(built.review.outputCount, 2);
+  assert.deepEqual(built.package.covenantInputs[1].arguments[0].items.map((item) => item.fields.amount.data), ["6000", "4000"]);
+  assert.equal(built.package.covenantInputs[1].arguments[2].hex, "00");
+  assert.equal(built.preflight.localEngineVerified, true);
+  assert.ok(JSON.parse(built.package.transactionSafeJson).inputs.every((input) => input.signatureScript.length > 0));
+
+  const ownerPublicKey = keys[0].toPublicKey().toXOnlyPublicKey().toString();
+  const ownerTokenArtifact = await compileContract({ source, constructorArgs: [
+    byteArray(Buffer.from(ownerPublicKey, "hex")), { kind: "int", data: 10_000 },
+    { kind: "byte", data: 0 }, { kind: "bool", data: false }, { kind: "int", data: 2 }, { kind: "int", data: 5 }
+  ] });
+  const ownerTokenUtxo = sourceFor(ownerTokenArtifact.programHex, tokenCovenantId, "f2".repeat(32), 100_000_000);
+  const funding = await buildKcc20WillOperationPackage({
+    operationId: "fundKcc20", tokenProgramHex: ownerTokenArtifact.programHex,
+    tokenTransactionId: "f2".repeat(32), tokenOutputIndex: 0, feeKas: "0.02"
+  }, project, {
+    findUtxo: async () => ownerTokenUtxo,
+    preflight: kascovPreflight
+  });
+  assert.equal(funding.review.complete, false);
+  assert.equal(funding.review.atomic, false);
+  assert.equal(funding.review.signatureSlots.length, 1);
+  assert.equal(funding.review.signatureSlots[0].publicKey, ownerPublicKey);
+  const signedFunding = await signExternalCovenantPackage({
+    package: funding.package,
+    confirmation: "SIGN REVIEWED EXTERNAL COVENANT",
+    publicKey: ownerPublicKey
+  }, {
+    async createCovenantInputSignature({ transactionSafeJson, inputIndex }) {
+      const transaction = kaspa.Transaction.deserializeFromSafeJSON(transactionSafeJson);
+      const encoded = String(kaspa.createInputSignature(transaction, inputIndex, keys[0], 1)).toLowerCase();
+      return /^41[0-9a-f]{130}$/.test(encoded) ? encoded.slice(2) : encoded;
+    }
+  });
+  assert.equal(signedFunding.review.complete, true);
+  assert.equal(signedFunding.preflight.localEngineVerified, true);
+  for (const key of keys) try { key.free(); } catch {}
+});
+
 test("deployment builder rejects source edited after compilation before network access", async () => {
   const publicKey = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
   const address = new kaspa.XOnlyPublicKey(publicKey).toAddress("testnet-10").toString();
@@ -1404,7 +1515,7 @@ test("deployment builder rejects constructor arguments edited after compilation 
 test("deployment builder enforces a standard-mass-safe covenant cell and accepts a large faucet UTXO", async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "silverstudio-deploy-mass-test-"));
   const originalFetch = globalThis.fetch;
-  const privateKey = new kaspa.PrivateKey("04".padStart(64, "0"));
+  const privateKey = randomPrivateKey();
   const publicKey = privateKey.toPublicKey().toXOnlyPublicKey().toString();
   const address = privateKey.toAddress("testnet-10").toString();
   const script = kaspa.payToAddressScript(address).script;
@@ -1460,7 +1571,7 @@ test("deployment builder enforces a standard-mass-safe covenant cell and accepts
 });
 
 test("Kascov preflight adapter preserves WASM Safe JSON outpoints, scripts and genesis covenant identity", () => {
-  const privateKey = new kaspa.PrivateKey("01".padStart(64, "0"));
+  const privateKey = randomPrivateKey();
   const address = privateKey.toAddress("testnet-10").toString();
   const utxo = {
     address,
@@ -1508,7 +1619,7 @@ test("Kascov preflight adapter preserves WASM Safe JSON outpoints, scripts and g
 
 test("signed transactions pass the bundled script engine when Kascov is completely offline", async () => {
   const originalFetch = globalThis.fetch;
-  const privateKey = new kaspa.PrivateKey("01".padStart(64, "0"));
+  const privateKey = randomPrivateKey();
   const address = privateKey.toAddress("testnet-10").toString();
   const utxo = {
     address,
@@ -1537,15 +1648,13 @@ test("signed transactions pass the bundled script engine when Kascov is complete
     assert.equal(report.localEngineVerified, true);
     assert.equal(report.kascov.available, false);
     assert.equal(report.executed[0].pass, true);
-    globalThis.fetch = async () => new Response(JSON.stringify({
-      ok: true,
-      verdict: "will_fail",
-      findings: [{ severity: "error", message: "simulated remote disagreement" }]
-    }), { status: 200, headers: { "content-type": "application/json" } });
-    const disagreed = await kascovPreflight(signedJson, "tn10", "signed");
-    assert.equal(disagreed.provider, "local");
-    assert.equal(disagreed.kascov.disagreement, true);
-    assert.equal(disagreed.verdict, "ready");
+    let remoteCalled = false;
+    globalThis.fetch = async () => { remoteCalled = true; throw new Error("web verification must remain disabled"); };
+    const localOnly = await kascovPreflight(signedJson, "tn10", "signed");
+    assert.equal(localOnly.provider, "local");
+    assert.equal(localOnly.kascov.disabled, true);
+    assert.equal(localOnly.verdict, "ready");
+    assert.equal(remoteCalled, false);
   } finally {
     globalThis.fetch = originalFetch;
     try { transaction.free(); } catch {}
@@ -1554,7 +1663,7 @@ test("signed transactions pass the bundled script engine when Kascov is complete
 });
 
 test("wallet balances come from Kaspa node RPC without a REST explorer", async () => {
-  const privateKey = new kaspa.PrivateKey("03".padStart(64, "0"));
+  const privateKey = randomPrivateKey();
   const address = privateKey.toAddress("testnet-10").toString();
   try {
     configureNodeAccess({ tn10RpcUrl: "ws://127.0.0.1:17210" });
@@ -1592,8 +1701,8 @@ test("wallet balances come from Kaspa node RPC without a REST explorer", async (
 test("wallet transfer builder produces one immutable reviewed draft with exact fees", async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "silverstudio-transfer-test-"));
   const originalFetch = globalThis.fetch;
-  const privateKey = new kaspa.PrivateKey("01".padStart(64, "0"));
-  const recipientKey = new kaspa.PrivateKey("02".padStart(64, "0"));
+  const privateKey = randomPrivateKey();
+  const recipientKey = randomPrivateKey();
   const address = privateKey.toAddress("testnet-10").toString();
   const recipient = recipientKey.toAddress("testnet-10").toString();
   const script = kaspa.payToAddressScript(address).script;
@@ -1643,6 +1752,7 @@ test("wallet transfer builder produces one immutable reviewed draft with exact f
 
 test("every built-in template fully compiles with its realistic default arguments", async () => {
   const templates = new TemplateStore().list();
+  const commitsByProfile = new Map(compilerProfiles().map((profile) => [profile.id, profile.upstreamCommit]));
   assert.ok(templates.length >= 4);
   for (const template of templates) {
     const amount = template.parameters.find((field) => field.type === "amount");
@@ -1650,7 +1760,7 @@ test("every built-in template fully compiles with its realistic default argument
     assert.ok(!amount || Number(amount.minimum) >= 0.5, `${template.id} minimum covenant cell is below the standard-mass-safe minimum`);
     const artifact = await compileContract(template);
     assert.ok(artifact.programHex.length > 0, template.id);
-    assert.equal(artifact.compiler.upstreamCommit, SILVERSCRIPT_COMMIT);
+    assert.equal(artifact.compiler.upstreamCommit, commitsByProfile.get(template.compilerProfileId || "latest-023c7ee"));
   }
 });
 

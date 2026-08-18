@@ -1,28 +1,28 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Kaspa SilverScript Studio",
-  "version": "0.2.9",
-  "identifier": "io.kaspa.silverscript-studio",
+  "productName": "Kas Will",
+  "version": "0.1.0",
+  "identifier": "io.kaspa.kas-will",
   "build": {
     "frontendDist": "../dist",
-    "devUrl": "http://localhost:5173",
+    "devUrl": "http://localhost:4321",
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run desktop:prepare"
   },
   "app": {
     "windows": [
       {
-        "title": "Kaspa SilverScript Studio",
-        "width": 1440,
-        "height": 920,
-        "minWidth": 980,
+        "title": "Kas Will",
+        "width": 1320,
+        "height": 880,
+        "minWidth": 920,
         "minHeight": 680,
         "resizable": true,
         "fullscreen": false
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:4310 ws://127.0.0.1:4310; img-src 'self' asset: data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:"
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:4320 ws://127.0.0.1:4320; img-src 'self' asset: data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:"
     }
   },
   "bundle": {

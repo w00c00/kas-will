@@ -52,7 +52,7 @@ export class ProjectStore {
       requirements: String(input.requirements || ""),
       source: String(input.source || SAMPLE_SOURCE),
       constructorArgs: Array.isArray(input.constructorArgs) ? input.constructorArgs : [],
-      compilerProfileId: String(input.compilerProfileId || "latest-14dce9a"),
+      compilerProfileId: String(input.compilerProfileId || "latest-023c7ee"),
       templateParameters: input.templateParameters && typeof input.templateParameters === "object" ? input.templateParameters : {},
       deployAmount: String(input.deployAmount || "0.5"),
       specification: input.specification || null,

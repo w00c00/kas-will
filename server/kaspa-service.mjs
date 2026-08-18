@@ -386,6 +386,18 @@ export async function kascovPreflight(transaction, networkId, stage = "draft") {
   let provider = "local";
   let remoteAvailable = false;
   let remoteError = "";
+  if (!config.enableKascovVerify) {
+    return {
+      ...localReport,
+      stage,
+      provider: "local",
+      localEngineVerified: true,
+      localVerdict: localReport.verdict,
+      kascov: { preferred: false, available: false, disabled: true },
+      transactionSha256: sha256(raw),
+      checkedAt: new Date().toISOString()
+    };
+  }
   try {
     const remoteReport = await fetchJson(`${config.kascovBaseUrl}/data/${network.kascovNetworkId}/preflight`, {
       method: "POST",

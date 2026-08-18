@@ -13,6 +13,7 @@ const kaspa = require("@kluster/kaspa-wasm");
 const COVENANT_SCRIPT_OPTIONS = { flags: { covenantsEnabled: true } };
 const MAX_PACKAGE_BYTES = 1_000_000;
 const MAX_EXTERNAL_FEE = 10_000_000n;
+const MAX_KCC20_WILL_FEE = 100_000_000n;
 
 function packageError(message, code = "INVALID_COVENANT_PACKAGE") {
   return Object.assign(new Error(message), { status: 400, code });
@@ -65,7 +66,7 @@ function cleanStateFields(value) {
     const name = String(field?.name || "");
     const type = String(field?.type_name || "");
     if (!/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(name)) throw packageError("State ABI contains an invalid field name");
-    if (!(["int", "bool", "pubkey", "byte[]"].includes(type) || /^byte\[\d+\]$/.test(type))) {
+    if (!(["int", "bool", "byte", "pubkey", "byte[]"].includes(type) || /^byte\[\d+\]$/.test(type))) {
       throw packageError(`State witness encoding does not support field type ${type}`);
     }
     return { name, type_name: type };
@@ -105,14 +106,20 @@ function normalizedCovenant(transaction, metadata) {
   if (argumentsList.length !== selected.inputs.length) throw packageError(`Entrypoint ${entrypoint} expects ${selected.inputs.length} arguments`);
   for (let index = 0; index < selected.inputs.length; index += 1) {
     const type = selected.inputs[index].type_name;
-    if (!["sig", "pubkey", "int", "bool", "byte[]", "State"].includes(type) && !/^byte\[\d+\]$/.test(type)) {
+    if (!["sig", "sig[]", "pubkey", "int", "bool", "byte[]", "State", "State[]"].includes(type) && !/^byte\[\d+\]$/.test(type)) {
       throw packageError(`External signing does not yet support ABI argument type ${type}`);
     }
     if (type === "sig" && !/^[0-9a-f]{64}$/i.test(argumentsList[index]?.publicKey || "")) {
       throw packageError(`Signature slot ${selected.inputs[index].name || index} requires a 32-byte x-only public key`);
     }
+    if (type === "sig[]") {
+      const items = argumentsList[index]?.items;
+      if (!Array.isArray(items) || items.length > 32 || items.some((item) => !/^[0-9a-f]{64}$/i.test(item?.publicKey || ""))) {
+        throw packageError(`Signature array ${selected.inputs[index].name || index} requires 0-32 x-only public keys`);
+      }
+    }
   }
-  const stateFields = selected.inputs.some((input) => input.type_name === "State") ? cleanStateFields(metadata.stateFields) : [];
+  const stateFields = selected.inputs.some((input) => ["State", "State[]"].includes(input.type_name)) ? cleanStateFields(metadata.stateFields) : [];
   const programSha256 = sha256(Buffer.from(programHex, "hex"));
   const descriptor = metadata.descriptor
     ? verifyCovenantDescriptor(metadata.descriptor, {
@@ -140,7 +147,8 @@ function normalized(pkg) {
   for (const output of transaction.outputs) outputTotal += BigInt(output.value);
   const fee = inputTotal - outputTotal;
   if (fee < 0n) throw packageError("Transaction outputs exceed its inputs");
-  if (fee > MAX_EXTERNAL_FEE) throw packageError("External transaction fee exceeds the local 0.1 KAS/TKAS safety cap", "EXTERNAL_FEE_CAP");
+  const feeCap = pkg.provenance?.kind === "kas-will-kcc20" ? MAX_KCC20_WILL_FEE : MAX_EXTERNAL_FEE;
+  if (fee > feeCap) throw packageError(`External transaction fee exceeds the local ${sompiToKas(feeCap)} KAS/TKAS safety cap`, "EXTERNAL_FEE_CAP");
   return { transaction, covenants, fee, ...covenants[0] };
 }
 
@@ -206,8 +214,19 @@ function appendArgument(builder, type, value, stateFields = []) {
     builder.addI64(value?.data === true ? 1n : 0n);
     return;
   }
+  if (type === "byte") {
+    const number = Number(value?.data);
+    if (!Number.isSafeInteger(number) || number < 0 || number > 255) throw packageError("Covenant byte argument is invalid");
+    builder.addData(Buffer.from([number]));
+    return;
+  }
   if (type === "sig") {
     builder.addData(bytes(value?.hex, 65));
+    return;
+  }
+  if (type === "sig[]") {
+    if (!Array.isArray(value?.items)) throw packageError("Signature array argument must contain an items array");
+    builder.addData(Buffer.concat(value.items.map((item) => bytes(item?.hex, 65))));
     return;
   }
   if (type === "pubkey") {
@@ -224,6 +243,43 @@ function appendArgument(builder, type, value, stateFields = []) {
     }
     return;
   }
+  if (type === "State[]") {
+    if (!Array.isArray(value?.items) || value.items.length > 64) throw packageError("State array argument must contain 0-64 items");
+    const objects = value.items.map(stateObject);
+    const expected = new Set(stateFields.map((field) => field.name));
+    for (const fields of objects) {
+      for (const key of Object.keys(fields)) if (!expected.has(key)) throw packageError(`State array argument contains unknown field ${key}`);
+      for (const field of stateFields) if (!(field.name in fields)) throw packageError(`State array argument is missing field ${field.name}`);
+    }
+    // SilverScript encodes arrays of structs field-major: each fixed-size
+    // field becomes one concatenated stack element for all array items.
+    for (const field of stateFields) {
+      if (field.type_name === "int") {
+        const encoded = Buffer.alloc(objects.length * 8);
+        objects.forEach((fields, index) => {
+          let number;
+          try { number = BigInt(fields[field.name]?.data); } catch { throw packageError("State array int field is invalid"); }
+          encoded.writeBigInt64LE(number, index * 8);
+        });
+        builder.addData(encoded);
+      } else if (field.type_name === "bool") {
+        builder.addData(Buffer.from(objects.map((fields) => fields[field.name]?.data === true ? 1 : 0)));
+      } else if (field.type_name === "byte") {
+        const values = objects.map((fields) => Number(fields[field.name]?.data));
+        if (values.some((number) => !Number.isSafeInteger(number) || number < 0 || number > 255)) throw packageError("State array byte field is invalid");
+        builder.addData(Buffer.from(values));
+      } else {
+        const fixed = field.type_name.match(/^byte\[(\d+)\]$/);
+        if (field.type_name === "pubkey" || fixed) {
+          const size = field.type_name === "pubkey" ? 32 : Number(fixed[1]);
+          builder.addData(Buffer.concat(objects.map((fields) => bytes(fields[field.name]?.hex, size))));
+        } else {
+          throw packageError(`State array field type ${field.type_name} is not fixed-size`);
+        }
+      }
+    }
+    return;
+  }
   const fixed = type.match(/^byte\[(\d+)\]$/);
   if (type === "byte[]" || fixed) {
     builder.addData(bytes(value?.hex, fixed ? Number(fixed[1]) : null));
@@ -233,13 +289,24 @@ function appendArgument(builder, type, value, stateFields = []) {
 }
 
 function signatureSlots(selected, values, context = {}) {
-  return selected.inputs.map((input, index) => input.type_name === "sig" ? {
-    index,
-    name: input.name,
-    publicKey: String(values[index]?.publicKey || "").toLowerCase(),
-    signed: /^[0-9a-f]{130}$/i.test(values[index]?.hex || ""),
-    ...context
-  } : null).filter(Boolean);
+  return selected.inputs.flatMap((input, index) => {
+    if (input.type_name === "sig") return [{
+      index,
+      name: input.name,
+      publicKey: String(values[index]?.publicKey || "").toLowerCase(),
+      signed: /^[0-9a-f]{130}$/i.test(values[index]?.hex || ""),
+      ...context
+    }];
+    if (input.type_name === "sig[]") return (values[index]?.items || []).map((item, itemIndex) => ({
+      index,
+      itemIndex,
+      name: `${input.name || "signatures"}[${itemIndex}]`,
+      publicKey: String(item?.publicKey || "").toLowerCase(),
+      signed: /^[0-9a-f]{130}$/i.test(item?.hex || ""),
+      ...context
+    }));
+    return [];
+  });
 }
 
 export function inspectExternalCovenantPackage(input) {
@@ -397,7 +464,12 @@ export async function signExternalCovenantPackage(input, walletService) {
       inputIndex: covenant.inputIndex,
       expectedPublicKey: publicKey
     });
-    covenant.argumentsList[slot.index] = { ...covenant.argumentsList[slot.index], kind: "signature", publicKey, hex: signature };
+    if (Number.isSafeInteger(slot.itemIndex)) {
+      const current = covenant.argumentsList[slot.index];
+      current.items[slot.itemIndex] = { ...current.items[slot.itemIndex], kind: "signature", publicKey, hex: signature };
+    } else {
+      covenant.argumentsList[slot.index] = { ...covenant.argumentsList[slot.index], kind: "signature", publicKey, hex: signature };
+    }
     pkg.covenantInputs[slot.covenantInputIndex].arguments = covenant.argumentsList;
   }
   if (pkg.covenantInputs.length === 1) pkg.covenantInput = pkg.covenantInputs[0];

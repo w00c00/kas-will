@@ -39,7 +39,7 @@ export function detectPreferredLanguage({
 export function detectBrowserLanguage(storage) {
   let storedLanguage = "";
   try {
-    storedLanguage = (storage || globalThis.localStorage)?.getItem("silverstudio-language") || "";
+    storedLanguage = (storage || globalThis.localStorage)?.getItem("kas-will-language") || "";
   } catch {
     // Storage may be unavailable in hardened webviews; automatic detection still works.
   }

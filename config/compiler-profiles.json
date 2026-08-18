@@ -1,14 +1,31 @@
 {
-  "defaultProfileId": "latest-14dce9a",
+  "defaultProfileId": "latest-023c7ee",
   "profiles": [
     {
-      "id": "latest-14dce9a",
-      "label": "SilverScript latest (14dce9a)",
-      "upstreamCommit": "14dce9a5ce8769cdfbd0c8965f8764fa9c325067",
+      "id": "latest-023c7ee",
+      "label": "SilverScript latest (023c7ee)",
+      "upstreamCommit": "023c7eed6b85038c72233a62024c5476640445e3",
       "binary": "bin/silverc-latest",
       "artifactBytecodeField": "bytecode",
       "syntaxGeneration": 2,
       "status": "experimental",
+      "networkPolicy": "tn10-only",
+      "releasedAt": "2026-08-17",
+      "notes": [
+        "Requires every function with a declared return type to return a value",
+        "Validates bool ABI encoding and preserves returned expressions",
+        "Treats split results as dynamic arrays and adds compile-time split/slice bounds checks",
+        "Representation-preserving casts remain unchecked assertions and require explicit runtime length checks"
+      ]
+    },
+    {
+      "id": "latest-14dce9a",
+      "label": "SilverScript Studio 0.2.9 (14dce9a)",
+      "upstreamCommit": "14dce9a5ce8769cdfbd0c8965f8764fa9c325067",
+      "binary": "bin/silverc-14dce9a",
+      "artifactBytecodeField": "bytecode",
+      "syntaxGeneration": 2,
+      "status": "previous",
       "networkPolicy": "tn10-only",
       "releasedAt": "2026-08-13",
       "notes": [
@@ -75,6 +92,28 @@
     }
   ],
   "breakingChanges": [
+    {
+      "id": "split-results-dynamic",
+      "severity": "error",
+      "introducedBy": "023c7ee",
+      "fromProfile": "latest-14dce9a",
+      "toProfile": "latest-023c7ee",
+      "pattern": "byte\\s*\\[[0-9]+\\]\\s+[A-Za-z_][A-Za-z0-9_]*\\s*=\\s*[^;]*\\.split\\s*\\(",
+      "messageZh": ".split() 两侧结果现在都是动态数组，不能再直接赋值给固定长度 byte[N]。",
+      "messageEn": "Both .split() results are now dynamic arrays and cannot be assigned directly to fixed byte[N].",
+      "replacement": null
+    },
+    {
+      "id": "unchecked-fixed-cast",
+      "severity": "manual-review",
+      "introducedBy": "023c7ee",
+      "fromProfile": "latest-14dce9a",
+      "toProfile": "latest-023c7ee",
+      "pattern": "(?:byte\\[[0-9]+\\]|pubkey|sig|datasig)\\s*\\(",
+      "messageZh": "固定长度及密钥类型转换只是类型断言；动态输入必须先在运行时验证长度与格式。",
+      "messageEn": "Fixed-length and key-like casts are type assertions; validate dynamic input length and format at runtime first.",
+      "replacement": null
+    },
     {
       "id": "entry-syntax",
       "severity": "error",

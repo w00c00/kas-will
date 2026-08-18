@@ -86,8 +86,8 @@ function outputFrom(descriptor, network, inputIndexById) {
 export function buildAtomicCovenantPackage({ network: networkId = "tn10", covenantInputs, outputs, p2pkAuthorization = null, feeSompi, provenance = {} }) {
   const network = NETWORKS[networkId];
   if (!network) throw builderError("Atomic covenant build network is unsupported");
-  if (!Array.isArray(covenantInputs) || covenantInputs.length < 2 || covenantInputs.length > MAX_COVENANT_INPUTS) {
-    throw builderError(`Atomic covenant build requires 2-${MAX_COVENANT_INPUTS} covenant inputs`);
+  if (!Array.isArray(covenantInputs) || covenantInputs.length < 1 || covenantInputs.length > MAX_COVENANT_INPUTS) {
+    throw builderError(`Covenant build requires 1-${MAX_COVENANT_INPUTS} covenant inputs`);
   }
   if (!Array.isArray(outputs) || !outputs.length || outputs.length > 64) throw builderError("Atomic covenant build requires 1-64 outputs");
   const usedOutpoints = new Set();
@@ -108,12 +108,21 @@ export function buildAtomicCovenantPackage({ network: networkId = "tn10", covena
     const programSha256 = sha256(Buffer.from(programHex, "hex"));
     const abi = item.abi;
     const stateFields = item.stateFields || [];
-    const authorizationPrincipals = (item.arguments || []).map((argument, argumentIndex) => argument?.kind === "signature" ? {
-      role: `${item.entrypoint}.signature-${argumentIndex}`,
-      profile: "p2pk-schnorr/v1",
-      cardinality: 1,
-      reference: { kind: "public-key", value: argument.publicKey }
-    } : null).filter(Boolean);
+    const authorizationPrincipals = (item.arguments || []).flatMap((argument, argumentIndex) => {
+      if (argument?.kind === "signature") return [{
+        role: `input-${index}-signature-${argumentIndex}`,
+        profile: "p2pk-schnorr/v1",
+        cardinality: 1,
+        reference: { kind: "public-key", value: argument.publicKey }
+      }];
+      if (argument?.kind === "signature[]") return (argument.items || []).map((slot, slotIndex) => ({
+        role: `input-${index}-signature-${argumentIndex}-${slotIndex}`,
+        profile: "p2pk-schnorr/v1",
+        cardinality: 1,
+        reference: { kind: "public-key", value: slot.publicKey }
+      }));
+      return [];
+    });
     const descriptor = buildCovenantDescriptor({
       profileId: item.descriptorProfileId || `silverstudio/atomic-input-${index}/v1`,
       network: networkId,
@@ -201,7 +210,8 @@ export function buildAtomicCovenantPackage({ network: networkId = "tn10", covena
     }
     return [{ outputIndex, authorizingInputIndex: plan.genesisAuthorizingInput, covenantId, programSha256: plan.programSha256 }];
   });
-  const covenantSignatures = metadata.reduce((sum, item) => sum + (item.arguments || []).filter((argument) => argument?.kind === "signature").length, 0);
+  const covenantSignatures = metadata.reduce((sum, item) => sum + (item.arguments || []).reduce((count, argument) => count
+    + (argument?.kind === "signature" ? 1 : argument?.kind === "signature[]" ? (argument.items || []).length : 0), 0), 0);
   const sigOps = Math.max(1, covenantSignatures + (p2pkAuthorization?.input ? 1 : 0));
   if (!kaspa.updateTransactionMass(network.kaspaNetworkId, transaction, sigOps, true)) throw builderError("Atomic covenant transaction exceeds the current mass limit", "ATOMIC_MASS_LIMIT");
   return {

@@ -66,7 +66,7 @@ function lineAt(source, offset) {
 }
 
 function latestHardeningFindings(source, target) {
-  if (!["cb34aa5e6a598f9e461c4ad7014279ba89251d8d", "6f9e078b1d8b5389212755183b592704de99fea5", "14dce9a5ce8769cdfbd0c8965f8764fa9c325067"].includes(target.upstreamCommit)) return [];
+  if (!["cb34aa5e6a598f9e461c4ad7014279ba89251d8d", "6f9e078b1d8b5389212755183b592704de99fea5", "14dce9a5ce8769cdfbd0c8965f8764fa9c325067", "023c7eed6b85038c72233a62024c5476640445e3"].includes(target.upstreamCommit)) return [];
   const findings = [];
   const declarations = new Map();
   const functionPattern = /\b(?:entry|function)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/g;

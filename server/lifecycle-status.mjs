@@ -34,7 +34,7 @@ export function buildLifecycleStatus(project, source, node, now = Date.now()) {
     schedule: null
   };
 
-  if (project.review?.templateId !== "inheritance-vault") return result;
+  if (!["inheritance-vault", "kcc20-inheritance-vault"].includes(project.review?.templateId)) return result;
   const periodDaa = BigInt(project.constructorArgs?.[3]?.data || 0);
   if (periodDaa <= 0n) return result;
   const targetDaaScore = blockDaaScore + periodDaa;

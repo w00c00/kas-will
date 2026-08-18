@@ -35,6 +35,12 @@ const OPERATIONS = {
     { id: "recover", titleZh: "拥有者取回", titleEn: "Owner recovery" },
     { id: "inherit", titleZh: "到期分配继承", titleEn: "Mature inheritance distribution" }
   ],
+  "kcc20-inheritance-vault": [
+    { id: "fundKcc20", titleZh: "把 KCC20 转入遗嘱", titleEn: "Fund will with KCC20", kcc20: true },
+    { id: "checkIn", titleZh: "拥有者签到续期", titleEn: "Owner check-in" },
+    { id: "recover", titleZh: "拥有者取回 KCC20", titleEn: "Owner KCC20 recovery", kcc20: true },
+    { id: "inherit", titleZh: "到期分配 KCC20", titleEn: "Mature KCC20 distribution", kcc20: true }
+  ],
   "merkle-one-time-claim": [
     { id: "claim", titleZh: "提交 Merkle 证明领取", titleEn: "Claim with Merkle proof", proof: true, salt: true },
     { id: "refund", titleZh: "到期退款", titleEn: "Timeout refund" }
@@ -240,12 +246,14 @@ export async function buildTemplateOperationPackage(
       lockTime = BigInt(timeoutOf(project, templateId));
     }
     sigOps = 1;
-  } else if (templateId === "inheritance-vault") {
+  } else if (templateId === "inheritance-vault" || templateId === "kcc20-inheritance-vault") {
     const owner = publicKeyOf(parameters.ownerAddress, network);
     if (operation.id === "checkIn") {
       outputs = [new kaspa.TransactionOutput(payout, kaspa.payToScriptHashScript(project.artifact.programHex), new kaspa.CovenantBinding(0, new kaspa.Hash(source.covenantId)))];
       args = [signature(owner.publicKey), int(fee)];
       sigOps = 1;
+    } else if (templateId === "kcc20-inheritance-vault") {
+      throw operationError("KCC20 recovery and distribution require the descriptor-bound atomic builder", "KCC20_ATOMIC_BUILDER_REQUIRED");
     } else if (operation.id === "recover") {
       outputs = [new kaspa.TransactionOutput(payout, kaspa.payToAddressScript(owner.address))];
       args = [signature(owner.publicKey), int(fee)];

@@ -35,7 +35,7 @@ fn append_backend_log(path: &Path, message: &str) {
     }
 }
 
-fn runtime_paths(app: &AppHandle) -> Result<(PathBuf, PathBuf, PathBuf, PathBuf, PathBuf, PathBuf), String> {
+fn runtime_paths(app: &AppHandle) -> Result<(PathBuf, PathBuf, PathBuf, PathBuf, PathBuf, PathBuf, PathBuf), String> {
     let resource_dir = app
         .path()
         .resource_dir()
@@ -44,6 +44,7 @@ fn runtime_paths(app: &AppHandle) -> Result<(PathBuf, PathBuf, PathBuf, PathBuf,
     Ok((
         resource_dir.join("runtime/app/server/index.mjs"),
         resource_dir.join(format!("runtime/app/bin/silverc-latest{executable_suffix}")),
+        resource_dir.join(format!("runtime/app/bin/silverc-14dce9a{executable_suffix}")),
         resource_dir.join(format!("runtime/app/bin/silverc-6f9e078{executable_suffix}")),
         resource_dir.join(format!(
             "runtime/app/bin/silverc-cb34aa5{executable_suffix}"
@@ -79,13 +80,14 @@ fn spawn_backend(app: &AppHandle) -> Result<(), String> {
     let log_path = app_data_dir.join("backend.log");
     *app.state::<BackendState>().log_path.lock().unwrap() = Some(log_path.clone());
 
-    let (script, latest_compiler, previous_compiler, older_compiler, legacy_compiler, preflight_engine) =
+    let (script, latest_compiler, previous_compiler, older_compiler, oldest_compiler, legacy_compiler, preflight_engine) =
         runtime_paths(app)?;
     let required = [
         &script,
         &latest_compiler,
         &previous_compiler,
         &older_compiler,
+        &oldest_compiler,
         &legacy_compiler,
         &preflight_engine,
     ];
@@ -117,6 +119,7 @@ fn spawn_backend(app: &AppHandle) -> Result<(), String> {
     let latest_compiler_arg = child_process_path(&latest_compiler);
     let previous_compiler_arg = child_process_path(&previous_compiler);
     let older_compiler_arg = child_process_path(&older_compiler);
+    let oldest_compiler_arg = child_process_path(&oldest_compiler);
     let legacy_compiler_arg = child_process_path(&legacy_compiler);
     let preflight_engine_arg = child_process_path(&preflight_engine);
 
@@ -126,11 +129,12 @@ fn spawn_backend(app: &AppHandle) -> Result<(), String> {
         .map_err(|error| error.to_string())?
         .arg(script_arg)
         .env("HOST", "127.0.0.1")
-        .env("PORT", "4310")
-        .env("STUDIO_DATA_DIR", data_arg)
+        .env("PORT", "4320")
+        .env("KAS_WILL_DATA_DIR", data_arg)
         .env("SILVERC_LATEST_BIN", latest_compiler_arg)
         .env("SILVERC_PREVIOUS_BIN", previous_compiler_arg)
         .env("SILVERC_OLDER_BIN", older_compiler_arg)
+        .env("SILVERC_CB34AA5_BIN", oldest_compiler_arg)
         .env("SILVERC_LEGACY_BIN", legacy_compiler_arg)
         .env("KASCOV_PREFLIGHT_BIN", preflight_engine_arg)
         .spawn()
@@ -192,14 +196,14 @@ fn backend_diagnostics_value(app: &AppHandle) -> BackendDiagnostics {
     let state = app.state::<BackendState>();
     let log_path = state.log_path.lock().unwrap().clone().unwrap_or_default();
     let child_pid = state.child.lock().unwrap().as_ref().map(CommandChild::pid);
-    let address = "127.0.0.1:4310".parse::<SocketAddr>().unwrap();
+    let address = "127.0.0.1:4320".parse::<SocketAddr>().unwrap();
     let listening = TcpStream::connect_timeout(&address, Duration::from_millis(300)).is_ok();
     let log = fs::read_to_string(&log_path).unwrap_or_default();
     let mut lines = log.lines().rev().take(120).collect::<Vec<_>>();
     lines.reverse();
     let missing_files = runtime_paths(app)
         .map(|paths| {
-            [paths.0, paths.1, paths.2, paths.3]
+            [paths.0, paths.1, paths.2, paths.3, paths.4, paths.5, paths.6]
                 .into_iter()
                 .filter(|path| !path.is_file())
                 .map(|path| path.display().to_string())

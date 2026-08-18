@@ -8,5 +8,5 @@ export function isTauriRuntime(locationLike = globalThis.location, globalLike = 
 }
 
 export function apiBaseForRuntime(locationLike = globalThis.location, globalLike = globalThis) {
-  return isTauriRuntime(locationLike, globalLike) ? "http://127.0.0.1:4310" : "";
+  return isTauriRuntime(locationLike, globalLike) ? "http://127.0.0.1:4320" : "";
 }

@@ -1,9 +1,9 @@
 {
-  "name": "kaspa-silverscript-studio",
-  "version": "0.2.9",
+  "name": "kas-will",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Local bilingual AI-assisted SilverScript contract studio for Kaspa",
+  "description": "Local-first bilingual Kaspa inheritance wallet and covenant desktop app",
   "scripts": {
     "dev": "concurrently -k -n web,api -c cyan,magenta \"vite --host 127.0.0.1\" \"node --watch server/index.mjs\"",
     "build": "vite build",

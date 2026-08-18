@@ -1,497 +1,83 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="dark" />
-    <meta name="description" content="Local bilingual AI-assisted Kaspa SilverScript contract studio" />
-    <title>Kaspa SilverScript Studio</title>
-  </head>
-  <body>
-    <div class="noise"></div>
-    <header class="topbar">
-      <a class="brand" href="#" aria-label="Kaspa SilverScript Studio">
-        <span class="brand-mark">K</span>
-        <span><strong>KASPA · SILVER</strong><em>//STUDIO</em></span>
-      </a>
-      <div class="network-pill" id="network-pill">
-        <span class="status-dot" id="node-dot"></span>
-        <span id="node-label">TN10 · OFFLINE</span>
-        <button class="icon-button" id="refresh-node" title="Refresh node">↻</button>
-      </div>
-      <div class="top-actions">
-        <button class="ghost-button" id="language-toggle" aria-label="Switch to English" title="Switch to English">EN</button>
-        <button class="ghost-button settings-button" id="settings-button" title="Settings" aria-label="Settings">⚙</button>
-        <button class="wallet-button" id="wallet-button" data-i18n="connectWallet">连接钱包</button>
-      </div>
-    </header>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <title>Kas Will</title>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">K</div><div><strong>Kas Will</strong><span data-i18n="brandSub">Kaspa 数字遗产</span></div></div>
+      <nav>
+        <button class="nav active" data-page="home"><span>⌂</span><b data-i18n="navHome">概览</b></button>
+        <button class="nav" data-page="create"><span>＋</span><b data-i18n="navCreate">创建遗嘱</b></button>
+        <button class="nav" data-page="operate"><span>↻</span><b data-i18n="navOperate">签到与提取</b></button>
+        <button class="nav" data-page="packages"><span>⇄</span><b data-i18n="navPackages">多人操作包</b></button>
+        <button class="nav" data-page="wallet"><span>◇</span><b data-i18n="navWallet">本地钱包</b></button>
+      </nav>
+      <div class="offline-card"><span class="pulse"></span><div><strong data-i18n="offlineTitle">本地优先</strong><small data-i18n="offlineText">不依赖网站；直连 Kaspa 节点</small></div></div>
+      <div class="sidebar-foot"><span id="compiler-pill">023c7ee · TN10</span><button id="lang-toggle">EN</button></div>
+    </aside>
 
-    <div class="app-shell">
-      <aside class="sidebar">
-        <div class="side-heading">
-          <div>
-            <span class="eyebrow" data-i18n="localWorkspace">本地工作区</span>
-            <h2 data-i18n="projects">契约项目</h2>
-          </div>
-          <button class="square-button" id="new-project" title="New project">＋</button>
+    <main>
+      <header class="topbar">
+        <div><p class="eyebrow" id="page-eyebrow">ESTATE OVERVIEW</p><h1 id="page-title" data-i18n="homeTitle">把链上资产交给未来</h1></div>
+        <div class="top-actions"><div class="node-pill"><i id="node-dot"></i><span id="node-state" data-i18n="nodeChecking">正在连接 TN10…</span></div><button class="wallet-chip" id="wallet-chip" data-page-link="wallet" data-i18n="connectWallet">连接钱包</button></div>
+      </header>
+
+      <section class="page active" id="page-home">
+        <div class="hero">
+          <div class="hero-copy"><span class="hero-kicker">KASPA · SILVERSCRIPT · LOCAL FIRST</span><h2 data-i18n="heroTitle">定期签到。超时后，规则自动把资产交给你指定的人。</h2><p data-i18n="heroText">钱包、契约编译、交易预检和操作包都在本机完成。应用只需要能连接 Kaspa 节点，不依赖任何网站继续运行。</p><div class="hero-actions"><button class="primary" data-page-link="create" data-i18n="createFirst">创建第一个遗嘱</button><button class="ghost" data-page-link="packages" data-i18n="openPackage">打开操作包</button></div></div>
+          <div class="orbit"><div class="orbit-ring one"></div><div class="orbit-ring two"></div><div class="orbit-core"><span>KAS</span><b>WILL</b></div><i class="heir h1">01</i><i class="heir h2">02</i><i class="heir h3">03</i></div>
         </div>
-        <div class="project-list" id="project-list"></div>
-        <div class="side-card">
-          <span class="eyebrow" data-i18n="toolchain">工具链</span>
-          <div class="check-row"><span data-i18n="studioVersion">Studio 版本</span><strong class="good">0.2.9</strong></div>
-          <div class="check-row"><span data-i18n="skillKnowledge">SilverScript Skill</span><strong class="good" id="skill-state">—</strong></div>
-          <div class="check-row"><span data-i18n="compiler">本地编译器</span><strong id="compiler-state">—</strong></div>
-          <div class="check-row"><span data-i18n="defaultNetwork">默认网络</span><strong id="default-network-state">TN10</strong></div>
+        <div class="metric-grid"><article><span data-i18n="metricWills">本机遗嘱</span><strong id="metric-wills">0</strong><small data-i18n="metricWillsSub">加密存储在本机</small></article><article><span data-i18n="metricActive">链上活动</span><strong id="metric-active">0</strong><small data-i18n="metricActiveSub">等待签到或到期</small></article><article><span data-i18n="metricAssets">资产模式</span><strong>KAS + KCC20</strong><small data-i18n="metricAssetsSub">KCC20 当前仅限 TN10 实验</small></article></div>
+        <div class="section-head"><div><span class="eyebrow">YOUR ESTATE PLANS</span><h3 data-i18n="plansTitle">遗产计划</h3></div><button class="text-button" id="refresh-projects" data-i18n="refresh">刷新</button></div>
+        <div id="plans" class="plans"><div class="empty" data-i18n="plansEmpty">还没有遗嘱。先创建一个 TN10 测试计划。</div></div>
+      </section>
+
+      <section class="page" id="page-create">
+        <div class="workspace-grid">
+          <form class="panel form-panel" id="will-form">
+            <div class="panel-head"><div><span class="eyebrow">NEW ESTATE PLAN</span><h2 data-i18n="formTitle">创建链上遗嘱</h2></div><span class="step-badge">1 / 3</span></div>
+            <label><span data-i18n="assetType">资产类型</span><div class="segmented"><button type="button" class="segment active" data-asset="kas">KAS</button><button type="button" class="segment" data-asset="kcc20">KCC20 <em>TN10</em></button></div></label>
+            <div class="two-cols"><label><span data-i18n="lockedAmount">控制金库金额</span><div class="input-suffix"><input id="amount" value="0.5" inputmode="decimal" /><b>TKAS</b></div></label><label><span data-i18n="period">未签到期限</span><div class="duration"><input id="period-value" type="number" min="1" value="180" /><select id="period-unit"><option value="minutes" data-i18n="minutes">分钟</option><option value="hours" data-i18n="hours">小时</option><option value="days" selected data-i18n="days">天</option><option value="weeks" data-i18n="weeks">周</option></select></div></label></div>
+            <label><span data-i18n="owner">拥有者 / 签到钱包</span><input id="owner-address" readonly data-i18n-placeholder="connectFirst" placeholder="请先连接本地钱包" /><small data-i18n="ownerHelp">这个钱包可以签到重置期限，也可以在到期前取回。</small></label>
+            <div class="heirs-head"><div><span data-i18n="heirs">继承人与比例</span><small data-i18n="heirsHelp">2–5 人，合计必须为 100%</small></div><button class="mini" type="button" id="add-heir" data-i18n="addHeir">＋ 添加继承人</button></div>
+            <div id="heirs-list"></div>
+            <div class="kcc20-fields" id="kcc20-fields" hidden>
+              <div class="experimental-note"><strong data-i18n="kcc20Experimental">KCC20 实验模式</strong><span data-i18n="kcc20ExperimentalText">只接受固定四字段、非 minter、描述符可验证的 TN10 Token。</span></div>
+              <label><span data-i18n="descriptor">Token Descriptor JSON</span><textarea id="token-descriptor" rows="5" data-i18n-placeholder="descriptorPlaceholder" placeholder="粘贴发行方提供的 descriptor JSON"></textarea></label>
+              <button type="button" class="ghost" id="parse-descriptor" data-i18n="verifyDescriptor">本地验证并填入参数</button>
+              <div class="descriptor-grid"><label><span>Covenant ID</span><input id="token-covid" /></label><label><span>Template hash</span><input id="token-template-hash" /></label><label><span>Prefix bytes</span><input id="token-prefix" type="number" min="0" /></label><label><span>Suffix bytes</span><input id="token-suffix" type="number" min="1" /></label></div>
+            </div>
+            <div class="form-actions"><button class="primary wide" type="submit" id="create-will" data-i18n="buildWill">生成并固定编译</button></div>
+          </form>
+          <aside class="panel preview-panel"><span class="eyebrow">ON-CHAIN RULES</span><h3 data-i18n="previewTitle">这份遗嘱将如何工作</h3><div class="timeline"><div><i>01</i><p><strong data-i18n="t1Title">部署</strong><span data-i18n="t1Text">把 KAS 控制资金锁入唯一 Covenant UTXO。</span></p></div><div><i>02</i><p><strong data-i18n="t2Title">签到</strong><span data-i18n="t2Text">拥有者签名并延续同一 Covenant ID，期限重新开始。</span></p></div><div><i>03</i><p><strong data-i18n="t3Title">到期</strong><span data-i18n="t3Text">任何人可触发，但地址、比例和 Token 模板都不能被替换。</span></p></div></div><div class="safety"><b>!</b><p><strong data-i18n="legalTitle">技术工具，不替代法律遗嘱</strong><span data-i18n="legalText">正式使用前需要法律咨询、密钥备份、继承人通知和独立安全审计。</span></p></div><div id="build-result" class="build-result" hidden></div></aside>
         </div>
-        <div class="safety-note">
-          <span>LOCAL FIRST</span>
-          <p data-i18n="localSafety">源码和项目保存在本机。AI 密钥不会发送到浏览器，钱包私钥永不离开钱包。</p>
-        </div>
-      </aside>
+      </section>
 
-      <main class="workspace">
-        <section class="project-header">
-          <div>
-            <span class="eyebrow">KASPA COVENANT WORKBENCH</span>
-            <input class="project-title" id="project-name" value="Untitled Covenant" aria-label="Project name" />
-          </div>
-          <div class="save-state"><span id="save-dot"></span><span id="save-label" data-i18n="savedLocal">已保存到本机</span></div>
-        </section>
-        <div class="no-project-banner" id="no-project-banner" hidden><span>◇</span><p data-i18n="noProjectHelp">当前没有打开的工作。选择下方模板直接创建，或点击左侧 ＋ 新建空白工作。</p></div>
+      <section class="page" id="page-operate">
+        <div class="section-head"><div><span class="eyebrow">LIFECYCLE</span><h2 data-i18n="operateTitle">签到、取回与到期分配</h2></div><select id="operate-project"></select></div>
+        <div id="lifecycle-card" class="panel lifecycle-card"><div class="empty" data-i18n="selectPlan">选择一个已部署遗嘱查看链上状态。</div></div>
+        <div id="operation-review" class="panel review-panel" hidden></div>
+      </section>
 
-        <nav class="tabs" aria-label="Workflow">
-          <button class="tab active" data-tab="design"><span>01</span><b data-i18n="design">需求设计</b></button>
-          <button class="tab" data-tab="source"><span>02</span><b data-i18n="source">契约源码</b></button>
-          <button class="tab" data-tab="compile"><span>03</span><b data-i18n="compile">编译审查</b></button>
-          <button class="tab" data-tab="deploy"><span>04</span><b data-i18n="deploy">签名上链</b></button>
-          <button class="tab" data-tab="operations"><span>05</span><b data-i18n="operationCenter">操作中心</b></button>
-        </nav>
+      <section class="page" id="page-packages">
+        <div class="section-head"><div><span class="eyebrow">PORTABLE AUTHORIZATION</span><h2 data-i18n="packagesTitle">跨设备多人操作包</h2></div><span class="local-tag" data-i18n="noServer">无需协调服务器</span></div>
+        <div class="package-grid"><div class="panel"><h3 data-i18n="packageImport">导入 .ssinvite</h3><p data-i18n="packageImportHelp">每位参与者在自己的电脑审查同一个最新文件，签署匹配槽位后再传给下一位。</p><input type="file" id="package-file" accept=".ssinvite,.json" /><textarea id="package-json" rows="12" placeholder="{ ... }"></textarea><div class="button-row"><button class="ghost" id="inspect-package" data-i18n="inspect">只读审查</button><button class="primary" id="sign-package" data-i18n="sign">签署我的槽位</button></div></div><div class="panel"><h3 data-i18n="packageReview">交易审查</h3><div id="package-review" class="empty" data-i18n="packageEmpty">导入后会显示网络、Covenant ID、输入、输出、手续费和签名状态。</div><div class="button-row"><button class="ghost" id="download-package" disabled data-i18n="download">下载最新操作包</button><button class="danger" id="broadcast-package" disabled data-i18n="broadcast">预检并广播</button></div></div></div>
+      </section>
 
-        <section class="panel active" data-panel="design">
-          <article class="release-hub">
-            <div class="card-heading">
-              <div><span class="eyebrow">STUDIO 0.2.9 · VISIBLE CAPABILITIES</span><h3 data-i18n="releaseHubTitle">0.2.9 新功能入口</h3></div>
-              <span class="step-chip">TN10 FIRST</span>
-            </div>
-            <p class="release-hub-intro" data-i18n="releaseHubHelp">这里区分可直接操作的功能和仅供研究的互操作档案。点击可用功能会进入对应界面，不再把底层 API 当成已经完成的产品入口。</p>
-            <div class="release-feature-grid">
-              <article class="release-feature live">
-                <span class="release-feature-status" data-i18n="availableNow">可直接使用</span>
-                <h4 data-i18n="latestCompilerTitle">最新编译器与兼容档案</h4>
-                <p data-i18n="latestCompilerHelp">使用官方 14dce9a 完整编译，并可切回 0.2.8、0.2.7 与旧版档案复现项目。</p>
-                <button type="button" class="outline-button small" id="feature-open-compiler" data-i18n="openCompiler">打开编译审查</button>
-              </article>
-              <article class="release-feature live">
-                <span class="release-feature-status" data-i18n="availableNow">可直接使用</span>
-                <h4 data-i18n="kcc20GuardTitle">KCC20 安全初筛</h4>
-                <p data-i18n="kcc20GuardHelp">对当前源码检查借用接收、minter leader、Token 状态、KAS value 和共同授权边界。</p>
-                <button type="button" class="outline-button small" id="feature-scan-kcc20" data-i18n="scanCurrentSource">检查当前源码</button>
-              </article>
-              <article class="release-feature live">
-                <span class="release-feature-status" data-i18n="tn10Experimental">TN10 实验功能</span>
-                <h4 data-i18n="atomicBuilderTitle">原子多 Covenant 构建器</h4>
-                <p data-i18n="atomicBuilderShortHelp">构建 2–32 个 Covenant 输入的单笔交易，并支持由已核验输入授权创建新 lineage。</p>
-                <button type="button" class="outline-button small" id="feature-open-atomic" data-i18n="openAtomicBuilder">打开构建器</button>
-              </article>
-              <article class="release-feature live">
-                <span class="release-feature-status" data-i18n="tn10Experimental">TN10 实验功能</span>
-                <h4 data-i18n="kcc721IntegrityTitle">KCC721 图片完整性</h4>
-                <p data-i18n="kcc721IntegrityHelp">HTTPS 图片必须填写 SHA-256；IPFS 继续使用内容寻址。摘要会提交全部元数据。</p>
-                <button type="button" class="outline-button small" id="feature-open-kcc721" data-i18n="openKcc721">打开 KCC721 模板</button>
-              </article>
-              <article class="release-feature research">
-                <span class="release-feature-status" data-i18n="researchProfile">研究档案 · 不可部署</span>
-                <h4>Kaspa x402 alpha.10</h4>
-                <p data-i18n="x402ProfileHelp">已记录 escrow-v2、部分领取、追加和退款语义；尚未达到内置模板的源码迁移、编译和对抗测试门槛。</p>
-              </article>
-            </div>
-          </article>
-          <article class="template-section">
-            <div class="card-heading">
-              <div><span class="eyebrow">COMPILE-VERIFIED · NO AI REQUIRED</span><h3 data-i18n="templates">功能模板</h3></div>
-              <span class="step-chip">DIRECT TEMPLATE</span>
-            </div>
-            <p class="template-intro" data-i18n="templateIntro">优先使用已经完整编译验证的模板。点击只会选择并预览，不会创建新工作，也不会调用 AI。</p>
-            <div class="template-grid" id="template-grid"></div>
-            <div class="template-preview" id="template-preview" hidden>
-              <div class="template-preview-copy"><span class="eyebrow" id="template-preview-category">TEMPLATE</span><h4 id="template-preview-title">—</h4><p id="template-preview-description"></p><div class="template-preview-meta" id="template-preview-meta"></div></div>
-              <form class="template-parameter-form" id="template-parameter-form" novalidate>
-                <div class="template-parameter-heading"><strong data-i18n="templateParameters">填写模板信息</strong><span data-i18n="templateParametersHint">参数在本地确定性转换，不会调用 AI</span></div>
-                <div class="template-parameter-fields" id="template-parameter-fields"></div>
-                <p class="template-parameter-boundary" data-i18n="templateParameterBoundary">钱包字段用于生成契约授权公钥；锁定金额同步到上链步骤。模板不会保存私钥或秘密原文。</p>
-              </form>
-              <div class="template-preview-actions"><button type="button" class="outline-button" id="template-example" data-i18n="viewExample">查看用例示范</button><button type="button" class="outline-button" id="template-new-project" data-i18n="newFromTemplate">从模板新建工作</button><button type="button" class="primary-button" id="template-apply" data-i18n="applyTemplate">应用到当前工作</button></div>
-            </div>
-          </article>
-          <div class="panel-grid design-grid">
-            <article class="card prompt-card">
-              <div class="card-heading">
-                <div><span class="eyebrow">CUSTOM · AI CONTRACT ARCHITECT</span><h3 data-i18n="describeCustomContract">自定义契约（AI）</h3></div>
-                <span class="step-chip">CUSTOM ONLY</span>
-              </div>
-              <p class="muted" data-i18n="customAiHelp">只有现有模板无法覆盖需求时才使用 AI。AI 生成的是候选方案，不会替代固定模板。</p>
-              <textarea id="requirements" class="requirements" data-i18n-placeholder="requirementsPlaceholder" placeholder="例如：双方各锁定 100 TKAS，胜负由双方签名确认；超时后任何一方可以退款……"></textarea>
-              <div class="provider-row">
-                <label><span data-i18n="aiProvider">AI 接口</span><select id="provider"></select></label>
-                <label><span data-i18n="model">模型</span><input id="model" autocomplete="off" /></label>
-              </div>
-              <div class="button-row">
-                <button class="primary-button" id="generate-contract"><span data-i18n="generate">生成规范与契约</span><i>→</i></button>
-                <button class="outline-button" id="review-contract" data-i18n="reviewCurrent">审查当前源码</button>
-              </div>
-              <p class="fine-print" data-i18n="aiBoundary">AI 只生成候选方案。必须经过本地编译、静态检查、交易预检和人工确认后才能签名。</p>
-            </article>
+      <section class="page" id="page-wallet">
+        <div class="wallet-layout"><div class="panel wallet-account"><span class="eyebrow">LOCAL ENCRYPTED WALLET</span><div id="wallet-connected" class="wallet-connected"><div class="empty" data-i18n="walletEmpty">钱包密钥只在本机加密保存。</div></div><div class="button-row"><button class="ghost" id="refresh-balance" data-i18n="refreshBalance">刷新余额</button><button class="danger" id="disconnect-wallet" data-i18n="disconnect">断开钱包</button></div></div><div class="panel"><h3 data-i18n="unlockWallet">连接已有钱包</h3><label><span data-i18n="walletSelect">本地钱包</span><select id="wallet-select"></select></label><label><span data-i18n="walletPassword">钱包密码（至少 10 位）</span><input id="wallet-password" type="password" autocomplete="current-password" /></label><label><span data-i18n="paymentSecret">可选 Payment Secret</span><input id="wallet-payment" type="password" /></label><button class="primary wide" id="unlock-wallet" data-i18n="connect">连接</button></div><div class="panel"><h3 data-i18n="createWallet">创建 / 导入钱包</h3><label><span data-i18n="walletName">钱包名称</span><input id="new-wallet-name" value="Kas Will Owner" /></label><label><span data-i18n="mnemonicOptional">助记词（留空则新建）</span><textarea id="new-wallet-mnemonic" rows="3"></textarea></label><label><span data-i18n="newPassword">新密码（至少 10 位）</span><input id="new-wallet-password" type="password" /></label><label><span data-i18n="confirmPassword">确认密码</span><input id="new-wallet-confirm" type="password" /></label><button class="primary wide" id="create-wallet" data-i18n="createOrImport">创建 / 导入</button></div></div>
+      </section>
+    </main>
+  </div>
 
-            <article class="card result-card">
-              <div class="card-heading">
-                <div><span class="eyebrow">PROTOCOL SPEC</span><h3 data-i18n="generatedDesign">生成结果</h3></div>
-                <span class="result-status" id="ai-status" data-i18n="waitingInput">等待需求</span>
-              </div>
-              <div id="ai-empty" class="empty-state">
-                <div class="orbital"><span></span><span></span><b>AI</b></div>
-                <p data-i18n="designEmpty">输入自然语言需求，AI 将先生成状态机、不变量和威胁模型，再给出 SilverScript 源码。</p>
-              </div>
-              <div id="ai-result" class="ai-result" hidden></div>
-              <div class="button-row" id="ai-actions" hidden>
-                <button class="primary-button" id="apply-ai" data-i18n="applyCandidate">采纳候选源码</button>
-                <button class="outline-button" id="discard-ai" data-i18n="discard">放弃</button>
-              </div>
-            </article>
-          </div>
-        </section>
-
-        <section class="panel" data-panel="source">
-          <div class="editor-shell">
-            <div class="editor-toolbar">
-              <div><span class="file-dot"></span><strong id="source-filename">contract.sil</strong><span class="dirty-tag" id="source-state">LOCAL</span></div>
-              <div><button class="outline-button small" id="format-source" data-i18n="normalizeWhitespace">整理空白</button><button class="primary-button small" id="analyze-source" data-i18n="analyze">静态检查</button></div>
-            </div>
-            <div class="source-wrap">
-              <div class="line-rail" aria-hidden="true">01<br>02<br>03<br>04<br>05<br>06<br>07<br>08<br>09<br>10<br>11<br>12<br>13<br>14<br>15<br>16<br>17<br>18<br>19<br>20</div>
-              <textarea id="source-editor" spellcheck="false" aria-label="SilverScript source"></textarea>
-            </div>
-            <div class="editor-footer"><span>SilverScript · UTF-8</span><span id="source-stats">0 lines · 0 bytes</span></div>
-          </div>
-        </section>
-
-        <section class="panel" data-panel="compile">
-          <div class="panel-grid compile-grid">
-            <article class="card">
-              <div class="card-heading"><div><span class="eyebrow">REPRODUCIBLE BUILD</span><h3 data-i18n="constructorArgs">构造参数</h3></div><span class="step-chip">03 / BUILD</span></div>
-              <label><span data-i18n="compilerProfile">编译器兼容档案</span><select id="compiler-profile"></select></label>
-              <p class="muted" id="compiler-profile-help"></p>
-              <p class="muted" data-i18n="argsHelp">使用 silverc 的表达式 JSON 数组格式。无构造参数时填写 []。</p>
-              <textarea id="constructor-args" class="json-editor" spellcheck="false">[]</textarea>
-              <div class="button-row"><button class="outline-button" type="button" id="check-compatibility" data-i18n="checkCompatibility">检查破坏性变更</button><button class="outline-button" type="button" id="migrate-source" data-i18n="applySafeMigration" hidden>应用安全迁移</button></div>
-              <div class="findings" id="compatibility-findings"></div>
-              <button class="primary-button full" id="compile-contract"><span data-i18n="compilePinned">使用固定编译器完整编译</span><i>⌘</i></button>
-            </article>
-            <article class="card">
-              <div class="card-heading"><div><span class="eyebrow">BUILD EVIDENCE</span><h3 data-i18n="artifact">编译凭证</h3></div><span class="result-status" id="compile-status">NOT BUILT</span></div>
-              <div class="artifact-grid" id="artifact-grid">
-                <div><span>Source SHA-256</span><code>—</code></div>
-                <div><span>Program SHA-256</span><code>—</code></div>
-                <div><span>Compiler SHA-256</span><code>—</code></div>
-                <div><span>Upstream Commit</span><code>—</code></div>
-              </div>
-              <div class="findings" id="findings"><p class="muted" data-i18n="compileEmpty">完整编译后，这里会显示 ABI、程序哈希和启发式安全检查结果。</p></div>
-            </article>
-          </div>
-        </section>
-
-        <section class="panel" data-panel="deploy">
-          <div class="deploy-warning"><strong data-i18n="experimentalWarning">实验性软件</strong><span data-i18n="deployWarning">默认仅使用 TN10。编译成功不代表安全；签名前请审查源码、构造参数、金额和完整交易。</span></div>
-          <div class="panel-grid deploy-grid">
-            <article class="card">
-              <div class="card-heading"><div><span class="eyebrow">DEPLOYMENT INTENT</span><h3 data-i18n="fundCovenant">为 Covenant 创建链上 UTXO</h3></div><span class="step-chip">04 / SIGN</span></div>
-              <div class="form-grid">
-                <label><span data-i18n="network">网络</span><select id="deploy-network"><option value="tn10">TN10 · Testnet 10</option><option value="mainnet">Mainnet</option></select></label>
-                <label><span data-i18n="amount">锁定金额</span><div class="amount-input"><input id="deploy-amount" value="0.5" min="0.5" inputmode="decimal"/><b id="deploy-symbol">TKAS</b></div></label>
-              </div>
-              <label class="confirmation" id="mainnet-confirmation" hidden><span data-i18n="mainnetPhrase">主网确认短语</span><input id="mainnet-phrase" placeholder="DEPLOY REAL KAS" autocomplete="off" /></label>
-              <div class="wallet-card" id="wallet-card"><span class="wallet-icon">◇</span><div><strong data-i18n="walletNotConnected">钱包未连接</strong><small data-i18n="walletHelp">使用内置加密钱包在本机完成签名</small></div></div>
-              <button class="primary-button full" id="build-draft" data-i18n="buildDraft">构建并预检签名草案</button>
-              <div class="multisig-deploy-guide" id="multisig-deploy-guide" hidden>
-                <strong data-i18n="multisigDeployGuideTitle">多签邀请要在部署完成后生成</strong>
-                <p id="multisig-deploy-guide-text"></p>
-              </div>
-            </article>
-            <article class="card timeline-card">
-              <div class="card-heading"><div><span class="eyebrow">TRANSACTION PIPELINE</span><h3 data-i18n="chainProgress">上链进度</h3></div><span class="result-status" id="deploy-status">IDLE</span></div>
-              <ol class="pipeline" id="pipeline">
-                <li data-step="artifact"><i>1</i><div><strong data-i18n="stepArtifact">固定编译凭证</strong><span data-i18n="stepArtifactSub">源码、构造参数、编译器哈希一致</span></div><b>—</b></li>
-                <li data-step="draft"><i>2</i><div><strong data-i18n="stepDraft">交易草案与静态预检</strong><span data-i18n="stepDraftSub">检查预算、质量和手续费估算</span></div><b>—</b></li>
-                <li data-step="sign"><i>3</i><div><strong data-i18n="stepSign">钱包签名</strong><span data-i18n="stepSignSub">私钥仅在本机解密并立即清除</span></div><b>—</b></li>
-                <li data-step="engine"><i>4</i><div><strong data-i18n="stepEngine">真实脚本引擎预检</strong><span data-i18n="stepEngineSub">每个签名输入必须执行通过</span></div><b>—</b></li>
-                <li data-step="broadcast"><i>5</i><div><strong data-i18n="stepBroadcast">Kaspa 节点广播</strong><span data-i18n="stepBroadcastSub">向自有节点或自动发现节点提交最终交易</span></div><b>—</b></li>
-              </ol>
-              <div class="deployment-result" id="deployment-result" hidden></div>
-            </article>
-          </div>
-        </section>
-
-        <section class="panel" data-panel="operations">
-          <div class="operation-center-hero">
-            <div><span class="eyebrow">POST-DEPLOYMENT WORKFLOW</span><h2 data-i18n="operationCenter">操作中心</h2><p data-i18n="operationCenterHelp">统一处理续签、多签、领取、退款和确认付款。导入操作包后会自动识别对应界面，但签名前仍必须核对程序哈希、交易承诺和全部输出。</p></div>
-            <span class="step-chip">05 / OPERATE</span>
-          </div>
-          <article class="card lifecycle-overview-card" id="lifecycle-overview-card" hidden>
-            <div class="card-heading"><div><span class="eyebrow">ON-CHAIN SCHEDULE</span><h3 data-i18n="contractSchedule">合约到期与活动状态</h3></div><span class="result-status" id="lifecycle-overview-status">LOADING</span></div>
-            <div class="lifecycle-overview-grid" id="lifecycle-overview-grid"></div>
-            <p class="external-warning" id="lifecycle-overview-warning" hidden></p>
-            <p class="muted" id="lifecycle-inheritance-help" hidden data-i18n="inheritanceMatureHelp">等待期已经成熟。任何人都可以准备分配交易；继承地址和比例由链上契约固定，广播前请核对每笔金额。</p>
-            <div class="lifecycle-overview-actions">
-              <button class="primary-button" type="button" id="lifecycle-renew-now" hidden data-i18n="renewNow">签到续期</button>
-              <button class="primary-button" type="button" id="lifecycle-inherit-now" hidden data-i18n="inheritNow">触发继承分配</button>
-              <button class="outline-button small" type="button" id="lifecycle-refresh" data-i18n="refreshLifecycle">刷新链上状态</button>
-            </div>
-          </article>
-          <article class="card lifecycle-card" id="lifecycle-card" hidden>
-            <div class="card-heading"><div><span class="eyebrow">COVENANT LIFECYCLE</span><h3 data-i18n="lifecycleTitle">领取、退款、签到与释放</h3></div><span class="result-status" id="lifecycle-status">READY</span></div>
-            <p class="muted" data-i18n="lifecycleHelp">从已部署且尚未花费的 Covenant UTXO 构建反向操作。交易会进入下方可携带签名包，支持在多个本地客户端之间依次签署。</p>
-            <div class="form-grid lifecycle-form">
-              <label><span data-i18n="operation">操作</span><select id="lifecycle-operation"></select></label>
-              <label><span data-i18n="operationFee">显式手续费</span><div class="amount-input"><input id="lifecycle-fee" value="0.01" inputmode="decimal"/><b id="lifecycle-fee-symbol">TKAS</b></div></label>
-              <label id="lifecycle-destination-row" hidden><span data-i18n="operationDestination">释放到钱包</span><input id="lifecycle-destination" placeholder="kaspatest:..." autocomplete="off" /></label>
-              <label id="lifecycle-secret-row" hidden><span data-i18n="claimSecretHex">秘密原文（十六进制）</span><input id="lifecycle-secret" placeholder="例如 68656c6c6f" autocomplete="off" spellcheck="false" /></label>
-              <label id="lifecycle-proof-row" hidden><span data-i18n="merkleProofHex">Merkle 证明（十六进制）</span><input id="lifecycle-proof" placeholder="按顺序拼接 32-byte siblings；单叶树留空" autocomplete="off" spellcheck="false" /></label>
-              <label id="lifecycle-payload-row" hidden><span data-i18n="revealPayloadHex">Reveal Payload（十六进制）</span><input id="lifecycle-payload" placeholder="例如 68656c6c6f" autocomplete="off" spellcheck="false" /></label>
-              <label id="lifecycle-salt-row" hidden><span data-i18n="revealSaltHex">32-byte Salt（十六进制）</span><input id="lifecycle-salt" placeholder="64 个十六进制字符" maxlength="66" autocomplete="off" spellcheck="false" /></label>
-              <fieldset class="lifecycle-signers" id="lifecycle-signers-row" hidden><legend data-i18n="multisigSigners">选择本次参与的两个签名钱包</legend><div id="lifecycle-signer-options"></div><small data-i18n="multisigInviteHint">构建后下载邀请文件，按顺序发送给这两位签名人；每个人都在自己的设备签名。</small></fieldset>
-            </div>
-            <div class="lifecycle-actions">
-              <button class="primary-button" type="button" id="lifecycle-build" data-i18n="buildOperationPackage">构建操作交易包</button>
-              <button class="outline-button" type="button" id="lifecycle-download-invitation" data-i18n="downloadInvitation" hidden>下载邀请文件</button>
-              <button class="outline-button" type="button" id="lifecycle-copy-invitation" data-i18n="copyInvitation" hidden>复制邀请</button>
-            </div>
-          </article>
-          <article class="card atomic-builder-card" id="atomic-builder-card">
-            <div class="card-heading"><div><span class="eyebrow">ATOMIC COVENANT TRANSACTION</span><h3 data-i18n="atomicBuilderTitle">原子多 Covenant 构建器</h3></div><span class="result-status" id="atomic-builder-status">TN10 · IDLE</span></div>
-            <p class="muted" data-i18n="atomicBuilderHelp">粘贴完整构建描述，Studio 会核对 2–32 个不同 Covenant ID、redeem program、UTXO、金额和显式手续费。新 lineage 输出使用 genesisAuthorizerCovenantId 指向一个已核验输入；本步骤只构建并审查，不会签名或广播。</p>
-            <div class="atomic-builder-grid">
-              <div>
-                <label><span data-i18n="atomicBuildJson">构建描述 JSON</span><textarea id="atomic-builder-input" spellcheck="false" placeholder='{"network":"tn10","covenantInputs":[...],"outputs":[...],"feeSompi":"..."}'></textarea></label>
-                <div class="button-row"><button type="button" class="outline-button" id="atomic-builder-example" data-i18n="fillFormatExample">填入格式示例</button><button type="button" class="primary-button" id="atomic-builder-build" data-i18n="buildAndReviewAtomic">构建并进入审查</button></div>
-              </div>
-              <div class="atomic-builder-boundary">
-                <strong data-i18n="atomicBoundaryTitle">构建边界</strong>
-                <ul>
-                  <li data-i18n="atomicBoundaryOne">仅开放 TN10；主网请求会在界面立即拒绝。</li>
-                  <li data-i18n="atomicBoundaryTwo">延续输出必须携带现有 covenantId，新 lineage 输出不能伪装成延续。</li>
-                  <li data-i18n="atomicBoundaryThree">构建成功后自动送入下方操作包审查，再由各授权钱包分别签名。</li>
-                </ul>
-              </div>
-            </div>
-          </article>
-          <article class="card external-covenant-card">
-            <div class="card-heading"><div><span class="eyebrow">PORTABLE SIGNING PACKAGE</span><h3 data-i18n="externalCovenantTitle">外部 Covenant 审查与签名</h3></div><span class="result-status" id="external-covenant-status">IDLE</span></div>
-            <p class="muted" data-i18n="externalCovenantHelp">可以审查并签署其他网站生成的完整交易包。只有 covenant ID／cov hash 不足以签名；包内还必须包含待签交易、完整 UTXO、redeem program、ABI、入口和参数。</p>
-            <section class="operation-detection" id="operation-detection" hidden>
-              <span class="eyebrow" data-i18n="recognizedOperation">已识别操作</span>
-              <h4 id="operation-detection-title">—</h4>
-              <p id="operation-detection-description"></p>
-              <div id="operation-detection-meta"></div>
-            </section>
-            <div class="external-covenant-grid">
-              <div>
-                <label><span data-i18n="externalPackage">交易包 JSON</span><textarea id="external-covenant-package" spellcheck="false" placeholder='{"version":1,"network":"tn10",...}'></textarea></label>
-                <div class="button-row"><button class="outline-button" type="button" id="external-covenant-inspect" data-i18n="inspectPackage">只读审查</button><button class="outline-button" type="button" id="external-import-package" data-i18n="importInvitation">导入邀请文件</button><input type="file" id="external-package-file" accept=".ssinvite,.json,application/json" hidden /><button class="primary-button" type="button" id="external-covenant-sign" data-i18n="signPackage" disabled>签署匹配槽位</button></div>
-                <label class="confirmation" id="external-sign-confirmation-row"><span data-i18n="externalConfirmation">外部签名确认短语</span><input id="external-covenant-confirmation" placeholder="SIGN REVIEWED EXTERNAL COVENANT" autocomplete="off" /><small id="external-confirmation-help" data-i18n="externalConfirmationHelp">签名前请完整输入：SIGN REVIEWED EXTERNAL COVENANT</small></label>
-                <label class="confirmation" id="external-broadcast-confirmation-row"><span data-i18n="broadcastConfirmation">广播确认短语</span><input id="external-broadcast-confirmation" placeholder="BROADCAST REVIEWED COVENANT" autocomplete="off" /></label>
-                <button class="outline-button full" type="button" id="external-covenant-broadcast" data-i18n="broadcastPackage" disabled>预检并广播完整交易</button>
-              </div>
-              <div>
-                <div class="external-review" id="external-covenant-review"><p class="muted" data-i18n="externalReviewEmpty">先粘贴完整交易包。应用会核对 P2SH、covenant ID、输入输出、手续费、ABI 参数和签名槽位。</p></div>
-                <label id="external-signed-row" hidden><span data-i18n="signedPackage">已签交易包</span><textarea id="external-signed-package" readonly spellcheck="false"></textarea></label>
-                <button class="outline-button small" type="button" id="external-copy-signed" data-i18n="copySignedPackage" hidden>复制已签包</button>
-                <section class="signing-invitation" id="signing-invitation" hidden>
-                  <div><span class="eyebrow">REMOTE MULTISIG</span><h4 data-i18n="signingInvitationTitle">异地签名邀请</h4></div>
-                  <p class="muted" data-i18n="signingInvitationHelp">把同一个最新邀请包按顺序发送给签名人。每个人在自己的设备导入、核对交易承诺、签名，再把更新后的包传给下一位。</p>
-                  <div class="invitation-commitment"><span data-i18n="transactionCommitment">交易承诺</span><code id="invitation-commitment">—</code></div>
-                  <ol class="invitation-slots" id="invitation-slots"></ol>
-                  <div class="button-row"><button class="outline-button small" type="button" id="external-copy-invitation" data-i18n="copyInvitation">复制邀请</button><button class="outline-button small" type="button" id="external-download-invitation" data-i18n="downloadInvitation">下载邀请文件</button><button class="outline-button small" type="button" id="external-share-invitation" data-i18n="shareInvitation">系统分享</button></div>
-                  <p class="external-warning" data-i18n="sequentialSigningWarning">必须传递最新的部分签名包，不能让两个人分别签署两个初始副本。签名前请通过另一条可信渠道比对交易承诺。</p>
-                </section>
-              </div>
-            </div>
-          </article>
-        </section>
-      </main>
-    </div>
-
-    <div class="toast" id="toast" role="status"></div>
-    <dialog class="studio-dialog settings-dialog" id="settings-dialog">
-      <form method="dialog" class="dialog-card" id="settings-form">
-        <div class="card-heading"><div><span class="eyebrow">LOCAL SECURITY CENTER</span><h3 data-i18n="settings">应用设置</h3></div><button class="icon-button dialog-close" value="cancel" aria-label="Close">×</button></div>
-        <div class="settings-tabs" role="tablist">
-          <button type="button" class="settings-tab active" data-settings-tab="ai" data-i18n="aiSettings">AI 配置</button>
-          <button type="button" class="settings-tab" data-settings-tab="wallet" data-i18n="walletSettings">钱包与网络</button>
-          <button type="button" class="settings-tab" data-settings-tab="security" data-i18n="security">安全说明</button>
-        </div>
-
-        <section class="settings-panel active" data-settings-panel="ai">
-          <div class="settings-status-row">
-            <div><strong data-i18n="aiVault">AI 密钥保险库</strong><p class="muted" data-i18n="aiVaultHelp">API Key 使用 AES-256-GCM + scrypt 加密。主密码只用于本机解锁，不会被保存。</p></div>
-            <span class="result-status" id="ai-vault-status">NOT CREATED</span>
-          </div>
-          <div class="form-grid settings-grid">
-            <label><span data-i18n="aiProvider">AI 接口</span><select id="settings-provider"></select></label>
-            <label><span data-i18n="model">模型</span><input id="settings-model" maxlength="200" autocomplete="off" /></label>
-          </div>
-          <label id="settings-base-url-row"><span data-i18n="baseUrl">接口地址</span><input id="settings-base-url" maxlength="500" inputmode="url" autocomplete="off" placeholder="https://…" /></label>
-          <label id="settings-api-key-row"><span data-i18n="apiKey">API Key</span><input id="settings-api-key" type="password" maxlength="4096" autocomplete="new-password" placeholder="••••••••" /></label>
-          <p class="fine-print" data-i18n="blankKeyHelp">API Key 留空会保留原值；应用不会把已保存的 Key 返回到界面。</p>
-          <label><span data-i18n="vaultPassword">保险库主密码</span><input id="settings-vault-password" type="password" minlength="10" autocomplete="current-password" /></label>
-          <div class="dialog-actions spread-actions">
-            <button type="button" class="outline-button" id="ai-vault-lock" data-i18n="lockVault">立即锁定</button>
-            <button type="button" class="outline-button" id="ai-vault-unlock" data-i18n="unlockVault">解锁保险库</button>
-            <button type="button" class="primary-button" id="ai-settings-save" data-i18n="saveAiConfig">加密保存</button>
-          </div>
-        </section>
-
-        <section class="settings-panel" data-settings-panel="wallet">
-          <div class="settings-status-row"><div><strong data-i18n="walletPreferences">钱包偏好</strong><p class="muted" data-i18n="walletPreferencesHelp">这里只保存默认本地钱包和网络偏好，不保存钱包密码、助记词或 BIP39 附加密码。</p></div></div>
-          <label><span data-i18n="defaultNetwork">默认网络</span><select id="settings-network"><option value="tn10">TN10 · Testnet 10</option><option value="mainnet">Mainnet</option></select></label>
-          <label><span data-i18n="defaultWallet">默认本地钱包</span><select id="settings-wallet"></select></label>
-          <div class="settings-status-row"><div><strong data-i18n="directNodeTitle">Kaspa 节点直连</strong><p class="muted" data-i18n="directNodeHelp">填写自己的 wRPC 地址即可脱离公共网站运行；留空时使用 Kaspa 公共节点发现。Kascov 只用于首选可视化，不参与签名或广播。</p></div></div>
-          <div class="form-grid settings-grid">
-            <label><span data-i18n="tn10RpcUrl">TN10 wRPC 地址（可选）</span><input id="settings-tn10-rpc" maxlength="500" inputmode="url" autocomplete="off" placeholder="ws://127.0.0.1:17210" /></label>
-            <label><span data-i18n="mainnetRpcUrl">Mainnet wRPC 地址（可选）</span><input id="settings-mainnet-rpc" maxlength="500" inputmode="url" autocomplete="off" placeholder="ws://127.0.0.1:17110" /></label>
-          </div>
-          <label><span data-i18n="vaultAutoLock">AI 保险库自动锁定</span><select id="settings-auto-lock"><option value="5">5 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="60">60 min</option></select></label>
-          <div class="fixed-policy"><span>✓</span><div><strong data-i18n="localPreflightPolicy">本地预检为硬性门槛</strong><p data-i18n="localPreflightPolicyHelp">每笔交易先由内置的 Kascov 同源 Kaspa 脚本引擎离线执行。Kascov 在线时追加首选报告；不可用时不阻断操作。</p></div></div>
-          <div class="fixed-policy"><span>✓</span><div><strong data-i18n="signPolicy">每笔交易重新授权</strong><p data-i18n="signPolicyHelp">本地钱包密码不缓存；每次签名前必须重新输入并核对交易。</p></div></div>
-          <div class="dialog-actions spread-actions">
-            <button type="button" class="outline-button" id="open-wallet-manager" data-i18n="manageWallets">创建 / 导入钱包</button>
-            <button type="button" class="primary-button" id="app-settings-save" data-i18n="savePreferences">保存偏好</button>
-          </div>
-        </section>
-
-        <section class="settings-panel" data-settings-panel="security">
-          <div class="security-list">
-            <article><span>01</span><div><strong data-i18n="securityLocalTitle">本机加密</strong><p data-i18n="securityLocalText">AI Key 与钱包助记词分别加密，文件权限限制为当前用户；二者不写入项目、日志或浏览器存储。</p></div></article>
-            <article><span>02</span><div><strong data-i18n="securityAiTitle">AI 无签名权</strong><p data-i18n="securityAiText">AI 只能生成候选源码和交易计划，不能解锁钱包、签名或授权资产转移。</p></div></article>
-            <article><span>03</span><div><strong data-i18n="securityNetworkTitle">主网失效关闭</strong><p data-i18n="securityNetworkText">主网默认禁用；即使启用，也必须通过金额上限、确认短语、完整编译、预检和逐笔签名。</p></div></article>
-            <article><span>04</span><div><strong data-i18n="securityLimitTitle">威胁边界</strong><p data-i18n="securityLimitText">加密可防止明文泄露，但无法抵御已控制当前系统账户的恶意软件。高价值主网资金应使用硬件或隔离签名器。</p></div></article>
-          </div>
-        </section>
-      </form>
-    </dialog>
-    <dialog class="studio-dialog wallet-dialog" id="wallet-dialog">
-      <form method="dialog" class="dialog-card" id="wallet-form">
-        <div class="card-heading"><div><span class="eyebrow">LOCAL SIGNER</span><h3 data-i18n="walletManager">钱包中心</h3></div><button class="icon-button dialog-close" value="cancel" aria-label="Close">×</button></div>
-
-        <section id="wallet-disconnected-view">
-          <p class="muted" data-i18n="walletSecurity">助记词使用 AES-256-GCM + scrypt 加密后保存在本机；钱包密码不会缓存，每笔签名都要重新确认。</p>
-          <article class="wallet-section">
-            <div class="wallet-section-title"><div><span class="eyebrow">CONNECT</span><strong data-i18n="connectExisting">连接已有钱包</strong></div></div>
-            <label><span data-i18n="savedWallet">已保存钱包</span><select id="wallet-select"></select></label>
-            <div class="form-grid settings-grid">
-              <label><span data-i18n="walletPassword">钱包密码</span><input id="wallet-password" type="password" minlength="10" autocomplete="current-password" /></label>
-              <label><span data-i18n="paymentSecret">BIP39 附加密码（可选）</span><input id="wallet-payment-secret" type="password" autocomplete="off" /></label>
-            </div>
-            <p class="password-hint" data-i18n="passwordMinimum">钱包密码至少 10 位。</p>
-            <button type="button" class="primary-button full" id="wallet-unlock" data-i18n="unlock">解锁连接</button>
-          </article>
-
-          <article class="wallet-section">
-            <div class="wallet-section-title">
-              <div><span class="eyebrow">NEW KEYSTORE</span><strong data-i18n="createOrImportWallet">创建或导入钱包</strong></div>
-              <div class="mode-toggle"><button type="button" class="active" data-wallet-mode="create" data-i18n="createNew">创建新钱包</button><button type="button" data-wallet-mode="import" data-i18n="importExisting">导入助记词</button></div>
-            </div>
-            <label><span data-i18n="walletName">钱包名称</span><input id="wallet-title" value="Studio Wallet" maxlength="80" /></label>
-            <div class="form-grid settings-grid">
-              <label><span data-i18n="newWalletPassword">设置钱包密码</span><input id="wallet-create-password" type="password" minlength="10" autocomplete="new-password" /></label>
-              <label><span data-i18n="confirmWalletPassword">再次输入密码</span><input id="wallet-confirm-password" type="password" minlength="10" autocomplete="new-password" /></label>
-            </div>
-            <p class="password-hint" data-i18n="passwordHint">至少 10 位，建议使用 14 位以上且与其他账户不同的密码。此密码无法找回。</p>
-            <label><span data-i18n="paymentSecret">BIP39 附加密码（可选）</span><input id="wallet-create-payment-secret" type="password" autocomplete="off" /></label>
-            <label id="wallet-import-row" hidden><span data-i18n="importMnemonic">BIP39 助记词</span><textarea id="wallet-mnemonic" class="mnemonic-input" autocomplete="off" spellcheck="false"></textarea></label>
-            <button type="button" class="primary-button full" id="wallet-create" data-i18n="createWallet">创建并加密钱包</button>
-          </article>
-        </section>
-
-        <section id="wallet-connected-view" hidden>
-          <div class="wallet-account-hero">
-            <div><span class="eyebrow" id="wallet-account-network">TN10 WALLET</span><strong id="wallet-balance">— TKAS</strong><small id="wallet-balance-state" data-i18n="checkingBalance">正在查询余额…</small></div>
-            <button type="button" class="outline-button small" id="wallet-refresh-balance" data-i18n="refresh">刷新</button>
-          </div>
-          <div class="address-display"><code id="wallet-account-address">—</code><button type="button" class="outline-button small" id="wallet-copy-address" data-i18n="copyAddress">复制地址</button></div>
-          <div class="wallet-action-tabs">
-            <button type="button" class="active" data-wallet-action="receive" data-i18n="receive">接收</button>
-            <button type="button" data-wallet-action="send" data-i18n="send">发送</button>
-          </div>
-          <section class="wallet-action-panel active" data-wallet-action-panel="receive">
-            <span class="eyebrow">RECEIVE</span><h4 data-i18n="receiveKas">接收 KAS</h4>
-            <p class="muted" data-i18n="receiveHelp">确认发送方选择相同网络。复制下面的完整地址，到账后点击刷新余额。</p>
-            <div class="receive-address"><code id="wallet-receive-address">—</code><button type="button" class="primary-button" id="wallet-copy-receive" data-i18n="copyAddress">复制地址</button></div>
-          </section>
-          <section class="wallet-action-panel" data-wallet-action-panel="send">
-            <span class="eyebrow">SEND</span><h4 data-i18n="sendKas">发送 KAS</h4>
-            <label><span data-i18n="recipientAddress">收款地址</span><input id="wallet-send-recipient" autocomplete="off" spellcheck="false" /></label>
-            <label><span data-i18n="sendAmount">发送金额</span><div class="amount-input"><input id="wallet-send-amount" inputmode="decimal" placeholder="0.1"/><b id="wallet-send-symbol">TKAS</b></div></label>
-            <label id="wallet-send-mainnet-row" hidden><span data-i18n="mainnetSendPhrase">主网确认短语</span><input id="wallet-send-mainnet-phrase" placeholder="SEND REAL KAS" autocomplete="off" /></label>
-            <button type="button" class="primary-button full" id="wallet-build-transfer" data-i18n="reviewTransfer">预览交易和手续费</button>
-            <div class="transfer-preview" id="wallet-transfer-preview" hidden>
-              <div id="wallet-transfer-summary"></div>
-              <label id="wallet-transfer-password-row"><span data-i18n="walletPassword">钱包密码</span><input id="wallet-transfer-password" type="password" minlength="10" autocomplete="current-password" /></label>
-              <label id="wallet-transfer-payment-row"><span data-i18n="paymentSecret">BIP39 附加密码（可选）</span><input id="wallet-transfer-payment-secret" type="password" autocomplete="off" /></label>
-              <button type="button" class="primary-button full" id="wallet-confirm-transfer" data-i18n="confirmAndSend">确认签名并发送</button>
-            </div>
-            <div class="transfer-result" id="wallet-transfer-result" hidden></div>
-          </section>
-          <div class="dialog-actions"><button type="button" class="outline-button danger" id="wallet-disconnect" data-i18n="disconnect">断开钱包</button></div>
-        </section>
-      </form>
-    </dialog>
-    <dialog class="studio-dialog compact" id="recovery-dialog">
-      <form method="dialog" class="dialog-card" id="recovery-form">
-        <div><span class="eyebrow">ONE-TIME RECOVERY</span><h3 data-i18n="backupMnemonic">立即备份助记词</h3></div>
-        <p class="muted" data-i18n="backupWarning">这是恢复钱包的唯一凭证，只显示这一次。请离线抄写，不要截图、上传云盘或发送给任何人。</p>
-        <p class="password-hint" id="recovery-passphrase-warning" hidden data-i18n="passphraseBackupWarning">你设置了 BIP39 附加密码。恢复钱包时必须同时拥有助记词和附加密码，请分别离线备份。</p>
-        <div class="recovery-box"><strong data-i18n="shownOnce">仅显示一次</strong><code id="recovery-phrase"></code></div>
-        <label class="recovery-confirm"><input type="checkbox" id="recovery-confirm" /><span data-i18n="backupConfirmed">我已经按顺序离线备份，并理解丢失后无法恢复</span></label>
-        <button class="primary-button full" id="recovery-done" value="confirmed" disabled data-i18n="finishBackup">完成备份</button>
-      </form>
-    </dialog>
-    <dialog class="studio-dialog compact" id="secret-dialog">
-      <form method="dialog" class="dialog-card" id="secret-form">
-        <div class="card-heading"><div><span class="eyebrow">AUTHORIZE SIGNATURE</span><h3 data-i18n="confirmSignature">确认本地签名</h3></div><button class="icon-button dialog-close" value="cancel">×</button></div>
-        <p class="muted" id="secret-wallet-label"></p>
-        <label><span data-i18n="walletPassword">钱包密码</span><input id="sign-wallet-password" type="password" autocomplete="current-password" /></label>
-        <label><span data-i18n="paymentSecret">BIP39 附加密码（可选）</span><input id="sign-payment-secret" type="password" autocomplete="off" /></label>
-        <div class="dialog-actions"><button class="outline-button" value="cancel" data-i18n="cancel">取消</button><button class="primary-button" value="confirm" data-i18n="signNow">立即签名</button></div>
-      </form>
-    </dialog>
-    <dialog class="studio-dialog compact" id="template-apply-dialog">
-      <form method="dialog" class="dialog-card">
-        <div><span class="eyebrow">REPLACE CURRENT WORK</span><h3 data-i18n="confirmTemplateApply">确认应用模板</h3></div>
-        <p class="muted" id="template-apply-message"></p>
-        <p class="password-hint" data-i18n="templateReplaceWarning">当前源码、构造参数和未上链的编译凭证将被模板内容替换；已经广播的链上交易不受影响。</p>
-        <div class="dialog-actions"><button class="outline-button" value="cancel" data-i18n="cancel">取消</button><button class="primary-button" value="confirm" id="template-apply-confirm" data-i18n="confirmApply">确认应用</button></div>
-      </form>
-    </dialog>
-    <dialog class="studio-dialog example-dialog" id="template-example-dialog">
-      <form method="dialog" class="dialog-card">
-        <div class="card-heading"><div><span class="eyebrow">TEMPLATE USE CASE</span><h3 id="template-example-title">—</h3></div><button class="icon-button dialog-close" value="cancel" aria-label="Close">×</button></div>
-        <p class="example-scenario" id="template-example-scenario"></p>
-        <div class="example-grid">
-          <section><strong data-i18n="exampleRoles">参与角色</strong><ul id="template-example-roles"></ul></section>
-          <section><strong data-i18n="exampleSteps">操作步骤</strong><ol id="template-example-steps"></ol></section>
-        </div>
-        <div class="example-result"><strong data-i18n="exampleResult">链上结果</strong><p id="template-example-result"></p></div>
-        <p class="password-hint" id="template-example-caution"></p>
-        <div class="dialog-actions"><button class="primary-button" value="cancel" data-i18n="understood">知道了</button></div>
-      </form>
-    </dialog>
-    <dialog class="studio-dialog compact" id="project-delete-dialog">
-      <form method="dialog" class="dialog-card">
-        <div><span class="eyebrow">DELETE LOCAL WORK</span><h3 data-i18n="deleteProject">删除工作</h3></div>
-        <p class="muted" id="project-delete-message"></p>
-        <p class="password-hint" data-i18n="deleteProjectWarning">此操作只删除本地工作文件且无法撤销；已经广播的链上交易不会被删除。</p>
-        <div class="dialog-actions"><button class="outline-button" value="cancel" data-i18n="cancel">取消</button><button class="outline-button danger" value="confirm" id="project-delete-confirm" data-i18n="confirmDelete">确认删除</button></div>
-      </form>
-    </dialog>
-    <script type="module" src="/src/main.js"></script>
-  </body>
+  <dialog id="secret-dialog"><form method="dialog" class="dialog-card"><h3 data-i18n="authorize">本地钱包授权</h3><p data-i18n="authorizeHelp">密码只发送给本机 127.0.0.1 服务，不写入项目或操作包。</p><label><span data-i18n="walletPassword">钱包密码（至少 10 位）</span><input id="sign-password" type="password" /></label><label><span data-i18n="paymentSecret">可选 Payment Secret</span><input id="sign-payment" type="password" /></label><div class="button-row"><button value="cancel" class="ghost" data-i18n="cancel">取消</button><button value="confirm" class="primary" data-i18n="confirm">确认</button></div></form></dialog>
+  <dialog id="mnemonic-dialog"><form method="dialog" class="dialog-card mnemonic"><h3 data-i18n="mnemonicTitle">助记词只显示一次</h3><p data-i18n="mnemonicHelp">离线抄写并安全保存。不要截图、不要上传云盘、不要发给任何人。</p><code id="mnemonic-value"></code><label class="check"><input id="mnemonic-check" type="checkbox" /><span data-i18n="mnemonicConfirm">我已经完成离线备份</span></label><button class="primary wide" id="mnemonic-close" value="confirm" disabled data-i18n="done">完成</button></form></dialog>
+  <div id="toast" class="toast"></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
 </html>

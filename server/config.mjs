@@ -8,9 +8,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 dotenv.config({ path: path.join(ROOT, ".env") });
 dotenv.config({ path: path.join(ROOT, ".env.local"), override: true });
 
-export const SILVERSCRIPT_COMMIT = "14dce9a5ce8769cdfbd0c8965f8764fa9c325067";
-export const SILVERSCRIPT_PREVIOUS_COMMIT = "6f9e078b1d8b5389212755183b592704de99fea5";
-export const SILVERSCRIPT_OLDER_COMMIT = "cb34aa5e6a598f9e461c4ad7014279ba89251d8d";
+export const SILVERSCRIPT_COMMIT = "023c7eed6b85038c72233a62024c5476640445e3";
+export const SILVERSCRIPT_PREVIOUS_COMMIT = "14dce9a5ce8769cdfbd0c8965f8764fa9c325067";
+export const SILVERSCRIPT_OLDER_COMMIT = "6f9e078b1d8b5389212755183b592704de99fea5";
 export const SILVERSCRIPT_LEGACY_COMMIT = "2a3961cadc76bb16a425042172ffe32481da89b5";
 
 export const NETWORKS = Object.freeze({
@@ -77,7 +77,7 @@ function loadCompilerConfig() {
   }));
   const defaultProfileId = profiles[stored.defaultProfileId]
     ? stored.defaultProfileId
-    : compatibility.defaultProfileId || "latest-14dce9a";
+    : compatibility.defaultProfileId || "latest-023c7ee";
   return Object.freeze({
     defaultProfileId,
     profiles: Object.freeze(profiles),
@@ -116,9 +116,10 @@ function binaryMatches(file, expectedSha256) {
 export const config = Object.freeze({
   root: ROOT,
   host: process.env.HOST || "127.0.0.1",
-  port: Number(process.env.PORT || 4310),
-  dataDir: path.resolve(process.env.STUDIO_DATA_DIR || path.join(ROOT, "data")),
+  port: Number(process.env.PORT || 4320),
+  dataDir: path.resolve(process.env.KAS_WILL_DATA_DIR || process.env.STUDIO_DATA_DIR || path.join(ROOT, "data")),
   kascovBaseUrl: String(process.env.KASCOV_BASE_URL || "https://kascov.io").replace(/\/$/, ""),
+  enableKascovVerify: bool(process.env.ENABLE_KASCOV_VERIFY),
   preflightEngine: Object.freeze(loadPreflightConfig()),
   rpcUrls: Object.freeze({
     tn10: String(process.env.KASPA_TN10_RPC_URL || "").trim(),
@@ -165,7 +166,8 @@ export function publicConfig() {
     },
     preflight: {
       localEngineConfigured: localPreflightReady,
-      kascovPreferred: true,
+      kascovPreferred: false,
+      optionalWebVerificationEnabled: config.enableKascovVerify,
       offlineCapable: localPreflightReady,
       upstreamCommit: config.preflightEngine.upstreamCommit,
       rustyKaspaCommit: config.preflightEngine.rustyKaspaCommit

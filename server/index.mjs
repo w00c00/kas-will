@@ -3,14 +3,12 @@ import fs from "node:fs";
 import path from "node:path";
 import express from "express";
 import { config, publicConfig } from "./config.mjs";
-import { generateWithAi } from "./ai-providers.mjs";
 import { compileContract, compilerManifest, compilerProfiles, detectBreakingChanges, migrateSourceToProfile, staticAnalyze } from "./compiler.mjs";
 import { DraftStore } from "./draft-store.mjs";
 import { broadcastWalletTransfer, buildDeployDraft, buildWalletTransferDraft, broadcastDeploy, configureNodeAccess, discoverNetworks, findCovenantUtxo, kascovPreflight, nodeStatus, signAndBroadcastWalletTransfer, signDeployDraft, submitReviewedTransaction, transactionEvidence, walletBalance } from "./kaspa-service.mjs";
 import { ProjectStore } from "./project-store.mjs";
 import { localCors, requireLocalOrigin, sha256 } from "./security.mjs";
-import { AiSettingsStore, AppSettingsStore } from "./settings-store.mjs";
-import { skillManifest } from "./skill-context.mjs";
+import { AppSettingsStore } from "./settings-store.mjs";
 import { TemplateStore } from "./template-store.mjs";
 import { WalletService } from "./wallet-service.mjs";
 import { exportExternalCovenantPackage, inspectExternalCovenantPackage, signExternalCovenantPackage } from "./external-covenant-service.mjs";
@@ -19,16 +17,16 @@ import { buildLifecycleStatus, spentLifecycleStatus } from "./lifecycle-status.m
 import { assertInheritanceDistributionOpen, assertLocalRenewalOpen, assertLocalRenewalPackage } from "./local-operation-authorization.mjs";
 import { signP2pkCoSpendPackage } from "./p2pk-cospend.mjs";
 import { createP2pkCoSpendAuthorization, selectP2pkFundingUtxo } from "./p2pk-cospend.mjs";
-import { buildAtomicCovenantPackage } from "./atomic-covenant-builder.mjs";
+import { buildKcc20WillOperationPackage } from "./kcc20-will-service.mjs";
 
 fs.mkdirSync(config.dataDir, { recursive: true, mode: 0o700 });
 const projects = new ProjectStore(config.dataDir);
 const drafts = new DraftStore(config.dataDir);
 const templates = new TemplateStore();
+const WILL_TEMPLATE_IDS = new Set(["inheritance-vault", "kcc20-inheritance-vault"]);
 const wallets = new WalletService(config.dataDir);
 const settings = new AppSettingsStore(config.dataDir);
 configureNodeAccess(settings.public());
-const aiSettings = new AiSettingsStore(config.dataDir, config.providers, () => settings.public().aiAutoLockMinutes);
 const sessionToken = crypto.randomBytes(24).toString("hex");
 const app = express();
 
@@ -67,10 +65,10 @@ app.use((req, _res, next) => {
 });
 
 app.get("/api/session", (_req, res) => res.json({ token: sessionToken }));
-app.get("/api/config", (_req, res) => res.json({ ...publicConfig(), providers: aiSettings.publicStatus().providers, skill: skillManifest() }));
+app.get("/api/config", (_req, res) => res.json(publicConfig()));
 app.get("/api/health", (_req, res) => res.json({ ok: true, localOnly: true, now: new Date().toISOString() }));
 
-app.get("/api/settings", (_req, res) => res.json({ settings: settings.public(), ai: aiSettings.publicStatus() }));
+app.get("/api/settings", (_req, res) => res.json({ settings: settings.public() }));
 app.put("/api/settings", (req, res, next) => {
   try {
     const input = { ...(req.body || {}) };
@@ -78,21 +76,8 @@ app.put("/api/settings", (req, res, next) => {
     if (input.defaultWalletId && !wallets.read(input.defaultWalletId)) throw new Error("Default wallet does not exist");
     const saved = settings.save(input);
     configureNodeAccess(saved);
-    res.json({ settings: saved, ai: aiSettings.publicStatus() });
+    res.json({ settings: saved });
   } catch (error) { next(error); }
-});
-app.post("/api/settings/ai/save", async (req, res, next) => {
-  try { res.json({ ai: await aiSettings.save(req.body || {}) }); } catch (error) { next(error); }
-});
-app.post("/api/settings/ai/remove", async (req, res, next) => {
-  try { res.json({ ai: await aiSettings.remove(req.body || {}) }); } catch (error) { next(error); }
-});
-app.post("/api/settings/ai/unlock", async (req, res, next) => {
-  try { res.json({ ai: await aiSettings.unlock(req.body?.vaultSecret) }); } catch (error) { next(error); }
-});
-app.post("/api/settings/ai/lock", (_req, res) => {
-  aiSettings.lock();
-  res.json({ ai: aiSettings.publicStatus() });
 });
 
 app.get("/api/node/status", async (req, res, next) => {
@@ -122,15 +107,17 @@ app.post("/api/wallets/transfer/broadcast", async (req, res, next) => {
   try { res.json({ result: await broadcastWalletTransfer(req.body || {}, drafts) }); } catch (error) { next(error); }
 });
 
-app.get("/api/templates", (_req, res) => res.json({ templates: templates.list() }));
+app.get("/api/templates", (_req, res) => res.json({ templates: templates.list().filter((template) => WILL_TEMPLATE_IDS.has(template.id)) }));
 app.post("/api/templates/:id/projects", (req, res, next) => {
   try {
+    if (!WILL_TEMPLATE_IDS.has(req.params.id)) throw Object.assign(new Error("Kas Will only supports inheritance templates"), { status: 404 });
     const input = templates.projectInput(req.params.id, req.body?.network, req.body?.parameters, { language: req.body?.language });
     res.status(201).json({ project: projects.create(input) });
   } catch (error) { next(error); }
 });
 app.put("/api/projects/:projectId/template/:templateId", (req, res, next) => {
   try {
+    if (!WILL_TEMPLATE_IDS.has(req.params.templateId)) throw Object.assign(new Error("Kas Will only supports inheritance templates"), { status: 404 });
     if (!projects.get(req.params.projectId)) return res.status(404).json({ error: "Project not found" });
     const current = projects.get(req.params.projectId);
     const input = templates.projectInput(req.params.templateId, req.body?.network, req.body?.parameters, { language: req.body?.language });
@@ -208,28 +195,19 @@ app.post("/api/projects/:id/operations/build", async (req, res, next) => {
     if (project.artifact?.sourceSha256 !== sha256(project.source) || project.artifact?.constructorArgsSha256 !== sha256(JSON.stringify(project.constructorArgs))) {
       throw Object.assign(new Error("Lifecycle builders require a fresh compiled artifact for the current source and constructor arguments"), { status: 400, code: "TEMPLATE_OPERATION_STALE_ARTIFACT" });
     }
-    if (project.review?.templateId === "inheritance-vault" && req.body?.operationId === "checkIn") {
+    if (["inheritance-vault", "kcc20-inheritance-vault"].includes(project.review?.templateId) && req.body?.operationId === "checkIn") {
       assertLocalRenewalOpen(await lifecycleStatusFor(project));
     }
-    if (project.review?.templateId === "inheritance-vault" && req.body?.operationId === "inherit") {
+    if (project.review?.templateId === "kcc20-inheritance-vault" && req.body?.operationId === "fundKcc20") {
+      assertLocalRenewalOpen(await lifecycleStatusFor(project));
+    }
+    if (["inheritance-vault", "kcc20-inheritance-vault"].includes(project.review?.templateId) && req.body?.operationId === "inherit") {
       assertInheritanceDistributionOpen(await lifecycleStatusFor(project));
     }
-    res.json(await buildTemplateOperationPackage(req.body || {}, project, template));
-  } catch (error) { next(error); }
-});
-
-app.post("/api/ai/generate", async (req, res, next) => {
-  try {
-    const providerId = String(req.body?.provider || "openai").toLowerCase();
-    const answer = await generateWithAi({ ...req.body, mode: "generate" }, aiSettings.provider(providerId));
-    res.json(answer);
-  } catch (error) { next(error); }
-});
-app.post("/api/ai/review", async (req, res, next) => {
-  try {
-    const providerId = String(req.body?.provider || "openai").toLowerCase();
-    const answer = await generateWithAi({ ...req.body, mode: "review" }, aiSettings.provider(providerId));
-    res.json(answer);
+    const isKcc20TokenOperation = project.review?.templateId === "kcc20-inheritance-vault" && req.body?.operationId !== "checkIn";
+    res.json(isKcc20TokenOperation
+      ? await buildKcc20WillOperationPackage(req.body || {}, project)
+      : await buildTemplateOperationPackage(req.body || {}, project, template));
   } catch (error) { next(error); }
 });
 
@@ -285,9 +263,6 @@ app.post("/api/deploy/broadcast", async (req, res, next) => {
 });
 app.post("/api/external-covenants/inspect", (req, res, next) => {
   try { res.json(inspectExternalCovenantPackage(req.body?.package)); } catch (error) { next(error); }
-});
-app.post("/api/external-covenants/build-atomic", (req, res, next) => {
-  try { res.json(inspectExternalCovenantPackage(buildAtomicCovenantPackage(req.body || {}))); } catch (error) { next(error); }
 });
 app.post("/api/p2pk-cospend/select", (req, res, next) => {
   try {
@@ -363,6 +338,34 @@ app.post("/api/external-covenants/broadcast", async (req, res, next) => {
           }
         });
       }
+    } else if (provenance.kind === "kas-will-kcc20" && ["recover", "inherit"].includes(provenance.operationId) && provenance.projectId) {
+      const current = projects.get(provenance.projectId);
+      const controller = inspected.review.covenantInputs?.find((item) => item.transactionInputIndex === 0);
+      const identityMatches = current
+        && current.network === inspected.package.network
+        && current.review?.templateId === "kcc20-inheritance-vault"
+        && current.deployment?.covenantId === controller?.covenantId
+        && current.artifact?.programSha256 === controller?.programSha256;
+      if (identityMatches) {
+        const history = Array.isArray(current.deployment.history) ? current.deployment.history.slice(-99) : [];
+        history.push({
+          txid: result.txid,
+          operation: provenance.operationId,
+          entrypoint: provenance.operationId,
+          broadcastAt: result.broadcastAt,
+          continuation: false
+        });
+        project = projects.save(current.id, {
+          deployment: {
+            ...current.deployment,
+            activeTxid: "",
+            activeOutputIndex: null,
+            status: "spent",
+            lastOperationAt: result.broadcastAt,
+            history
+          }
+        });
+      }
     }
     res.json({ result, project });
   } catch (error) { next(error); }
@@ -397,7 +400,7 @@ app.use((error, req, res, _next) => {
 });
 
 const server = app.listen(config.port, config.host, () => {
-  console.log(`Kaspa SilverScript Studio: http://${config.host}:${config.port}`);
+  console.log(`Kas Will: http://${config.host}:${config.port}`);
   console.log(`Local data: ${config.dataDir}`);
 });
 

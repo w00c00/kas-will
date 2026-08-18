@@ -1,0 +1,61 @@
+{
+  "order": 20,
+  "category": "estate",
+  "titleZh": "KCC20 遗产金库（TN10 实验）",
+  "titleEn": "KCC20 inheritance vault (TN10 experimental)",
+  "descriptionZh": "绑定一个明确的 KCC20 Covenant ID 与模板哈希；拥有者签到续期，到期后按固定比例原子拆分 Token。",
+  "descriptionEn": "Binds one explicit KCC20 covenant ID and template hash; the owner checks in and mature execution atomically splits the token by fixed shares.",
+  "networkAllowlist": ["tn10"],
+  "experimental": true,
+  "risk": "experimental",
+  "parameterEncodingVersion": 2,
+  "sourceFile": "contract.sil",
+  "controlPrincipals": [
+    { "role": "owner", "profile": "p2pk-schnorr/v1", "cardinality": 1, "constructorParameter": "owner" },
+    { "role": "inheritors", "profile": "p2pk-schnorr/v1", "cardinalityParameter": "inheritors", "constructorParameter": "inheritors" },
+    { "role": "asset", "profile": "kcc20/covenant-id/v1", "cardinality": 1, "constructorParameter": "kcc20Covid" }
+  ],
+  "requiredReplacements": [0, 1, 2, 3, 4, 5, 6, 7],
+  "parameters": [
+    { "id": "amountKas", "type": "amount", "projectField": "deployAmount", "required": true, "default": "0.5", "minimum": "0.5", "labelZh": "控制金库 KAS", "labelEn": "Controller vault KAS", "helpZh": "为签到与最终 KCC20 输出提供存储质量和手续费余量。", "helpEn": "Provides storage-mass and fee headroom for check-ins and final KCC20 outputs." },
+    { "id": "ownerAddress", "type": "address", "argIndex": 0, "required": true, "useConnectedWallet": true, "labelZh": "拥有者钱包", "labelEn": "Owner wallet", "helpZh": "拥有者可签到或在到期前取回 Token。", "helpEn": "The owner can check in or recover the token before maturity." },
+    { "id": "inheritors", "type": "heirs", "keyArgIndex": 1, "shareArgIndex": 2, "disallowParameter": "ownerAddress", "minimum": 2, "maximum": 5, "required": true, "labelZh": "继承人与份额", "labelEn": "Inheritors and shares", "helpZh": "2–5 个钱包，比例总计 100%。", "helpEn": "Two to five wallets whose shares total 100%." },
+    { "id": "inactivityDays", "type": "duration", "argIndex": 3, "minimumSeconds": 60, "maximumSeconds": 315360000, "defaultValue": 180, "defaultUnit": "days", "required": true, "labelZh": "未签到等待时间", "labelEn": "Inactivity period", "helpZh": "1 分钟仅用于 TN10 测试。", "helpEn": "One minute is only for TN10 testing." },
+    { "id": "tokenCovenantId", "type": "sha256", "argIndex": 4, "required": true, "labelZh": "KCC20 Covenant ID", "labelEn": "KCC20 covenant ID", "helpZh": "必须来自已验证的 Token 描述符和当前链上 UTXO。", "helpEn": "Must come from a verified token descriptor and current on-chain UTXO." },
+    { "id": "tokenTemplatePrefixLength", "type": "integer", "argIndex": 5, "required": true, "minimum": 0, "maximum": 10000, "default": 0, "labelZh": "模板前缀长度", "labelEn": "Template prefix length" },
+    { "id": "tokenTemplateSuffixLength", "type": "integer", "argIndex": 6, "required": true, "minimum": 1, "maximum": 10000, "default": 1, "labelZh": "模板后缀长度", "labelEn": "Template suffix length" },
+    { "id": "tokenTemplateHash", "type": "sha256", "argIndex": 7, "required": true, "labelZh": "KCC20 模板哈希", "labelEn": "KCC20 template hash", "helpZh": "对描述符中的固定模板部分做承诺，不接受只靠名称识别的 Token。", "helpEn": "Commits to descriptor template bytes; token names alone are never trusted." }
+  ],
+  "constructorArgs": [
+    { "kind": "pubkey", "hex": "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798" },
+    { "kind": "pubkey[]", "hex": ["c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5", "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"] },
+    { "kind": "int[]", "data": [5000, 5000] },
+    { "kind": "int", "data": 15552000 },
+    { "kind": "bytes32", "hex": "1111111111111111111111111111111111111111111111111111111111111111" },
+    { "kind": "int", "data": 0 },
+    { "kind": "int", "data": 1 },
+    { "kind": "bytes32", "hex": "2222222222222222222222222222222222222222222222222222222222222222" }
+  ],
+  "invariants": [
+    "The controller and one non-minter KCC20 input are co-spent at fixed input positions",
+    "Token covenant ID and template hash are constructor-bound",
+    "Owner check-in preserves the controller covenant lineage",
+    "Mature execution conserves both token amount and KAS value minus the explicit fee",
+    "Every token successor is a non-minter P2PK state for the fixed inheritor and exact share"
+  ],
+  "transactionPlans": [
+    { "transition": "checkIn", "inputs": [{ "role": "controller", "index": 0 }], "outputs": [{ "role": "same-controller", "index": 0 }] },
+    { "transition": "recover", "inputs": [{ "role": "controller", "index": 0 }, { "role": "kcc20", "index": 1 }], "outputs": [{ "role": "owner-kcc20", "index": 0 }] },
+    { "transition": "inherit", "inputs": [{ "role": "mature-controller", "index": 0 }, { "role": "kcc20", "index": 1 }], "outputs": [{ "role": "inheritor-kcc20", "count": "2-5" }] }
+  ],
+  "example": {
+    "titleZh": "把一个 TN10 KCC20 余额留给两位继承人",
+    "titleEn": "Leave one TN10 KCC20 balance to two inheritors",
+    "scenarioZh": "先导入发行方提供并由本地验证过的描述符，再部署控制金库并把一个非 minter Token UTXO 转入该 Covenant ID。",
+    "scenarioEn": "Import a locally verified issuer descriptor, deploy the controller and transfer one non-minter token UTXO to its covenant ID.",
+    "stepsZh": ["验证 Token 描述符", "部署控制金库", "构建并多人复核入金操作包", "拥有者签到或到期触发分配"],
+    "stepsEn": ["Verify the token descriptor", "Deploy the controller", "Build and review the funding package across devices", "Check in or execute the mature distribution"],
+    "cautionZh": "KCC20 规范仍在演进。本模板仅限 TN10，且只接受四字段、非 minter、描述符固定的实现。",
+    "cautionEn": "KCC20 remains evolving. This template is TN10-only and accepts only descriptor-pinned, four-field, non-minter implementations."
+  }
+}

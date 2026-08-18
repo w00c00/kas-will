@@ -1,547 +1,179 @@
-# Kaspa SilverScript Studio
+# Kas Will
 
-[![Latest release](https://img.shields.io/github/v/release/w00c00/kaspa-silverscript-studio?display_name=tag)](https://github.com/w00c00/kaspa-silverscript-studio/releases/latest)
-[![Desktop release](https://github.com/w00c00/kaspa-silverscript-studio/actions/workflows/release-desktop.yml/badge.svg)](https://github.com/w00c00/kaspa-silverscript-studio/actions/workflows/release-desktop.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-51f6c1.svg)](LICENSE)
+**Kaspa 本地优先的链上遗产继承桌面应用 / A local-first Kaspa inheritance desktop app**
 
-本地优先、中英双语的 Kaspa SilverScript 契约开发、编译、签名与操作桌面工作台。
+Kas Will 从 SilverScript Studio 的继承模块独立出来，内置本地加密钱包、固定版本 SilverScript 编译器、Kaspa 脚本引擎预检和可移植操作包。应用不依赖任何网站：只要能连接 Kaspa 节点，就可以创建钱包、编译契约、签到、构建交易、跨设备签名和广播。
 
-A local-first bilingual desktop workbench for designing, compiling, signing, and operating Kaspa SilverScript covenants.
+Kas Will is a focused extraction of the inheritance workflow from SilverScript Studio. It bundles an encrypted local wallet, pinned SilverScript compiler, local Kaspa script-engine preflight, and portable operation packages. No website is required: with access to a Kaspa node, it can create wallets, compile covenants, check in, build transactions, collect signatures across devices, and broadcast.
 
-[中文](#中文说明) · [English](#english)
-
-> [!WARNING]
-> SilverScript 仍处于实验阶段。成功编译、静态检查和交易预检都不等于安全审计。默认使用 TN10；未经完整对抗性测试和独立审查，请勿使用真实主网资金。
+> 当前版本 `0.1.0` 仅用于 **TN10 实验测试**。主网签名与广播默认关闭。它是技术工具，不替代法律遗嘱、律师意见、密钥备份或独立安全审计。
 >
-> SilverScript remains experimental. Successful compilation, static checks, and transaction preflight are not a security audit. Use TN10 by default and do not risk real mainnet funds without full adversarial testing and independent review.
+> Version `0.1.0` is **TN10 experimental software**. Mainnet signing and broadcast are disabled by default. It is a technical tool—not a substitute for a legal will, legal advice, key backups, or an independent audit.
 
-## 下载 / Download v0.2.9
+## 核心功能 / Highlights
 
-| 平台 / Platform | 安装包 / Package | 校验文件 / Checksums |
-|---|---|---|
-| macOS Apple Silicon | [DMG](https://github.com/w00c00/kaspa-silverscript-studio/releases/download/v0.2.9/Kaspa-SilverScript-Studio-0.2.9-macos-arm64.dmg) | [SHA256SUMS-macos.txt](https://github.com/w00c00/kaspa-silverscript-studio/releases/download/v0.2.9/SHA256SUMS-macos.txt) |
-| Windows x64 | [Setup EXE](https://github.com/w00c00/kaspa-silverscript-studio/releases/download/v0.2.9/Kaspa-SilverScript-Studio-0.2.9-windows-x64-setup.exe) · [MSI](https://github.com/w00c00/kaspa-silverscript-studio/releases/download/v0.2.9/Kaspa-SilverScript-Studio-0.2.9-windows-x64.msi) | [SHA256SUMS-windows.txt](https://github.com/w00c00/kaspa-silverscript-studio/releases/download/v0.2.9/SHA256SUMS-windows.txt) |
-| Linux x86_64 | [AppImage](https://github.com/w00c00/kaspa-silverscript-studio/releases/download/v0.2.9/Kaspa-SilverScript-Studio-0.2.9-linux-x86_64.AppImage) · [DEB](https://github.com/w00c00/kaspa-silverscript-studio/releases/download/v0.2.9/Kaspa-SilverScript-Studio-0.2.9-linux-amd64.deb) | [SHA256SUMS-linux.txt](https://github.com/w00c00/kaspa-silverscript-studio/releases/download/v0.2.9/SHA256SUMS-linux.txt) |
+- KAS 多继承人签到金库：2–5 位继承人，固定比例合计 100%。
+- 拥有者签到：签名延续同一 Covenant ID，并重置链上 DAA 期限。
+- 拥有者取回：由拥有者签名取回。
+- 到期继承：期限成熟后，任何人可触发，但收款钱包与比例由契约固定。
+- KCC20 全生命周期：转入遗嘱、签到、拥有者原子取回、到期原子拆分。
+- `.ssinvite` 操作包：在不同电脑上审查、签署并传给下一位参与者，不需要协调网站。
+- 本地加密钱包：创建或导入助记词、复制地址、查询余额和断开连接；新助记词只显示一次。
+- 中英文界面：按系统语言和时区自动选择，也可手动切换。
+- 本地脚本引擎：签名或广播前在本机执行交易；Kascov 仅作为可选的辅助可视化验证。
 
-[完整发布说明 / Full release notes](https://github.com/w00c00/kaspa-silverscript-studio/releases/tag/v0.2.9) · [三平台构建记录 / Native build run](https://github.com/w00c00/kaspa-silverscript-studio/actions/runs/31870349542)
+- Multi-inheritor KAS check-in vault with 2–5 inheritors and exact 100% shares.
+- Owner check-in continues the same Covenant ID and resets its on-chain DAA age.
+- Owner recovery remains signature-gated.
+- Mature distribution is permissionless to trigger, while recipients and shares remain covenant-bound.
+- Full KCC20 lifecycle: fund, check in, atomically recover, and atomically split after maturity.
+- Portable `.ssinvite` files support review and signing on separate computers without a coordination website.
+- Encrypted local wallet with create/import, address copy, balance, and disconnect flows; a new mnemonic is shown once.
+- Automatic Chinese/English selection from system locale and time zone, plus a manual switch.
+- Bundled local Kaspa script execution before broadcast; Kascov remains optional visualization only.
 
-公开安装包目前没有商业代码签名：macOS 使用 ad-hoc 签名且未公证，Windows 未使用 Authenticode，Linux 未进行发行版签名。请只从本仓库 Release 下载并核对 SHA-256。
+## 链上逻辑 / On-chain model
 
-Public installers are not commercially code-signed: macOS is ad-hoc signed and not notarized, Windows is not Authenticode-signed, and Linux is not distribution-signed. Download only from this repository and verify SHA-256.
+### KAS
 
-## v0.2.9 一览 / At a glance
+1. 部署控制 Covenant UTXO，并固定拥有者、继承人、比例与未签到期限。
+2. `checkIn` 要求拥有者签名，只允许一个同脚本、同 Covenant ID 的延续输出。
+3. `recover` 要求拥有者签名，扣除明确手续费后取回余额。
+4. `inherit` 只有在 `this.age >= inactivityPeriod` 后执行，按固定基点比例守恒分配全部余额。
 
-- 默认固定官方 `kaspanet/silverscript@14dce9a5ce8769cdfbd0c8965f8764fa9c325067`，并保留三个隔离的旧版复现档案。 / The default compiler is pinned to official `14dce9a`, with three isolated historical profiles retained for reproducibility.
-- 新增 KCC20 安全初筛、TN10 原子多 Covenant 构建界面，以及 KCC721 HTTPS 图片 SHA-256 完整性规则。 / Adds KCC20 security triage, a real TN10 atomic multi-Covenant builder UI, and KCC721 HTTPS image-integrity checks.
-- 原子构建结果进入只读操作包审查，再由各授权钱包跨设备分别签名；不会静默签名或广播。 / Atomic builds enter read-only package review before separate authorized wallets sign across devices; Studio never silently signs or broadcasts.
-- x402 alpha.10 与社区 fusion 交易仍是研究档案，不会伪装成可部署模板。 / x402 alpha.10 and the community fusion transaction remain research evidence, not deployable built-in templates.
-- `45/45` 项自动化测试与 macOS、Windows、Linux 原生发布构建均已通过。 / All `45/45` automated tests and native macOS, Windows, and Linux release builds passed.
+1. Deploy a controller Covenant UTXO that fixes the owner, inheritors, shares, and inactivity period.
+2. `checkIn` requires the owner signature and permits exactly one same-script, same-Covenant-ID continuation.
+3. `recover` requires the owner signature and returns the balance minus the explicit fee.
+4. `inherit` executes only when `this.age >= inactivityPeriod` and conserves the distributable balance across fixed basis-point shares.
 
-### 功能预览 / Screenshots
+### KCC20（TN10 实验）/ KCC20 (TN10 experimental)
 
-| 0.2.9 功能入口 / Visible workflows | 原子多 Covenant 构建器 / Atomic builder |
-|---|---|
-| ![Studio 0.2.9 visible workflows](docs/images/v0.2.9/new-features-overview.png) | ![Atomic multi-Covenant builder](docs/images/v0.2.9/atomic-covenant-builder.png) |
+KCC20 使用两个协同 Covenant：Kas Will 控制器位于输入 `0`，Token 位于输入 `1`。控制器固定 Token Covenant ID 和模板哈希，并用 `readInputStateWithTemplate` / `validateOutputStateWithInputTemplate` 验证外部 Token 状态。
 
-| 固定编译器档案 / Pinned compiler profiles | KCC721 图片完整性 / KCC721 image integrity |
-|---|---|
-| ![Pinned SilverScript compiler profiles](docs/images/v0.2.9/pinned-compiler-profiles.png) | ![KCC721 image integrity workflow](docs/images/v0.2.9/kcc721-image-integrity.png) |
+- 入金：当前拥有者签署 KCC20 leader transition，把 `ownerIdentifier` 改为 Kas Will 控制器 Covenant ID。
+- 取回：控制器和 Token 原子共同花费；拥有者签名，Token 状态恢复为拥有者公钥。
+- 继承：成熟控制器和 Token 原子共同花费；Token 数量与 KAS value 按同一固定比例拆分。
+- 永远拒绝 `isMinter = true` 的 UTXO。
+- 状态布局固定为 `ownerIdentifier: byte[32]`、`identifierType: byte`、`amount: int`、`isMinter: bool`。
 
----
+KCC20 uses two cooperating covenants: the Kas Will controller at input `0` and the token at input `1`. The controller commits to the token Covenant ID and template hash, then validates foreign state with `readInputStateWithTemplate` and `validateOutputStateWithInputTemplate`.
 
-## 中文说明
+- Funding: the current owner signs a KCC20 leader transition that changes `ownerIdentifier` to the controller Covenant ID.
+- Recovery: controller and token are co-spent atomically; the owner signs and the token returns to the owner's public key.
+- Inheritance: the mature controller and token are co-spent atomically; token amount and KAS value are split by fixed shares.
+- `isMinter = true` inputs are always rejected.
+- The accepted state layout is exactly `ownerIdentifier: byte[32]`, `identifierType: byte`, `amount: int`, `isMinter: bool`.
 
-### 项目定位
+操作界面需要当前 Token 的交易 ID、输出序号和 redeem program。程序会在本地验证 P2SH、Covenant ID、模板长度、模板哈希、状态编码、拥有者类型与数量。Token UTXO 必须携带足够 TKAS 支付大脚本的存储质量和手续费。
 
-Kaspa SilverScript Studio 将契约的整个本地工作流集中到一个桌面应用中：
+The operation screen requires the current token transaction ID, output index, and redeem program. Kas Will locally verifies P2SH, Covenant ID, template lengths, template hash, state encoding, ownership type, and amount. The token UTXO must carry enough TKAS for the large script's storage mass and fee.
 
-1. 从确定性模板创建契约，或让 AI 生成候选规范和源码。
-2. 使用固定版本的官方 `silverc` 完整编译 `.sil`。
-3. 同时审查源码、构造参数、ABI、程序哈希和交易构建计划。
-4. 使用内置加密钱包逐笔授权签名。
-5. 在本机运行固定版本的 Kaspa 脚本引擎预检。
-6. 直接连接 Kaspa wRPC 节点查询、签名并广播。
-7. 在部署后处理领取、退款、续期、多签释放和继承分配。
+## 多设备操作包 / Multi-device operation packages
 
-AI 只负责生成候选方案和辅助审查，不能解锁钱包、签名交易或授权资产转移。模板、编译器、交易构建器和链上 Covenant 才是确定性执行边界。
+1. 构建操作包并审查 network、Covenant ID、outpoint、全部输入输出、手续费、编译器来源和操作类型。
+2. 下载 `.ssinvite`，通过可信渠道发给下一位签名者。
+3. 对方在自己的 Kas Will 中导入；应用只为与本地钱包公钥匹配的空签名槽签名。
+4. 每次签名后下载最新文件，不要并行签署旧副本。
+5. 所有槽位完成后，本地脚本引擎执行完整交易；通过后才允许广播。
 
-### 主要功能
+1. Review the package's network, Covenant IDs, outpoints, every input/output, fee, compiler provenance, and operation type.
+2. Download the `.ssinvite` and send it through a trusted channel.
+3. The next participant imports it on their own installation; only empty slots matching the local wallet public key can be signed.
+4. Download the newest file after every signature. Do not sign stale copies in parallel.
+5. Once every slot is complete, the bundled engine executes the full transaction before broadcast is enabled.
 
-- Tauri 2 桌面应用，面向 macOS、Windows 和 Linux。
-- 中英文界面；首次启动自动读取系统语言，并在系统语言既非中文也非英文时使用时区辅助判断。
-- 用户手动切换语言后，本机选择优先于自动识别。
-- 本地项目工作区，可创建、切换和删除未使用的工作。
-- 四编译器兼容档案：默认固定 `kaspanet/silverscript@14dce9a5ce8769cdfbd0c8965f8764fa9c325067`，隔离保留 Studio 0.2.8 的 `6f9e078`、Studio 0.2.7 的 `cb34aa5` 和 `2a3961c` 旧版用于复现；所有二进制都校验 SHA-256。
-- 内置破坏性变更扫描与安全迁移，覆盖 `entry`、`checkMsgSig`、`outpointTxId`、artifact `bytecode`、标量转换、声明遮蔽、`.split()` 类型、不可变循环变量和循环上限；无法安全自动迁移的语义会要求人工审查。
-- 固定 Kascov 来源提交构建的本地交易预检引擎。
-- 支持 OpenAI、Anthropic、Gemini、OpenRouter、Ollama 和 OpenAI-compatible 接口。
-- AI API Key 使用 scrypt 派生密钥和 AES-256-GCM 加密保存在本机。
-- 内置钱包支持创建、导入、余额、收款、发送、断开和逐笔签名。
-- 钱包助记词使用 AES-256-GCM + scrypt 加密，创建时只显示一次。
-- 支持 BIP39 附加密码；钱包密码和附加密码不会保存为普通偏好设置。
-- 支持 TN10 和 mainnet 自建 wRPC 节点，留空时使用公共节点发现。
-- 支持 `.ssinvite` 可携带操作包、跨设备顺序签名和外部 Covenant 交易包审查。
-- 新操作包携带 canonical v1 Covenant Descriptor，绑定 CAIP-2 网络、程序哈希、Covenant ID、ABI、状态布局和授权主体；旧包仍可读取但会标记缺少描述符。
-- 可替换 `CovenantStateSource` 会在原生 Covenant RPC、outpoint RPC 与 P2SH 地址索引之间回退，并重新验证 outpoint、Covenant ID、脚本和金额。
-- 通用 P2PK co-spend 授权只签指定普通钱包输入，并锁定整笔交易承诺；原子构建器支持 2–32 个不同 Covenant 输入、同 lineage 延续和由已核验输入授权的新 lineage 输出。
-- KCC20 安全初筛覆盖借用接收、minter leader、Token 状态不变量、KAS value 保持、预签 outpoint 失效与共同输入授权边界。
-- Kascov 是首选可视化和第二份报告来源，但不是签名、预检或广播的运行依赖。
-- 首页提供 0.2.9 功能入口；操作中心包含 TN10 原子多 Covenant JSON 构建与只读审查界面。研究档案会明确标记为不可部署。
+The package is transport, not authorization. Never trust its labels alone; Kas Will re-derives commitments from transaction data and redeem programs.
 
-### 内置模板
+## SilverScript 编译器来源 / Compiler provenance
 
-| 模板 | 主要入口 | 典型用途 |
-|---|---|---|
-| 单签金库 | 所有者释放 | 由指定钱包控制的 Covenant 资金 |
-| 超时退款 | 对手方领取、超时退款 | 托管、游戏押金、条件付款 |
-| 三选二多签 | 两位成员共同释放 | 团队金库、异地共同签署 |
-| 哈希锁退款 | 秘密领取、超时退款 | 原子交付、跨客户端秘密交换 |
-| 多继承人签到金库 | 所有者签到、所有者取回、到期分配 | 多继承人资产安排和定期续期 |
-| Merkle 一次性领取（TN10 Experimental） | Merkle 证明领取、超时退款 | 白名单领取和一次性票据 |
-| Commit / Reveal（TN10 Experimental） | Reveal 领取、超时退款 | 域隔离承诺和密封交付 |
-| Groth16 证明释放（TN10 Experimental） | ZK 证明领取 | 可验证计算结果付款；收款钱包固定 |
-| KCC721 四契约包（TN10 Experimental） | Collection、Ticket、NFT、Migration | Covenant 原生 NFT 研究；禁止普通单合约部署 |
+默认编译器固定到官方 `kaspanet/silverscript` commit：
 
-每个模板都包含：
-
-- 中英文参数表单和用例示范。
-- 确定性构造参数编码。
-- 完整编译验证。
-- 按入口划分的 transaction plan。
-- 对应的部署后反向操作构建器。
-
-模板中的示例公钥、哈希和时间参数不能直接用于部署。未替换全部示例值时，后端会拒绝构建上链草案。
-
-### 运行要求
-
-- Node.js 22 或更高版本。
-- Rust 和 Cargo，建议使用稳定版工具链。
-- Git。
-- 用于构建原生桌面包的系统工具：
-  - macOS：Xcode Command Line Tools。
-  - Windows：Visual Studio 2022 Build Tools 的 “Desktop development with C++”、Windows SDK 和 WebView2。
-  - Linux：Tauri 2 对应发行版要求的 WebKitGTK 和系统开发包。
-
-### 获取源码
-
-```bash
-git clone https://github.com/w00c00/kaspa-silverscript-studio.git
-cd kaspa-silverscript-studio
-npm ci
+```text
+023c7eed6b85038c72233a62024c5476640445e3
 ```
 
-首次运行需要在当前系统构建固定版本的两个原生工具。以下命令由 Node.js 驱动，可直接用于 macOS、Windows 和 Linux：
+当前 macOS 本地二进制 SHA-256：
 
-Kascov 预检引擎使用仓库内置的 MIT 许可源码快照和 Cargo 锁文件构建，不依赖 Kascov 网站或其历史 Git 提交继续在线。
+```text
+a3f384648424b067ecfbe76336e159410b5bf46ce7f8d4050ba3aa2577bb2fb1
+```
+
+兼容性档案保留 `14dce9a`、`6f9e078`、`cb34aa5` 和 legacy `2a3961c`，用于重现旧项目。新建遗嘱使用 `023c7ee`。破坏性变更检测覆盖动态 `.split()` 结果、固定长度强制转换、旧入口语法、旧消息签名名、outpoint 字段、名称遮蔽和循环边界。检测不能替代完整编译和对抗性交易测试。
+
+Compatibility profiles retain `14dce9a`, `6f9e078`, `cb34aa5`, and legacy `2a3961c` for reproducibility; new wills use `023c7ee`. Breaking-change checks cover dynamic `.split()` results, fixed-length casts, legacy entry syntax, message-signature names, outpoint fields, declaration shadowing, loop bounds, and related changes. Detection never replaces full compilation and adversarial transaction testing.
+
+## 本地运行 / Run locally
+
+Requirements:
+
+- Node.js 22 or newer
+- Rust stable and Cargo (desktop builds and pinned compiler rebuilds)
+- macOS: Xcode Command Line Tools
+- Windows: Microsoft C++ Build Tools and WebView2 Runtime
+- Linux: Tauri 2 system packages for your distribution (`webkit2gtk`, `libappindicator`, SSL, build tools)
 
 ```bash
+npm install
 npm run setup:silverc
 npm run setup:kascov-preflight
+npm run verify
+npm run dev
 ```
 
-然后执行完整验证：
+Web UI: `http://127.0.0.1:4321`
+Local API: `http://127.0.0.1:4320`
+
+The API binds to loopback only. State-changing requests require a random local session token.
+
+## 桌面端编译 / Desktop builds
+
+```bash
+npm install
+npm run setup:silverc
+npm run setup:kascov-preflight
+npm run desktop:prepare
+npm run desktop:build
+```
+
+Artifacts are written under `src-tauri/target/release/bundle/`.
+
+SilverScript and the preflight engine are native executables. Build release artifacts on each target OS/architecture; do not copy a macOS binary into Windows or Linux packages.
+
+## 配置 / Configuration
+
+Copy `.env.example` to `.env` only when custom node endpoints are needed.
+
+```text
+KASPA_TN10_RPC_URL=ws://your-tn10-node:port
+ENABLE_KASCOV_VERIFY=false
+ALLOW_MAINNET=false
+KAS_WILL_DATA_DIR=/custom/local/data/path
+```
+
+- Node discovery falls back to the configured Kaspa resolver when no custom TN10 RPC URL is set.
+- `ENABLE_KASCOV_VERIFY` is off by default. Local preflight remains authoritative for app gating.
+- `ALLOW_MAINNET` must remain false for this experimental release.
+- Wallet files and project records are local data. Back them up securely; never commit the data directory.
+
+## 安全边界 / Security boundaries
+
+- No mnemonic, private key, wallet password, payment secret, or API token is stored in a project, package, test fixture, skill, or documentation.
+- Wallet mnemonics are encrypted at rest; passwords go only to the loopback service for the requested operation.
+- New mnemonics are shown once. Record them offline.
+- Mainnet is fail-closed in this release.
+- KCC20 accepts only descriptor-pinned, four-field, non-minter TN10 tokens.
+- A Covenant does not wake itself up. After maturity, someone must construct and submit the inheritance transaction.
+- Deleting a local project does not revoke or spend its on-chain UTXO.
+- Legal validity, tax, succession law, device loss, coercion, compromised heirs, and long-term node availability remain outside the covenant's guarantees.
+
+## 验证 / Verification
 
 ```bash
 npm run verify
 ```
 
-### 浏览器开发模式
-
-复制本地环境配置：
-
-```bash
-cp .env.example .env.local
-```
-
-启动前后端开发服务：
-
-```bash
-npm run dev
-```
-
-或者使用已经构建的前端：
-
-```bash
-npm start
-```
-
-打开 <http://127.0.0.1:4310>。
-
-后端只应监听本机回环地址。不要把 Studio 的本地 API 直接暴露到公网。
-
-### 桌面开发与打包
-
-启动 Tauri 开发模式：
-
-```bash
-npm run desktop:dev
-```
-
-为当前系统构建桌面安装包：
-
-```bash
-npm run desktop:build
-```
-
-构建会打包：
-
-- 前端静态资源。
-- 本地 Node.js sidecar。
-- 固定版本 `silverc`。
-- 固定版本本地预检引擎。
-- Kaspa WASM、契约模板、知识库和第三方许可证。
-
-原生安装包必须在对应系统上构建和测试，macOS、Windows 和 Linux 的二进制不能互相替代。发布流程在原生 GitHub Runner 上分别生成 macOS Apple Silicon DMG、Windows x64 NSIS/MSI，以及 Linux x86_64 DEB/AppImage，并附带 SHA-256 校验文件。macOS 包必须使用已签名 sidecar 通过 V8、健康接口和模板接口测试；Windows 包必须通过安装资源启动、健康接口和模板接口测试。
-
-公开包目前没有商业代码签名：macOS 使用 ad-hoc 签名且未公证，Windows 未进行 Authenticode 签名，Linux 未进行发行版签名。首次启动可能出现系统安全提示；请只从本仓库 Release 下载并核对 SHA-256。
-
-### 自动语言识别
-
-首次启动且用户尚未手动选择语言时：
-
-1. 系统首选语言为中文时使用中文。
-2. 系统首选语言为英文时使用英文。
-3. 系统语言为其他语言时，中国大陆、香港、澳门和台湾时区使用中文。
-4. 其他情况使用英文。
-
-顶部语言按钮可以随时切换。手动选择保存在本机，并在以后启动时优先使用。
-
-### AI 配置
-
-在应用设置中选择服务商、模型和接口地址，输入 API Key，并设置至少 10 位的保险库主密码。
-
-- API Key 只写入本机加密保险库。
-- 保险库主密码不会保存。
-- 已保存的 API Key 不会返回给前端界面。
-- 自动锁定后，解密后的 Key 会从运行时状态移除。
-- 自定义远程接口必须使用 HTTPS；只有本机回环地址允许 HTTP。
-
-也可以使用环境变量进行开发或无人值守迁移：
-
-```dotenv
-OPENAI_API_KEY=
-OPENAI_MODEL=
-
-ANTHROPIC_API_KEY=
-ANTHROPIC_MODEL=
-
-GEMINI_API_KEY=
-GEMINI_MODEL=
-
-OPENROUTER_API_KEY=
-OPENROUTER_MODEL=
-
-OLLAMA_BASE_URL=http://127.0.0.1:11434
-OLLAMA_MODEL=
-```
-
-### 钱包与签名
-
-内置钱包提供：
-
-- 创建钱包并强制确认一次性助记词备份。
-- 导入 BIP39 助记词和可选附加密码。
-- 复制完整地址、显示收款信息和查询节点余额。
-- 发送前显示收款地址、金额、显式手续费和交易承诺。
-- 每笔签名重新输入密码。
-- 签名后核对交易没有偏离用户批准的草案。
-- 广播前执行本地脚本引擎预检。
-
-本地加密不能抵御已经控制当前系统账户的恶意软件。高价值资金应使用独立、硬件或隔离签名器。
-
-### 多设备与外部签名
-
-多签或异地签名时，必须顺序传递同一个最新 `.ssinvite` 文件：
-
-1. 第一位签名人导入并检查完整交易。
-2. 核对网络、Covenant ID、程序哈希、交易承诺、手续费和全部输出。
-3. 完成自己的签名槽位。
-4. 将更新后的部分签名包发送给下一位签名人。
-
-不能让多位签名人分别签署两个初始副本。建议通过另一条可信通信渠道比对交易承诺。
-
-仅有 Covenant ID 或 cov hash 不足以签名。外部操作包必须携带待签交易、UTXO、redeem program、ABI、入口、参数、输出和签名槽信息。详见 [可携带 Covenant 操作包](docs/portable-covenant-package.md)。
-
-编译器升级、状态查询与原子授权接口见 [Studio 0.2 架构说明](docs/studio-0.2-architecture.md)。KCC721 包的来源、边界和禁止事项见 [TN10 Experimental KCC721](docs/kcc721-experimental.md)。社区跨 Covenant 交易证据与新 lineage 构建格式见 [TN10 跨 Covenant Fusion 说明](docs/tn10-cross-covenant-fusion.md)。
-Kaspa x402 的网络标识、操作包映射和正式模板准入条件见 [TN10 Experimental x402 档案](docs/x402-experimental-profile.md)。
-
-### 网络
-
-| Studio | Kaspa network ID | 地址前缀 | Kascov |
-|---|---|---|---|
-| `tn10` | `testnet-10` | `kaspatest:` | `testnet-10` |
-| `mainnet` | `mainnet` | `kaspa:` | `mainnet` |
-
-余额、UTXO、Covenant 定位和交易广播都通过所选 Kaspa 节点完成，不依赖区块浏览器。
-
-主网默认 fail-closed。即使设置 `ALLOW_MAINNET=true`，仍受 `MAINNET_MAX_DEPLOY_KAS` 限制，并要求在界面输入 `DEPLOY REAL KAS`。这些保护措施不能替代审计。
-
-### 独立运行与 Kascov
-
-核心契约操作不依赖任何网站：
-
-- 本地编译使用固定官方 `silverc`。
-- 本地预检使用打包的 Kaspa 脚本引擎。
-- 查询和广播直接连接 Kaspa wRPC 节点。
-- Kascov 不可用时仍保留 txid，并可继续完成节点广播。
-
-Kascov 仍是推荐的可视化查看和补充报告入口，但不会改变签名内容，也没有钱包授权能力。
-
-### 验证
-
-```bash
-npm run check
-npm test
-npm run build
-```
-
-`npm run verify` 会依次执行以上检查。测试覆盖模板完整编译、AI 保险库、本地钱包、网络隔离、交易构建、可携带签名包、部署后操作和 Kascov 离线时的真实签名脚本执行。
-
-### 安全边界
-
-- AI 输出始终是候选方案，不能授权资产。
-- AST 解析不算成功编译，必须执行固定编译器完整构建。
-- 编译成功、本地预检和 Kascov 报告都不是正式审计。
-- 修改源码或构造参数会使旧编译凭证失效。
-- 签名前必须检查金额、手续费、网络、Covenant 身份和全部输出。
-- 本地预检二进制缺失或 SHA-256 不匹配时，交易操作 fail closed。
-- 主网代码在独立审查前应视为实验性代码。
-
----
-
-## English
-
-### What it is
-
-Kaspa SilverScript Studio brings the complete local covenant workflow into one desktop application:
-
-1. Start from a deterministic template or ask AI for a candidate specification and source.
-2. Fully compile `.sil` with a pinned official `silverc`.
-3. Review source, constructor arguments, ABI, program hashes, and transaction plans together.
-4. Authorize each signature with the encrypted local wallet.
-5. Run every transaction through a pinned local Kaspa script-engine preflight.
-6. Query and broadcast directly through a Kaspa wRPC node.
-7. Operate deployed covenants through claim, refund, renewal, multisig, and inheritance paths.
-
-AI is limited to candidate generation and review assistance. It cannot unlock wallets, sign transactions, or authorize asset transfers. Templates, compiler artifacts, transaction builders, and the on-chain covenant remain the deterministic execution boundary.
-
-### Highlights
-
-- Tauri 2 desktop application for macOS, Windows, and Linux.
-- Chinese and English UI with automatic system-language detection and time-zone fallback.
-- A manual language choice always overrides future automatic detection.
-- Local project workspace with explicit create, switch, and delete actions.
-- Four isolated compiler profiles: the default is pinned to `kaspanet/silverscript@14dce9a5ce8769cdfbd0c8965f8764fa9c325067`; Studio 0.2.8's `6f9e078`, Studio 0.2.7's `cb34aa5`, and legacy `2a3961c` remain reproducible, with SHA-256 verification for every binary.
-- Built-in breaking-change detection and safe migration cover `entry`, `checkMsgSig`, `outpointTxId`, artifact `bytecode`, scalar conversions, declaration shadowing, `.split()` typing, immutable loop iterators, and bounded-loop limits; ambiguous semantic changes require manual review.
-- Pinned Kascov-derived local transaction preflight engine.
-- OpenAI, Anthropic, Gemini, OpenRouter, Ollama, and OpenAI-compatible providers.
-- AES-256-GCM encrypted AI key vault with a scrypt-derived key.
-- Encrypted local wallet with create, import, balance, receive, send, disconnect, and per-transaction signing.
-- One-time mnemonic display and optional BIP39 passphrase support.
-- Direct TN10 and mainnet self-hosted wRPC endpoints with public-node discovery fallback.
-- Portable `.ssinvite` operation packages, sequential cross-device signing, and external covenant-package review.
-- Canonical v1 covenant descriptors bind each new package to its CAIP-2 network, program hash, covenant ID, ABI, state layout, and authorization principals; legacy packages remain readable with a visible missing-descriptor warning.
-- Replaceable `CovenantStateSource` fallback across native covenant RPC, outpoint RPC, and P2SH address indexing, with independent outpoint, covenant ID, script, and value verification.
-- Generic isolated P2PK co-spend authorization plus an atomic builder for 2–32 distinct Covenant inputs, same-lineage continuations, and fresh lineages authorized by verified input Covenant IDs.
-- KCC20 security triage covers borrowed receive, minter leaders, token-state invariants, KAS-value preservation, pre-signed outpoint invalidation, and co-spend consent boundaries.
-- Kascov is the preferred visual and secondary-report layer, not a signing, preflight, or broadcast dependency.
-- The home screen exposes the 0.2.9 workflows, and the Operation Center includes a TN10 atomic multi-Covenant JSON builder with read-only package review. Research profiles are visibly marked non-deployable.
-
-### Built-in templates
-
-| Template | Main paths | Typical use |
-|---|---|---|
-| Owner vault | Owner release | Funds controlled by one covenant-authorized wallet |
-| Timeout refund | Counterparty claim, timeout refund | Escrow, game deposits, conditional payment |
-| Two-of-three multisig | Any authorized pair releases | Team treasury and remote co-signing |
-| Hashlock refund | Secret claim, timeout refund | Atomic delivery and cross-client secret exchange |
-| Multi-inheritor check-in vault | Owner check-in, owner recovery, mature distribution | Inheritance planning with periodic renewal |
-| Merkle one-time claim (TN10 Experimental) | Merkle proof claim, timeout refund | Allowlists and single-use tickets |
-| Commit / reveal (TN10 Experimental) | Reveal claim, timeout refund | Domain-separated commitments and sealed delivery |
-| Groth16 proof release (TN10 Experimental) | ZK proof claim | Verifiable-computation payment to a fixed recipient |
-| Four-contract KCC721 pack (TN10 Experimental) | Collection, Ticket, NFT, Migration | Covenant-native NFT research; standalone deployment is blocked |
-
-Every template includes bilingual parameter forms and examples, deterministic constructor encoding, full compile verification, per-entrypoint transaction plans, and matching post-deployment builders.
-
-Example public keys, hashes, and time values are not deployment values. The backend refuses to build an on-chain draft until all required examples are replaced.
-
-### Requirements
-
-- Node.js 22 or later.
-- Rust and Cargo, preferably the stable toolchain.
-- Git.
-- Platform build dependencies:
-  - macOS: Xcode Command Line Tools.
-  - Windows: Visual Studio 2022 Build Tools with “Desktop development with C++,” Windows SDK, and WebView2.
-  - Linux: the WebKitGTK and system development packages required by Tauri 2 for the target distribution.
-
-### Install from source
-
-```bash
-git clone https://github.com/w00c00/kaspa-silverscript-studio.git
-cd kaspa-silverscript-studio
-npm ci
-```
-
-Build the two pinned native tools for the current platform. These Node.js-driven commands run directly on macOS, Windows, and Linux:
-
-The Kascov preflight helper builds from the committed MIT-licensed source snapshot and Cargo lockfile, so it does not depend on the Kascov website or a historical upstream Git commit remaining online.
-
-```bash
-npm run setup:silverc
-npm run setup:kascov-preflight
-```
-
-Run the complete verification suite:
-
-```bash
-npm run verify
-```
-
-### Browser development
-
-```bash
-cp .env.example .env.local
-npm run dev
-```
-
-For the built frontend:
-
-```bash
-npm start
-```
-
-Open <http://127.0.0.1:4310>.
-
-The backend is intended for the local loopback interface only. Do not expose the Studio API directly to the public internet.
-
-### Desktop development and packaging
-
-```bash
-npm run desktop:dev
-npm run desktop:build
-```
-
-The desktop bundle contains the frontend, local Node.js sidecar, pinned `silverc`, pinned local preflight engine, Kaspa WASM, templates, knowledge resources, and third-party license notices.
-
-Native installers must be built and tested on their target operating systems; macOS, Windows, and Linux binaries are not interchangeable. The release pipeline produces a macOS Apple Silicon DMG, Windows x64 NSIS/MSI packages, and Linux x86_64 DEB/AppImage packages on native GitHub Runners, with SHA-256 checksum files. The macOS package must pass signed-sidecar V8, health-endpoint, and template-endpoint tests; the Windows package must pass packaged-resource startup, health-endpoint, and template-endpoint tests.
-
-The public packages are not commercially code-signed: macOS is ad-hoc signed and not notarized, Windows is not Authenticode-signed, and Linux is not distribution-signed. The operating system may show a warning on first launch. Download only from this repository's Releases and verify the SHA-256 checksum.
-
-### Automatic language selection
-
-When no manual preference exists:
-
-1. A Chinese primary system language selects Chinese.
-2. An English primary system language selects English.
-3. For other system languages, mainland China, Hong Kong, Macau, and Taiwan time zones select Chinese.
-4. All other cases select English.
-
-The language button switches at any time. A manual choice is saved locally and takes priority on later launches.
-
-### AI configuration
-
-Configure the provider, model, endpoint, API key, and a vault password of at least 10 characters inside the application.
-
-- API keys are stored only in the local encrypted vault.
-- The vault password is never stored.
-- Saved API keys are never returned to the frontend.
-- Auto-lock removes decrypted keys from runtime state.
-- Custom remote endpoints require HTTPS; HTTP is limited to loopback hosts.
-
-Environment variables remain available for development and unattended migration:
-
-```dotenv
-OPENAI_API_KEY=
-OPENAI_MODEL=
-
-ANTHROPIC_API_KEY=
-ANTHROPIC_MODEL=
-
-GEMINI_API_KEY=
-GEMINI_MODEL=
-
-OPENROUTER_API_KEY=
-OPENROUTER_MODEL=
-
-OLLAMA_BASE_URL=http://127.0.0.1:11434
-OLLAMA_MODEL=
-```
-
-### Wallet and signing
-
-The built-in wallet supports:
-
-- Wallet creation with a mandatory one-time mnemonic acknowledgement.
-- BIP39 mnemonic import and optional passphrase.
-- Full address copy, receive details, and node-RPC balance.
-- Transfer review with recipient, amount, explicit fee, and transaction commitment.
-- Fresh password entry for every signature.
-- Post-signature verification that the approved draft was not changed.
-- Local script-engine preflight before broadcast.
-
-Local encryption cannot protect against malware that already controls the current operating-system account. Use a hardware or isolated signer for high-value funds.
-
-### Multi-device and external signing
-
-For multisig and remote signing, pass the same latest `.ssinvite` package sequentially:
-
-1. The first signer imports and reviews the complete transaction.
-2. They verify the network, covenant ID, program hash, commitment, fee, and every output.
-3. They fill their authorized signature slot.
-4. They pass the updated partial package to the next signer.
-
-Never have multiple signers sign separate initial copies. Compare the transaction commitment over a second trusted channel.
-
-A covenant ID or cov hash alone is not a signing request. An external package must include the exact transaction, UTXOs, redeem program, ABI, entrypoint, arguments, outputs, and signature slots. See [Portable covenant packages](docs/portable-covenant-package.md).
-
-See [Studio 0.2 architecture](docs/studio-0.2-architecture.md) for compiler upgrades, state sources, P2PK authorization, and atomic transaction APIs. See [TN10 Experimental KCC721](docs/kcc721-experimental.md) for provenance, boundaries, and prohibited release claims. See [TN10 cross-Covenant fusion](docs/tn10-cross-covenant-fusion.md) for community transaction evidence and the fresh-lineage build format.
-See the [TN10 Experimental x402 profile](docs/x402-experimental-profile.md) for network identifiers, operation-package mapping, and executable-template admission gates.
-
-### Networks
-
-| Studio | Kaspa network ID | Address prefix | Kascov |
-|---|---|---|---|
-| `tn10` | `testnet-10` | `kaspatest:` | `testnet-10` |
-| `mainnet` | `mainnet` | `kaspa:` | `mainnet` |
-
-Balance, UTXO discovery, covenant lookup, and broadcast use the selected Kaspa node without requiring a block explorer.
-
-Mainnet is fail-closed. Even with `ALLOW_MAINNET=true`, `MAINNET_MAX_DEPLOY_KAS` remains enforced and the UI requires `DEPLOY REAL KAS`. These controls do not replace an audit.
-
-### Independent operation and Kascov
-
-Core covenant operation does not depend on any website:
-
-- Compilation uses the pinned official `silverc`.
-- Preflight uses the bundled Kaspa script engine.
-- Queries and broadcasts connect directly to Kaspa wRPC.
-- If Kascov is unavailable, Studio preserves the txid and can still complete node broadcast.
-
-Kascov remains the recommended visual inspection and supplementary-report layer. It cannot modify signing content or authorize the wallet.
-
-### Verification
-
-```bash
-npm run check
-npm test
-npm run build
-```
-
-`npm run verify` runs all three. Tests cover full template compilation, the AI vault, encrypted wallets, network isolation, transaction builders, portable signing packages, post-deployment operations, and real signed-input execution while Kascov is offline.
-
-### Security boundaries
-
-- AI output is always a candidate and never authorizes assets.
-- AST parsing is not compilation; a pinned full build is mandatory.
-- Compilation, local preflight, and Kascov reports are not formal audits.
-- Source or constructor changes invalidate previous build evidence.
-- Review amount, fee, network, covenant identity, and every output before signing.
-- Transaction operation fails closed if the local preflight binary is absent or its SHA-256 does not match.
-- Treat mainnet code as experimental until it completes independent review.
+The suite covers deterministic template compilation, compiler provenance, KAS renewal/recovery/mature distribution, KCC20 template binding, KCC20 funding through `sig[]`, atomic KCC20 mature distribution, real local script-engine execution, package signing, fee/mass checks, wallet encryption, wrong-network rejection, and stale-workspace cleanup.
 
 ## License
 
-Kaspa SilverScript Studio is released under the [MIT License](LICENSE).
-
-The bundled local preflight engine reuses Kascov under MIT and rusty-kaspa under ISC. Corresponding license texts are included in `third_party`.
+MIT
