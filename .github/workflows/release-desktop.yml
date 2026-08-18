@@ -243,7 +243,7 @@ jobs:
           path: release-assets
           merge-multiple: true
 
-      - name: Create release and upload native packages
+      - name: Create or refresh release and upload native packages
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -253,9 +253,14 @@ jobs:
           else
             notes_args=(--generate-notes)
           fi
-          gh release create "$GITHUB_REF_NAME" release-assets/* \
-            --repo "$GITHUB_REPOSITORY" \
-            --verify-tag \
-            --latest \
-            --title "Kas Will ${GITHUB_REF_NAME}" \
-            "${notes_args[@]}"
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" release-assets/* --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --latest --title "Kas Will ${GITHUB_REF_NAME}" "${notes_args[@]}"
+          else
+            gh release create "$GITHUB_REF_NAME" release-assets/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --verify-tag \
+              --latest \
+              --title "Kas Will ${GITHUB_REF_NAME}" \
+              "${notes_args[@]}"
+          fi

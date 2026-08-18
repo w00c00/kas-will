@@ -2,9 +2,9 @@
 
 **Kaspa 本地优先的链上遗产继承桌面应用 / A local-first Kaspa inheritance desktop app**
 
-Kas Will 从 SilverScript Studio 的继承模块独立出来，内置本地加密钱包、固定版本 SilverScript 编译器、Kaspa 脚本引擎预检和可移植操作包。应用不依赖任何网站：只要能连接 Kaspa 节点，就可以创建钱包、编译契约、签到、构建交易、跨设备签名和广播。
+Kas Will 从 SilverScript Studio 的继承模块独立出来，内置本地加密钱包、固定版本 SilverScript 编译器、Kaspa 脚本引擎预检和可移植遗嘱操作包。应用不依赖任何网站：只要能连接 Kaspa 节点，就可以创建钱包、编译契约、签到、跨设备导入遗嘱、构建交易和广播。
 
-Kas Will is a focused extraction of the inheritance workflow from SilverScript Studio. It bundles an encrypted local wallet, pinned SilverScript compiler, local Kaspa script-engine preflight, and portable operation packages. No website is required: with access to a Kaspa node, it can create wallets, compile covenants, check in, build transactions, collect signatures across devices, and broadcast.
+Kas Will is a focused extraction of the inheritance workflow from SilverScript Studio. It bundles an encrypted local wallet, pinned SilverScript compiler, local Kaspa script-engine preflight, and portable will packages. No website is required: with access to a Kaspa node, it can create wallets, compile covenants, import a will on another device, check in, build transactions, and broadcast.
 
 > 当前版本 `0.1.0` 仅用于 **TN10 实验测试**。主网签名与广播默认关闭。它是技术工具，不替代法律遗嘱、律师意见、密钥备份或独立安全审计。
 >
@@ -17,7 +17,9 @@ Kas Will is a focused extraction of the inheritance workflow from SilverScript S
 - 拥有者取回：由拥有者签名取回。
 - 到期继承：期限成熟后，任何人可触发，但收款钱包与比例由契约固定。
 - KCC20 全生命周期：转入遗嘱、签到、拥有者原子取回、到期原子拆分。
-- `.ssinvite` 操作包：在不同电脑上审查、签署并传给下一位参与者，不需要协调网站。
+- 每份遗嘱单独导出的 `.ssinvite`：其它电脑导入时重新核对固定模板、编译器、程序哈希与部署身份，并按当前钱包自动识别建立人、继承人或其它触发者。
+- 简化的签到与提取页：建立人可签到或取回；其它钱包只能在到期后触发提取，资金仍严格发送到契约固定的继承地址。
+- 部署结果弹窗会自动刷新 Kascov 收录状态并提供交易与 Covenant 链接；Kascov 不可用时不影响本地节点操作。
 - 本地加密钱包：创建或导入助记词、复制地址、查询余额和断开连接；新助记词只显示一次。
 - 中英文界面：按系统语言和时区自动选择，也可手动切换。
 - 本地脚本引擎：签名或广播前在本机执行交易；Kascov 仅作为可选的辅助可视化验证。
@@ -29,7 +31,9 @@ Kas Will is a focused extraction of the inheritance workflow from SilverScript S
 - Owner recovery remains signature-gated.
 - Mature distribution is permissionless to trigger, while recipients and shares remain covenant-bound.
 - Full KCC20 lifecycle: fund, check in, atomically recover, and atomically split after maturity.
-- Portable `.ssinvite` files support review and signing on separate computers without a coordination website.
+- Each will has its own `.ssinvite` export. Another installation reproduces the pinned template, compiler, program hash, and deployment identity before classifying the connected wallet as creator, inheritor, or another trigger.
+- The simplified Check in & claim page lets the creator check in or recover; every other wallet can only trigger mature distribution to the covenant-fixed inheritor addresses.
+- Deployment dialogs automatically refresh Kascov indexing evidence and link to the transaction and Covenant; Kascov availability never gates local node operation.
 - Encrypted local wallet with create/import, address copy, balance, and disconnect flows; a new mnemonic is shown once.
 - Automatic Chinese/English selection from system locale and time zone, plus a manual switch.
 - Bundled local Kaspa script execution before broadcast; Kascov remains optional visualization only.
@@ -72,21 +76,21 @@ KCC20 uses two cooperating covenants: the Kas Will controller at input `0` and t
 
 The operation screen requires the current token transaction ID, output index, and redeem program. Kas Will locally verifies P2SH, Covenant ID, template lengths, template hash, state encoding, ownership type, and amount. The token UTXO must carry enough TKAS for the large script's storage mass and fee.
 
-## 多设备操作包 / Multi-device operation packages
+## 跨设备遗嘱操作包 / Cross-device will packages
 
-1. 构建操作包并审查 network、Covenant ID、outpoint、全部输入输出、手续费、编译器来源和操作类型。
-2. 下载 `.ssinvite`，通过可信渠道发给下一位签名者。
-3. 对方在自己的 Kas Will 中导入；应用只为与本地钱包公钥匹配的空签名槽签名。
-4. 每次签名后下载最新文件，不要并行签署旧副本。
-5. 所有槽位完成后，本地脚本引擎执行完整交易；通过后才允许广播。
+1. 在首页的每份遗嘱卡片或“签到与提取”页导出该遗嘱自己的 `.ssinvite`。
+2. 通过可信渠道把文件交给需要签到、取回或到期触发提取的电脑。
+3. 导入时 Kas Will 验证包承诺，并用固定 SilverScript 编译器重新编译确定性模板；源码、参数、程序哈希或部署身份不一致都会拒绝。
+4. 导入后直接停留在“签到与提取”页。建立人钱包看到签到和取回；继承人或其它钱包只在成熟后看到提取。
+5. 每次操作仍会展示 network、Covenant ID、outpoint、全部输入输出、手续费和签名状态，并经本地脚本引擎预检后才允许广播。
 
-1. Review the package's network, Covenant IDs, outpoints, every input/output, fee, compiler provenance, and operation type.
-2. Download the `.ssinvite` and send it through a trusted channel.
-3. The next participant imports it on their own installation; only empty slots matching the local wallet public key can be signed.
-4. Download the newest file after every signature. Do not sign stale copies in parallel.
-5. Once every slot is complete, the bundled engine executes the full transaction before broadcast is enabled.
+1. Export the will-specific `.ssinvite` from its overview card or the Check in & claim page.
+2. Transfer it through a trusted channel to the computer that will check in, recover, or trigger mature distribution.
+3. On import, Kas Will verifies the package commitment and recompiles the deterministic template with the pinned compiler. Any source, parameter, program-hash, or deployment-identity mismatch is rejected.
+4. Import stays on the Check in & claim page. The creator wallet sees check-in and recovery; inheritors and other wallets see only mature distribution.
+5. Each operation still exposes the network, Covenant ID, outpoint, all inputs and outputs, fee, and signature state, and must pass the bundled script engine before broadcast.
 
-The package is transport, not authorization. Never trust its labels alone; Kas Will re-derives commitments from transaction data and redeem programs.
+The file is transport, not proof of who sent it. Wallet identity and transaction authority are derived locally from the deterministic contract parameters and the connected wallet.
 
 ## SilverScript 编译器来源 / Compiler provenance
 

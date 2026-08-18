@@ -14,12 +14,11 @@
         <button class="nav active" data-page="home"><span>⌂</span><b data-i18n="navHome">概览</b></button>
         <button class="nav" data-page="create"><span>＋</span><b data-i18n="navCreate">创建遗嘱</b></button>
         <button class="nav" data-page="operate"><span>↻</span><b data-i18n="navOperate">签到与提取</b></button>
-        <button class="nav" data-page="packages"><span>⇄</span><b data-i18n="navPackages">多人操作包</b></button>
         <button class="nav" data-page="wallet"><span>◇</span><b data-i18n="navWallet">本地钱包</b></button>
         <button class="nav" data-page="settings"><span>⚙</span><b data-i18n="navSettings">节点设置</b></button>
       </nav>
       <div class="offline-card"><span class="pulse"></span><div><strong data-i18n="offlineTitle">本地优先</strong><small data-i18n="offlineText">不依赖网站；直连 Kaspa 节点</small></div></div>
-      <div class="sidebar-foot"><span id="compiler-pill">023c7ee · TN10</span><button id="lang-toggle">EN</button></div>
+      <div class="sidebar-foot"><div><strong id="app-version">Kas Will v0.1.0</strong><span id="compiler-pill">023c7ee · TN10</span></div><button id="lang-toggle">EN</button></div>
     </aside>
 
     <main>
@@ -30,7 +29,7 @@
 
       <section class="page active" id="page-home">
         <div class="hero">
-          <div class="hero-copy"><span class="hero-kicker">KASPA · SILVERSCRIPT · LOCAL FIRST</span><h2 data-i18n="heroTitle">定期签到。超时后，规则自动把资产交给你指定的人。</h2><p data-i18n="heroText">钱包、契约编译、交易预检和操作包都在本机完成。应用只需要能连接 Kaspa 节点，不依赖任何网站继续运行。</p><div class="hero-actions"><button class="primary" data-page-link="create" data-i18n="createFirst">创建第一个遗嘱</button><button class="ghost" data-page-link="packages" data-i18n="openPackage">打开操作包</button></div></div>
+          <div class="hero-copy"><span class="hero-kicker">KASPA · SILVERSCRIPT · LOCAL FIRST</span><h2 data-i18n="heroTitle">定期签到。超时后，规则自动把资产交给你指定的人。</h2><p data-i18n="heroText">钱包、契约编译、交易预检和操作包都在本机完成。应用只需要能连接 Kaspa 节点，不依赖任何网站继续运行。</p><div class="hero-actions"><button class="primary" data-page-link="create" data-i18n="createFirst">创建第一个遗嘱</button><button class="ghost" data-page-link="operate" data-i18n="openPackage">导入遗嘱操作包</button></div></div>
           <div class="orbit"><div class="orbit-ring one"></div><div class="orbit-ring two"></div><div class="orbit-core"><span>KAS</span><b>WILL</b></div><i class="heir h1">01</i><i class="heir h2">02</i><i class="heir h3">03</i></div>
         </div>
         <div class="metric-grid"><article><span data-i18n="metricWills">本机遗嘱</span><strong id="metric-wills">0</strong><small data-i18n="metricWillsSub">加密存储在本机</small></article><article><span data-i18n="metricActive">链上活动</span><strong id="metric-active">0</strong><small data-i18n="metricActiveSub">等待签到或到期</small></article><article><span data-i18n="metricAssets">资产模式</span><strong>KAS + KCC20</strong><small data-i18n="metricAssetsSub">KCC20 当前仅限 TN10 实验</small></article></div>
@@ -63,13 +62,13 @@
 
       <section class="page" id="page-operate">
         <div class="section-head"><div><span class="eyebrow">LIFECYCLE</span><h2 data-i18n="operateTitle">签到、取回与到期分配</h2></div><select id="operate-project"></select></div>
+        <div class="panel portable-panel">
+          <div><span class="eyebrow">PORTABLE WILL</span><h3 data-i18n="portableTitle">导入或导出遗嘱操作包</h3><p data-i18n="portableHelp">在其它电脑导入后，会先重新验证固定模板、编译器和哈希，再按已连接钱包自动显示可用操作。</p></div>
+          <div class="portable-actions"><input type="file" id="will-package-file" accept=".ssinvite,.json" /><button class="ghost" id="export-active-will" disabled data-i18n="exportSelected">导出所选遗嘱</button></div>
+          <div id="wallet-role" class="role-banner" data-i18n="roleEmpty">选择或导入遗嘱后识别当前钱包身份。</div>
+        </div>
         <div id="lifecycle-card" class="panel lifecycle-card"><div class="empty" data-i18n="selectPlan">选择一个已部署遗嘱查看链上状态。</div></div>
-        <div id="operation-review" class="panel review-panel" hidden></div>
-      </section>
-
-      <section class="page" id="page-packages">
-        <div class="section-head"><div><span class="eyebrow">PORTABLE AUTHORIZATION</span><h2 data-i18n="packagesTitle">跨设备多人操作包</h2></div><span class="local-tag" data-i18n="noServer">无需协调服务器</span></div>
-        <div class="package-grid"><div class="panel"><h3 data-i18n="packageImport">导入 .ssinvite</h3><p data-i18n="packageImportHelp">每位参与者在自己的电脑审查同一个最新文件，签署匹配槽位后再传给下一位。</p><input type="file" id="package-file" accept=".ssinvite,.json" /><textarea id="package-json" rows="12" placeholder="{ ... }"></textarea><div class="button-row"><button class="ghost" id="inspect-package" data-i18n="inspect">只读审查</button><button class="primary" id="sign-package" data-i18n="sign">签署我的槽位</button></div></div><div class="panel"><h3 data-i18n="packageReview">交易审查</h3><div id="package-review" class="empty" data-i18n="packageEmpty">导入后会显示网络、Covenant ID、输入、输出、手续费和签名状态。</div><div class="button-row"><button class="ghost" id="download-package" disabled data-i18n="download">下载最新操作包</button><button class="danger" id="broadcast-package" disabled data-i18n="broadcast">预检并广播</button></div></div></div>
+        <div id="operation-review" class="panel review-panel" hidden><div class="panel-head"><div><span class="eyebrow">TRANSACTION REVIEW</span><h3 data-i18n="packageReview">本次操作确认</h3></div></div><div id="package-review" class="empty" data-i18n="packageEmpty">选择签到、取回或提取后，会在这里显示交易网络、Covenant ID、输入输出、手续费和签名状态。</div><div class="button-row"><button class="ghost" id="download-package" disabled data-i18n="download">导出本次交易包</button><button class="primary" id="sign-package" disabled data-i18n="sign">签署当前操作</button><button class="danger" id="broadcast-package" disabled data-i18n="broadcast">预检并广播</button></div></div>
       </section>
 
       <section class="page" id="page-wallet">
@@ -100,6 +99,7 @@
 
   <dialog id="secret-dialog"><form method="dialog" class="dialog-card"><h3 data-i18n="authorize">本地钱包授权</h3><p data-i18n="authorizeHelp">密码只发送给本机 127.0.0.1 服务，不写入项目或操作包。</p><label><span data-i18n="walletPassword">钱包密码（至少 10 位）</span><input id="sign-password" type="password" /></label><label><span data-i18n="paymentSecret">可选 Payment Secret</span><input id="sign-payment" type="password" /></label><div class="button-row"><button value="cancel" class="ghost" data-i18n="cancel">取消</button><button value="confirm" class="primary" data-i18n="confirm">确认</button></div></form></dialog>
   <dialog id="mnemonic-dialog"><form method="dialog" class="dialog-card mnemonic"><h3 data-i18n="mnemonicTitle">助记词只显示一次</h3><p data-i18n="mnemonicHelp">离线抄写并安全保存。不要截图、不要上传云盘、不要发给任何人。</p><code id="mnemonic-value"></code><label class="check"><input id="mnemonic-check" type="checkbox" /><span data-i18n="mnemonicConfirm">我已经完成离线备份</span></label><button class="primary wide" id="mnemonic-close" value="confirm" disabled data-i18n="done">完成</button></form></dialog>
+  <dialog id="result-dialog"><div class="dialog-card result-card"><div id="result-icon" class="result-icon">✓</div><h3 id="result-title"></h3><p id="result-message"></p><div id="result-details" class="result-details"></div><div id="result-actions" class="button-row"></div></div></dialog>
   <div id="toast" class="toast"></div>
   <script type="module" src="/src/main.js"></script>
 </body>

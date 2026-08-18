@@ -8,6 +8,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 dotenv.config({ path: path.join(ROOT, ".env") });
 dotenv.config({ path: path.join(ROOT, ".env.local"), override: true });
 
+export const APP_VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")).version;
+
 export const SILVERSCRIPT_COMMIT = "023c7eed6b85038c72233a62024c5476640445e3";
 export const SILVERSCRIPT_PREVIOUS_COMMIT = "14dce9a5ce8769cdfbd0c8965f8764fa9c325067";
 export const SILVERSCRIPT_OLDER_COMMIT = "6f9e078b1d8b5389212755183b592704de99fea5";
@@ -150,6 +152,7 @@ export function publicConfig() {
     local: id === "ollama"
   }]));
   return {
+    appVersion: APP_VERSION,
     networks: NETWORKS,
     defaultNetwork: "tn10",
     allowMainnet: config.allowMainnet,

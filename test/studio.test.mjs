@@ -25,13 +25,15 @@ import { buildLifecycleStatus, spentLifecycleStatus } from "../server/lifecycle-
 import { assertInheritanceDistributionOpen, assertLocalRenewalOpen, assertLocalRenewalPackage } from "../server/local-operation-authorization.mjs";
 import { detectPreferredLanguage } from "../src/locale.js";
 import { apiBaseForRuntime, isTauriRuntime } from "../src/runtime-environment.js";
-import { localCors } from "../server/security.mjs";
+import { localCors, sha256 } from "../server/security.mjs";
 import { CovenantStateSource, covenantStateProvider, verifyCovenantStateCandidate } from "../server/covenant-state-source.mjs";
 import { createP2pkCoSpendAuthorization, selectP2pkFundingUtxo, signP2pkCoSpendPackage } from "../server/p2pk-cospend.mjs";
 import { buildAtomicCovenantPackage } from "../server/atomic-covenant-builder.mjs";
 import { buildKcc20WillOperationPackage, decodeKcc20TokenState } from "../server/kcc20-will-service.mjs";
 import { canonicalKcc721Metadata } from "../src/kcc721-metadata.js";
 import { binaryRelativePath, cargoReleaseBinary, executableName } from "../scripts/platform-binaries.mjs";
+import { createPortableWillPackage, inspectPortableWillPackage } from "../server/portable-will-service.mjs";
+import { operationsForWillRole, willWalletRole } from "../src/will-access.js";
 
 const require = createRequire(import.meta.url);
 const kaspa = require("@kluster/kaspa-wasm");
@@ -87,6 +89,46 @@ test("Windows WebView private-network preflight is allowed only for local origin
 function byteArray(bytes) {
   return { kind: "array", data: Array.from(bytes, (data) => ({ kind: "byte", data })) };
 }
+
+test("portable will packages are deterministic, template-bound and tamper-evident", () => {
+  const templates = new TemplateStore();
+  const ownerAddress = randomPrivateKey().toAddress("testnet-10").toString();
+  const inheritorAddress = randomPrivateKey().toAddress("testnet-10").toString();
+  const project = templates.projectInput("inheritance-vault", "tn10", {
+    amountKas: "0.5",
+    ownerAddress,
+    inheritors: [{ address: inheritorAddress, shareBps: 10000 }],
+    inactivityDays: { value: 1, unit: "days" }
+  });
+  project.id = "portable-test";
+  project.artifact = {
+    programSha256: "11".repeat(32),
+    sourceSha256: sha256(project.source),
+    constructorArgsSha256: sha256(JSON.stringify(project.constructorArgs)),
+    compiler: { id: project.compilerProfileId, upstreamCommit: SILVERSCRIPT_COMMIT }
+  };
+  project.deployment = { txid: "22".repeat(32), covenantId: "33".repeat(32), network: "tn10", activeTxid: "22".repeat(32), activeOutputIndex: 0 };
+
+  const first = createPortableWillPackage(project, { exportedAt: "2026-08-18T00:00:00.000Z" });
+  const second = createPortableWillPackage(project, { exportedAt: "2026-08-19T00:00:00.000Z" });
+  assert.equal(first.commitment, second.commitment);
+  assert.equal(inspectPortableWillPackage(first, templates).project.deployment.covenantId, "33".repeat(32));
+
+  const tampered = structuredClone(first);
+  tampered.payload.project.templateParameters.inheritors[0].shareBps = 5000;
+  assert.throws(() => inspectPortableWillPackage(tampered, templates), /commitment does not match/i);
+});
+
+test("wallet role limits non-owners to mature inheritance distribution", () => {
+  const project = { templateParameters: { ownerAddress: "kaspatest:owner", inheritors: [{ address: "kaspatest:heir" }] } };
+  const operations = [{ id: "checkIn" }, { id: "recover" }, { id: "inherit" }];
+  assert.equal(willWalletRole(project, "KASPATEST:OWNER"), "owner");
+  assert.equal(willWalletRole(project, "kaspatest:heir"), "inheritor");
+  assert.equal(willWalletRole(project, "kaspatest:someone"), "other");
+  assert.deepEqual(operationsForWillRole(operations, { unspent: true, schedule: { mature: false } }, "owner").map((item) => item.id), ["checkIn", "recover"]);
+  assert.deepEqual(operationsForWillRole(operations, { unspent: true, schedule: { mature: true } }, "inheritor").map((item) => item.id), ["inherit"]);
+  assert.deepEqual(operationsForWillRole(operations, { unspent: true, schedule: { mature: false } }, "other"), []);
+});
 
 const TEMPLATE_KEYS = [
   "e493dbf1c10d80f3581e4904930b1404cc6c13900ee0758474fa94abe8c4cd13",
@@ -155,13 +197,14 @@ test("desktop runtime includes server-imported KCC721 metadata code", () => {
   assert.match(prepareDesktop, /src\/kcc721-metadata\.js/);
 });
 
-test("Kas Will has visible bilingual inheritance, package, wallet and node entrypoints", () => {
+test("Kas Will has visible bilingual inheritance, portable will, wallet and node entrypoints", () => {
   const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
   const uiSource = fs.readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
-  for (const id of ["will-form", "kcc20-fields", "lookup-token", "operate-project", "package-file", "wallet-select", "disconnect-wallet", "tn10-rpc-url", "save-node-settings"]) {
+  for (const id of ["will-form", "kcc20-fields", "lookup-token", "operate-project", "will-package-file", "export-active-will", "result-dialog", "app-version", "wallet-select", "disconnect-wallet", "tn10-rpc-url", "save-node-settings"]) {
     assert.match(html, new RegExp(`id=["']${id}["']`), `${id} must be visible in the app shell`);
   }
-  assert.match(html, /多人操作包|Multi-party packages/);
+  assert.match(html, /导入或导出遗嘱操作包|Import or export a will operation package/);
+  assert.doesNotMatch(html, /data-page="packages"/);
   assert.match(html, /不依赖任何网站|No website dependency/);
   assert.match(uiSource, /detectPreferredLanguage/);
   assert.match(uiSource, /kcc20-inheritance-vault/);

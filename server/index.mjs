@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import express from "express";
-import { config, publicConfig } from "./config.mjs";
+import { APP_VERSION, config, publicConfig } from "./config.mjs";
 import { compileContract, compilerManifest, compilerProfiles, detectBreakingChanges, migrateSourceToProfile, staticAnalyze } from "./compiler.mjs";
 import { DraftStore } from "./draft-store.mjs";
 import { broadcastWalletTransfer, buildDeployDraft, buildWalletTransferDraft, broadcastDeploy, configureNodeAccess, discoverNetworks, findCovenantUtxo, kascovPreflight, nodeStatus, signAndBroadcastWalletTransfer, signDeployDraft, submitReviewedTransaction, transactionEvidence, walletBalance } from "./kaspa-service.mjs";
@@ -19,6 +19,7 @@ import { assertInheritanceDistributionOpen, assertLocalRenewalOpen, assertLocalR
 import { signP2pkCoSpendPackage } from "./p2pk-cospend.mjs";
 import { createP2pkCoSpendAuthorization, selectP2pkFundingUtxo } from "./p2pk-cospend.mjs";
 import { buildKcc20WillOperationPackage } from "./kcc20-will-service.mjs";
+import { createPortableWillPackage, inspectPortableWillPackage, portableWillMatchesProject } from "./portable-will-service.mjs";
 
 fs.mkdirSync(config.dataDir, { recursive: true, mode: 0o700 });
 const projects = new ProjectStore(config.dataDir);
@@ -155,6 +156,88 @@ app.delete("/api/projects/:id", (req, res, next) => {
   try {
     if (!projects.remove(req.params.id)) return res.status(404).json({ error: "Project not found" });
     res.json({ deleted: true, id: req.params.id });
+  } catch (error) { next(error); }
+});
+app.get("/api/projects/:id/portable-will", (req, res, next) => {
+  try {
+    const project = projects.get(req.params.id);
+    if (!project) return res.status(404).json({ error: "Project not found" });
+    res.json({ package: createPortableWillPackage(project, { appVersion: APP_VERSION }) });
+  } catch (error) { next(error); }
+});
+app.post("/api/portable-wills/inspect", (req, res, next) => {
+  try {
+    const inspected = inspectPortableWillPackage(req.body?.package, templates);
+    res.json({
+      package: inspected.package,
+      summary: {
+        commitment: inspected.commitment,
+        name: inspected.project.name,
+        network: inspected.payload.network,
+        templateId: inspected.templateId,
+        ownerAddress: inspected.project.templateParameters?.ownerAddress || "",
+        inheritors: inspected.project.templateParameters?.inheritors || [],
+        deployed: Boolean(inspected.project.deployment?.txid),
+        covenantId: inspected.project.deployment?.covenantId || ""
+      }
+    });
+  } catch (error) { next(error); }
+});
+app.post("/api/portable-wills/import", async (req, res, next) => {
+  try {
+    const inspected = inspectPortableWillPackage(req.body?.package, templates);
+    const candidate = inspected.project;
+    const compiled = await compileContract({
+      source: candidate.source,
+      constructorArgs: candidate.constructorArgs,
+      compilerProfileId: candidate.compilerProfileId
+    });
+    if (compiled.programSha256 !== candidate.artifact.programSha256
+      || compiled.compiler.upstreamCommit !== candidate.artifact.compilerCommit
+      || compiled.compiler.id !== candidate.artifact.compilerProfileId) {
+      throw Object.assign(new Error("Portable will failed pinned compiler reproduction"), { status: 400, code: "PORTABLE_WILL_COMPILER_MISMATCH" });
+    }
+    if (candidate.deployment && candidate.deployment.status !== "spent") {
+      await findCovenantUtxo(
+        "tn10",
+        compiled.programHex,
+        candidate.deployment.activeTxid,
+        candidate.deployment.activeOutputIndex,
+        candidate.deployment.covenantId
+      );
+    }
+    const existing = projects.list()
+      .map((item) => projects.get(item.id))
+      .find((project) => portableWillMatchesProject(inspected, project));
+    const safeDeployment = candidate.deployment ? {
+      txid: candidate.deployment.txid,
+      covenantId: candidate.deployment.covenantId,
+      network: "tn10",
+      status: candidate.deployment.status === "spent" ? "spent" : "active",
+      activeTxid: candidate.deployment.activeTxid,
+      activeOutputIndex: candidate.deployment.activeOutputIndex,
+      broadcastAt: candidate.deployment.broadcastAt,
+      lastOperationAt: candidate.deployment.lastOperationAt,
+      history: []
+    } : null;
+    if (existing) {
+      const project = safeDeployment && !existing.deployment
+        ? projects.save(existing.id, { deployment: safeDeployment })
+        : existing;
+      return res.json({ project, imported: false, commitment: inspected.commitment });
+    }
+    const deterministic = templates.projectInput(inspected.templateId, "tn10", candidate.templateParameters, {
+      language: req.body?.language,
+      encodingVersion: Number(candidate.review?.parameterEncodingVersion || 1)
+    });
+    const created = projects.create({
+      ...deterministic,
+      id: `will-${inspected.commitment.slice(0, 20)}`,
+      name: candidate.name,
+      compilerProfileId: candidate.compilerProfileId
+    });
+    const project = projects.save(created.id, { artifact: compiled, deployment: safeDeployment });
+    res.status(201).json({ project, imported: true, commitment: inspected.commitment });
   } catch (error) { next(error); }
 });
 app.get("/api/projects/:id/operations", (req, res, next) => {
