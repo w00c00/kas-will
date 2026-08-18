@@ -210,6 +210,9 @@ test("Kas Will has visible bilingual inheritance, portable will, wallet and node
   assert.match(uiSource, /kcc20-inheritance-vault/);
   assert.match(uiSource, /1–5 people/);
   assert.match(uiSource, /\/api\/kcc20\/metadata/);
+  assert.match(uiSource, /lifecycleController\?\.abort\(\)/, "lifecycle refreshes must cancel stale node requests");
+  assert.match(uiSource, /loading-state/, "operation page must show a non-blocking loading state");
+  assert.doesNotMatch(uiSource, /page\("operate"\);renderLifecycle\(\)/, "operation navigation must not duplicate lifecycle requests");
 });
 
 test("desktop helpers use native executable names on Windows and Unix", () => {

@@ -31,12 +31,22 @@ const settings = new AppSettingsStore(config.dataDir);
 configureNodeAccess(settings.public());
 const sessionToken = crypto.randomBytes(24).toString("hex");
 const app = express();
+const lifecycleCache = new Map();
+const LIFECYCLE_CACHE_MS = 1_500;
 
-async function lifecycleStatusFor(project) {
+async function lifecycleStatusFor(project, { cache = false } = {}) {
+  const cacheKey = project?.id ? `${project.id}:${project.deployment?.activeTxid || project.deployment?.txid || ""}:${project.deployment?.activeOutputIndex ?? 0}` : "";
+  if (cache && cacheKey) {
+    const cached = lifecycleCache.get(cacheKey);
+    const now = Date.now();
+    if (cached?.promise && cached.expiresAt > now) return cached.promise;
+    if (cached && cached.expiresAt > now) return cached.value;
+    if (cached) lifecycleCache.delete(cacheKey);
+  }
   if (!project?.deployment?.txid || !project?.artifact?.programHex) {
     return { deployed: false, unspent: false, status: "not-deployed", network: project?.network || "", schedule: null };
   }
-  try {
+  const load = (async()=>{try {
     const source = await findCovenantUtxo(
       project.network,
       project.artifact.programHex,
@@ -49,6 +59,16 @@ async function lifecycleStatusFor(project) {
   } catch (error) {
     if (error.code === "COVENANT_UTXO_NOT_FOUND") return spentLifecycleStatus(project);
     throw error;
+  }})();
+  if (!cache || !cacheKey) return load;
+  lifecycleCache.set(cacheKey, { promise: load, expiresAt: Date.now() + LIFECYCLE_CACHE_MS });
+  try {
+    const value = await load;
+    lifecycleCache.set(cacheKey, { value, expiresAt: Date.now() + LIFECYCLE_CACHE_MS });
+    return value;
+  } finally {
+    const current = lifecycleCache.get(cacheKey);
+    if (current?.promise === load && current.expiresAt <= Date.now()) lifecycleCache.delete(cacheKey);
   }
 }
 
@@ -251,7 +271,7 @@ app.get("/api/projects/:id/lifecycle-status", async (req, res, next) => {
   try {
     const project = projects.get(req.params.id);
     if (!project) return res.status(404).json({ error: "Project not found" });
-    res.json({ status: await lifecycleStatusFor(project) });
+    res.json({ status: await lifecycleStatusFor(project, { cache: true }) });
   } catch (error) { next(error); }
 });
 app.post("/api/covenants/resolve", async (req, res, next) => {
