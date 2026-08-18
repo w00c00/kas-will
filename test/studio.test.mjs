@@ -200,7 +200,7 @@ test("desktop runtime includes server-imported KCC721 metadata code", () => {
 test("Kas Will has visible bilingual inheritance, portable will, wallet and node entrypoints", () => {
   const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
   const uiSource = fs.readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
-  for (const id of ["will-form", "kcc20-fields", "lookup-token", "operate-project", "will-package-file", "export-active-will", "result-dialog", "app-version", "wallet-select", "disconnect-wallet", "tn10-rpc-url", "save-node-settings"]) {
+  for (const id of ["will-form", "kcc20-fields", "lookup-token", "operate-project", "will-package-file", "export-active-will", "delete-active-will", "result-dialog", "app-version", "wallet-select", "disconnect-wallet", "tn10-rpc-url", "save-node-settings"]) {
     assert.match(html, new RegExp(`id=["']${id}["']`), `${id} must be visible in the app shell`);
   }
   assert.match(html, /导入或导出遗嘱操作包|Import or export a will operation package/);
@@ -212,6 +212,9 @@ test("Kas Will has visible bilingual inheritance, portable will, wallet and node
   assert.match(uiSource, /\/api\/kcc20\/metadata/);
   assert.match(uiSource, /lifecycleController\?\.abort\(\)/, "lifecycle refreshes must cancel stale node requests");
   assert.match(uiSource, /loading-state/, "operation page must show a non-blocking loading state");
+  assert.match(uiSource, /function isWillProject/, "will template filtering must be explicit");
+  assert.match(uiSource, /legacyWillText/, "legacy local records must stay visible for deletion");
+  assert.doesNotMatch(uiSource, /state\.projects=full\.filter\(p=>\["inheritance-vault","kcc20-inheritance-vault"\]/, "legacy local records must not be hidden before users can delete them");
   assert.doesNotMatch(uiSource, /page\("operate"\);renderLifecycle\(\)/, "operation navigation must not duplicate lifecycle requests");
 });
 
