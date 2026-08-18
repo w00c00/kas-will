@@ -1,9 +1,9 @@
 # Portable Covenant Signing Package / 可携带 Covenant 签名包
 
-Kaspa SilverScript Studio can review and sign a covenant transaction created by another
+Kas Will can review and sign a covenant transaction created by another
 application when that application exports a complete version-1 package.
 
-Kaspa SilverScript Studio 可以审查并签署其他应用创建的 Covenant 交易，但对方必须导出完整的
+Kas Will 可以审查并签署其他应用创建的 Covenant 交易，但对方必须导出完整的
 version-1 交易包。
 
 ```json

@@ -78,12 +78,23 @@ export function configureNodeAccess(settings = {}) {
   runtimeRpcUrls.mainnet = String(settings.mainnetRpcUrl || config.rpcUrls.mainnet || "").trim();
 }
 
+function normalizeRpcUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  let url;
+  try { url = new URL(raw); } catch { throw Object.assign(new Error("Kaspa wRPC URL is invalid"), { status: 400 }); }
+  if (!["ws:", "wss:"].includes(url.protocol)) throw Object.assign(new Error("Kaspa node must use a ws:// or wss:// wRPC URL"), { status: 400 });
+  if (url.username || url.password) throw Object.assign(new Error("Credentials must not be embedded in the Kaspa node URL"), { status: 400 });
+  url.search = "";
+  url.hash = "";
+  return url.toString().replace(/\/$/, "");
+}
+
 export function setRpcClientFactoryForTests(factory = null) {
   rpcClientFactoryForTests = typeof factory === "function" ? factory : null;
 }
 
-async function withRpc(network, action) {
-  const directUrl = runtimeRpcUrls[network.id];
+async function withRpc(network, action, directUrl = runtimeRpcUrls[network.id]) {
   const rpc = rpcClientFactoryForTests
     ? rpcClientFactoryForTests(network, directUrl)
     : directUrl
@@ -104,9 +115,9 @@ async function withRpc(network, action) {
   }
 }
 
-export async function nodeStatus(networkId) {
+export async function nodeStatus(networkId, rpcUrlOverride = undefined) {
   const network = networkOf(networkId);
-  const directUrl = runtimeRpcUrls[network.id];
+  const directUrl = rpcUrlOverride === undefined ? runtimeRpcUrls[network.id] : normalizeRpcUrl(rpcUrlOverride);
   const started = Date.now();
   return withRpc(network, async (rpc, serverInfo) => {
     const [syncStatus, dagInfo] = await Promise.all([
@@ -125,7 +136,7 @@ export async function nodeStatus(networkId) {
       url: directUrl || String(rpc.url || ""),
       discoveredBy: directUrl ? "custom-rpc" : "kaspa-resolver"
     };
-  });
+  }, directUrl);
 }
 
 export async function discoverNetworks() {

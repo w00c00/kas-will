@@ -151,7 +151,7 @@ function controlPrincipalsOf(template, project) {
 
 function inheritOutputs(parameters, value, network) {
   const inheritors = parameters?.inheritors;
-  if (!Array.isArray(inheritors) || inheritors.length < 2 || inheritors.length > 5) throw operationError("Inheritance parameters are missing");
+  if (!Array.isArray(inheritors) || inheritors.length < 1 || inheritors.length > 5) throw operationError("Inheritance parameters are missing");
   const base = value / 10000n;
   const remainder = value % 10000n;
   let paid = 0n;

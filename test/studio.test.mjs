@@ -10,7 +10,8 @@ import { parseAiContract } from "../server/ai-providers.mjs";
 import { compileContract, compilerManifest, compilerProfiles, detectBreakingChanges, encodeConstructorArgsForProfile, migrateSourceToProfile, staticAnalyze } from "../server/compiler.mjs";
 import { DraftStore } from "../server/draft-store.mjs";
 import { publicConfig, SILVERSCRIPT_COMMIT } from "../server/config.mjs";
-import { buildDeployDraft, buildWalletTransferDraft, configureNodeAccess, kascovPreflight, setRpcClientFactoryForTests, sompiToKas, toKascovPreflightTransaction, walletBalance } from "../server/kaspa-service.mjs";
+import { buildDeployDraft, buildWalletTransferDraft, configureNodeAccess, kascovPreflight, nodeStatus, setRpcClientFactoryForTests, sompiToKas, toKascovPreflightTransaction, walletBalance } from "../server/kaspa-service.mjs";
+import { fetchKascovTokenMetadata } from "../server/kascov-token-service.mjs";
 import { ProjectStore, SAMPLE_SOURCE } from "../server/project-store.mjs";
 import { AiSettingsStore, AppSettingsStore } from "../server/settings-store.mjs";
 import { TemplateStore } from "../server/template-store.mjs";
@@ -110,6 +111,7 @@ function configuredTemplateParameters(template, network = "testnet-10") {
       const base = Number(field.default ?? field.minimum ?? 0);
       return [field.id, base < Number(field.maximum ?? Number.MAX_SAFE_INTEGER) ? base + 1 : base];
     }
+    if (field.type === "text") return [field.id, String(field.default || "")];
     if (field.type === "durationDays") return [field.id, 181];
     if (field.type === "duration") return [field.id, { value: 181, unit: "days" }];
     if (field.type === "heirs") return [field.id, [
@@ -153,16 +155,18 @@ test("desktop runtime includes server-imported KCC721 metadata code", () => {
   assert.match(prepareDesktop, /src\/kcc721-metadata\.js/);
 });
 
-test("Kas Will has visible bilingual inheritance, package and local-wallet entrypoints", () => {
+test("Kas Will has visible bilingual inheritance, package, wallet and node entrypoints", () => {
   const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
   const uiSource = fs.readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
-  for (const id of ["will-form", "kcc20-fields", "operate-project", "package-file", "wallet-select", "disconnect-wallet"]) {
+  for (const id of ["will-form", "kcc20-fields", "lookup-token", "operate-project", "package-file", "wallet-select", "disconnect-wallet", "tn10-rpc-url", "save-node-settings"]) {
     assert.match(html, new RegExp(`id=["']${id}["']`), `${id} must be visible in the app shell`);
   }
   assert.match(html, /多人操作包|Multi-party packages/);
   assert.match(html, /不依赖任何网站|No website dependency/);
   assert.match(uiSource, /detectPreferredLanguage/);
   assert.match(uiSource, /kcc20-inheritance-vault/);
+  assert.match(uiSource, /1–5 people/);
+  assert.match(uiSource, /\/api\/kcc20\/metadata/);
 });
 
 test("desktop helpers use native executable names on Windows and Unix", () => {
@@ -262,6 +266,38 @@ test("application settings reject secrets and persist only allowlisted preferenc
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("Kascov token metadata is advisory and bound to the requested Covenant ID", async () => {
+  const covenantId = "c5".repeat(32);
+  let requestedUrl = "";
+  const metadata = await fetchKascovTokenMetadata("tn10", covenantId, async (url) => {
+    requestedUrl = String(url);
+    return new Response(JSON.stringify({
+      token: {
+        covenant_id: covenantId,
+        name: "humble-crimson-tortoise",
+        template: "KCC20 token",
+        status: "verified",
+        supply: 1_000_000,
+        holders: 111,
+        fields: {}
+      },
+      validation: { status: "verified", checked: 1664 }
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  assert.match(requestedUrl, new RegExp(`/data/testnet-10/token/${covenantId}$`));
+  assert.equal(metadata.name, "humble-crimson-tortoise");
+  assert.equal(metadata.validationStatus, "verified");
+  assert.equal(metadata.advisoryOnly, true);
+  assert.equal(metadata.covenantId, covenantId);
+  assert.equal(metadata.supply, "1000000");
+  await assert.rejects(
+    fetchKascovTokenMetadata("tn10", covenantId, async () => new Response(JSON.stringify({ token: { covenant_id: "aa".repeat(32) } }), { status: 200 })),
+    /different Covenant ID/i
+  );
+  const missing = await fetchKascovTokenMetadata("tn10", covenantId, async () => new Response("", { status: 404 }));
+  assert.equal(missing.found, false);
 });
 
 test("projects persist transaction build plans locally", () => {
@@ -583,10 +619,12 @@ test("configured inheritance permits a legitimate 50/50 split that matches the e
   }), ["Configured template source or constructor arguments changed; re-apply the template before deployment"]);
 });
 
-test("mature inheritance builds a complete unsigned distribution that conserves the covenant value", async () => {
+test("mature inheritance supports one inheritor and conserves the entire covenant value", async () => {
   const templates = new TemplateStore();
   const template = templates.get("inheritance-vault");
-  const configured = templates.projectInput(template.id, "tn10", configuredTemplateParameters(template));
+  const parameters = configuredTemplateParameters(template);
+  parameters.inheritors = [{ ...parameters.inheritors[0], shareBps: 10000 }];
+  const configured = templates.projectInput(template.id, "tn10", parameters);
   const artifact = await compileContract(configured);
   const covenantId = "99".repeat(32);
   const project = {
@@ -649,7 +687,7 @@ test("mature inheritance builds a complete unsigned distribution that conserves 
   assert.equal(built.review.operation.kind, "inheritance-payment");
   assert.equal(built.review.complete, true);
   assert.deepEqual(built.review.signatureSlots, []);
-  assert.deepEqual(built.review.outputs.map((output) => output.valueSompi), ["28955940", "19303960"]);
+  assert.deepEqual(built.review.outputs.map((output) => output.valueSompi), ["48259900"]);
   assert.deepEqual(
     built.review.outputs.map((output) => output.address),
     configured.templateParameters.inheritors.map((inheritor) => inheritor.address.toLowerCase())
@@ -668,7 +706,7 @@ test("mature inheritance builds a complete unsigned distribution that conserves 
   );
 
   const invalidProject = structuredClone(project);
-  invalidProject.templateParameters.inheritors[1].shareBps = 3999;
+  invalidProject.templateParameters.inheritors[0].shareBps = 9999;
   await assert.rejects(
     buildTemplateOperationPackage(
       { operationId: "inherit", feeKas: "0.01" },
@@ -1381,7 +1419,7 @@ test("KCC20 security triage blocks borrowed minter and value-drain patterns", as
 
 test("KCC20 will atomically distributes a descriptor-bound non-minter token without a website", async () => {
   const source = fs.readFileSync(new URL("./fixtures/kcc20.sil", import.meta.url), "utf8");
-  const keys = [randomPrivateKey(), randomPrivateKey(), randomPrivateKey()];
+  const keys = [randomPrivateKey(), randomPrivateKey()];
   const ownerAddress = keys[0].toAddress("testnet-10").toString();
   const tokenCovenantId = "b7".repeat(32);
   const controllerCovenantId = "c8".repeat(32);
@@ -1407,8 +1445,8 @@ test("KCC20 will atomically distributes a descriptor-bound non-minter token with
   const template = templates.get("kcc20-inheritance-vault");
   const configured = templates.projectInput(template.id, "tn10", {
     amountKas: "0.5", ownerAddress,
-    inheritors: keys.slice(1).map((key, index) => ({ address: key.toAddress("testnet-10").toString(), shareBps: index ? 4000 : 6000 })),
-    inactivityDays: { value: 1, unit: "minutes" }, tokenCovenantId, ...templateSettings
+    inheritors: [{ address: keys[1].toAddress("testnet-10").toString(), shareBps: 10000 }],
+    inactivityDays: { value: 1, unit: "minutes" }, tokenCovenantId, tokenDisplayName: "humble-crimson-tortoise", ...templateSettings
   });
   const controllerArtifact = await compileContract(configured);
   const project = {
@@ -1441,8 +1479,8 @@ test("KCC20 will atomically distributes a descriptor-bound non-minter token with
   assert.equal(built.review.complete, true);
   assert.equal(built.review.atomic, true);
   assert.equal(built.review.inputCount, 2);
-  assert.equal(built.review.outputCount, 2);
-  assert.deepEqual(built.package.covenantInputs[1].arguments[0].items.map((item) => item.fields.amount.data), ["6000", "4000"]);
+  assert.equal(built.review.outputCount, 1);
+  assert.deepEqual(built.package.covenantInputs[1].arguments[0].items.map((item) => item.fields.amount.data), ["10000"]);
   assert.equal(built.package.covenantInputs[1].arguments[2].hex, "00");
   assert.equal(built.preflight.localEngineVerified, true);
   assert.ok(JSON.parse(built.package.transactionSafeJson).inputs.every((input) => input.signatureScript.length > 0));
@@ -1695,6 +1733,35 @@ test("wallet balances come from Kaspa node RPC without a REST explorer", async (
     configureNodeAccess({});
     setRpcClientFactoryForTests();
     try { privateKey.free(); } catch {}
+  }
+});
+
+test("node status can probe a local or custom wRPC URL before saving it", async () => {
+  let observedUrl = "";
+  try {
+    setRpcClientFactoryForTests((network, directUrl) => {
+      observedUrl = directUrl;
+      return {
+        url: directUrl,
+        nodeId: "test-node",
+        async connect() {},
+        async disconnect() {},
+        async stop() {},
+        async getServerInfo() { return { networkId: network.kaspaNetworkId, serverVersion: "test-1" }; },
+        async getSyncStatus() { return { isSynced: true }; },
+        async getBlockDagInfo() { return { virtualDaaScore: 123456n }; }
+      };
+    });
+    const status = await nodeStatus("tn10", "ws://127.0.0.1:17210/");
+    assert.equal(observedUrl, "ws://127.0.0.1:17210");
+    assert.equal(status.discoveredBy, "custom-rpc");
+    assert.equal(status.url, "ws://127.0.0.1:17210");
+    assert.equal(status.synced, true);
+    assert.equal(status.virtualDaaScore, "123456");
+    await assert.rejects(nodeStatus("tn10", "https://example.com"), /ws:\/\/ or wss:\/\//i);
+    await assert.rejects(nodeStatus("tn10", "wss://user:secret@example.com"), /credentials/i);
+  } finally {
+    setRpcClientFactoryForTests();
   }
 });
 

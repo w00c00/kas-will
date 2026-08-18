@@ -16,6 +16,7 @@
         <button class="nav" data-page="operate"><span>↻</span><b data-i18n="navOperate">签到与提取</b></button>
         <button class="nav" data-page="packages"><span>⇄</span><b data-i18n="navPackages">多人操作包</b></button>
         <button class="nav" data-page="wallet"><span>◇</span><b data-i18n="navWallet">本地钱包</b></button>
+        <button class="nav" data-page="settings"><span>⚙</span><b data-i18n="navSettings">节点设置</b></button>
       </nav>
       <div class="offline-card"><span class="pulse"></span><div><strong data-i18n="offlineTitle">本地优先</strong><small data-i18n="offlineText">不依赖网站；直连 Kaspa 节点</small></div></div>
       <div class="sidebar-foot"><span id="compiler-pill">023c7ee · TN10</span><button id="lang-toggle">EN</button></div>
@@ -24,7 +25,7 @@
     <main>
       <header class="topbar">
         <div><p class="eyebrow" id="page-eyebrow">ESTATE OVERVIEW</p><h1 id="page-title" data-i18n="homeTitle">把链上资产交给未来</h1></div>
-        <div class="top-actions"><div class="node-pill"><i id="node-dot"></i><span id="node-state" data-i18n="nodeChecking">正在连接 TN10…</span></div><button class="wallet-chip" id="wallet-chip" data-page-link="wallet" data-i18n="connectWallet">连接钱包</button></div>
+        <div class="top-actions"><button class="node-pill" data-page-link="settings"><i id="node-dot"></i><span id="node-state" data-i18n="nodeChecking">正在连接 TN10…</span></button><button class="wallet-chip" id="wallet-chip" data-page-link="wallet" data-i18n="connectWallet">连接钱包</button></div>
       </header>
 
       <section class="page active" id="page-home">
@@ -44,13 +45,15 @@
             <label><span data-i18n="assetType">资产类型</span><div class="segmented"><button type="button" class="segment active" data-asset="kas">KAS</button><button type="button" class="segment" data-asset="kcc20">KCC20 <em>TN10</em></button></div></label>
             <div class="two-cols"><label><span data-i18n="lockedAmount">控制金库金额</span><div class="input-suffix"><input id="amount" value="0.5" inputmode="decimal" /><b>TKAS</b></div></label><label><span data-i18n="period">未签到期限</span><div class="duration"><input id="period-value" type="number" min="1" value="180" /><select id="period-unit"><option value="minutes" data-i18n="minutes">分钟</option><option value="hours" data-i18n="hours">小时</option><option value="days" selected data-i18n="days">天</option><option value="weeks" data-i18n="weeks">周</option></select></div></label></div>
             <label><span data-i18n="owner">拥有者 / 签到钱包</span><input id="owner-address" readonly data-i18n-placeholder="connectFirst" placeholder="请先连接本地钱包" /><small data-i18n="ownerHelp">这个钱包可以签到重置期限，也可以在到期前取回。</small></label>
-            <div class="heirs-head"><div><span data-i18n="heirs">继承人与比例</span><small data-i18n="heirsHelp">2–5 人，合计必须为 100%</small></div><button class="mini" type="button" id="add-heir" data-i18n="addHeir">＋ 添加继承人</button></div>
+            <div class="heirs-head"><div><span data-i18n="heirs">继承人与比例</span><small data-i18n="heirsHelp">1–5 人，合计必须为 100%；单继承人填写 100%</small></div><button class="mini" type="button" id="add-heir" data-i18n="addHeir">＋ 添加继承人</button></div>
             <div id="heirs-list"></div>
             <div class="kcc20-fields" id="kcc20-fields" hidden>
               <div class="experimental-note"><strong data-i18n="kcc20Experimental">KCC20 实验模式</strong><span data-i18n="kcc20ExperimentalText">只接受固定四字段、非 minter、描述符可验证的 TN10 Token。</span></div>
               <label><span data-i18n="descriptor">Token Descriptor JSON</span><textarea id="token-descriptor" rows="5" data-i18n-placeholder="descriptorPlaceholder" placeholder="粘贴发行方提供的 descriptor JSON"></textarea></label>
               <button type="button" class="ghost" id="parse-descriptor" data-i18n="verifyDescriptor">本地验证并填入参数</button>
               <div class="descriptor-grid"><label><span>Covenant ID</span><input id="token-covid" /></label><label><span>Template hash</span><input id="token-template-hash" /></label><label><span>Prefix bytes</span><input id="token-prefix" type="number" min="0" /></label><label><span>Suffix bytes</span><input id="token-suffix" type="number" min="1" /></label></div>
+              <div class="button-row"><button type="button" class="ghost" id="lookup-token" data-i18n="lookupToken">从 Kascov 查询代币名称</button></div>
+              <div id="token-metadata" class="metadata-result empty" data-i18n="tokenMetadataEmpty">名称仅用于显示；资产身份仍以 Covenant ID、模板哈希和链上状态为准。</div>
             </div>
             <div class="form-actions"><button class="primary wide" type="submit" id="create-will" data-i18n="buildWill">生成并固定编译</button></div>
           </form>
@@ -71,6 +74,26 @@
 
       <section class="page" id="page-wallet">
         <div class="wallet-layout"><div class="panel wallet-account"><span class="eyebrow">LOCAL ENCRYPTED WALLET</span><div id="wallet-connected" class="wallet-connected"><div class="empty" data-i18n="walletEmpty">钱包密钥只在本机加密保存。</div></div><div class="button-row"><button class="ghost" id="refresh-balance" data-i18n="refreshBalance">刷新余额</button><button class="danger" id="disconnect-wallet" data-i18n="disconnect">断开钱包</button></div></div><div class="panel"><h3 data-i18n="unlockWallet">连接已有钱包</h3><label><span data-i18n="walletSelect">本地钱包</span><select id="wallet-select"></select></label><label><span data-i18n="walletPassword">钱包密码（至少 10 位）</span><input id="wallet-password" type="password" autocomplete="current-password" /></label><label><span data-i18n="paymentSecret">可选 Payment Secret</span><input id="wallet-payment" type="password" /></label><button class="primary wide" id="unlock-wallet" data-i18n="connect">连接</button></div><div class="panel"><h3 data-i18n="createWallet">创建 / 导入钱包</h3><label><span data-i18n="walletName">钱包名称</span><input id="new-wallet-name" value="Kas Will Owner" /></label><label><span data-i18n="mnemonicOptional">助记词（留空则新建）</span><textarea id="new-wallet-mnemonic" rows="3"></textarea></label><label><span data-i18n="newPassword">新密码（至少 10 位）</span><input id="new-wallet-password" type="password" /></label><label><span data-i18n="confirmPassword">确认密码</span><input id="new-wallet-confirm" type="password" /></label><button class="primary wide" id="create-wallet" data-i18n="createOrImport">创建 / 导入</button></div></div>
+      </section>
+
+      <section class="page" id="page-settings">
+        <div class="section-head"><div><span class="eyebrow">DIRECT NODE ACCESS</span><h2 data-i18n="settingsTitle">Kaspa 节点设置</h2></div><span class="local-tag" data-i18n="settingsLocal">仅保存在本机</span></div>
+        <div class="settings-grid">
+          <div class="panel">
+            <h3 data-i18n="tn10Node">TN10 wRPC 节点</h3>
+            <p data-i18n="nodeHelp">留空使用 Kaspa Resolver 自动发现；本地节点填写 ws://127.0.0.1:端口，远程自定义节点应优先使用 wss://。</p>
+            <label><span data-i18n="rpcUrl">wRPC URL</span><input id="tn10-rpc-url" placeholder="ws://127.0.0.1:&lt;wRPC-port&gt;" /></label>
+            <div class="button-row"><button class="ghost" id="test-tn10-node" data-i18n="testNode">测试连接</button><button class="text-button" id="auto-tn10-node" data-i18n="useAuto">使用自动发现</button></div>
+          </div>
+          <div class="panel">
+            <h3 data-i18n="mainnetNode">Mainnet wRPC 节点</h3>
+            <p data-i18n="mainnetDisabled">当前构建仍禁止主网交易；此处只允许提前配置和测试节点。</p>
+            <label><span data-i18n="rpcUrl">wRPC URL</span><input id="mainnet-rpc-url" placeholder="ws://127.0.0.1:&lt;wRPC-port&gt;" /></label>
+            <div class="button-row"><button class="ghost" id="test-mainnet-node" data-i18n="testNode">测试连接</button><button class="text-button" id="auto-mainnet-node" data-i18n="useAuto">使用自动发现</button></div>
+          </div>
+        </div>
+        <div id="node-test-result" class="panel node-result"><div class="empty" data-i18n="nodeResultEmpty">测试后会显示网络、同步状态、延迟、DAA 和连接来源。</div></div>
+        <div class="button-row"><button class="primary" id="save-node-settings" data-i18n="saveNodes">保存节点设置</button></div>
       </section>
     </main>
   </div>

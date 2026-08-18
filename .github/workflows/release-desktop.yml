@@ -81,7 +81,7 @@ jobs:
         run: |
           dmg="$(find src-tauri/target/release/bundle/dmg -name '*.dmg' -print -quit)"
           test -n "$dmg"
-          mount_dir="$RUNNER_TEMP/kaspa-studio-dmg"
+          mount_dir="$RUNNER_TEMP/kas-will-dmg"
           mkdir -p "$mount_dir"
           hdiutil attach -quiet -nobrowse -readonly -mountpoint "$mount_dir" "$dmg"
 
@@ -106,15 +106,16 @@ jobs:
           # is enabled without the allow-jit entitlement.
           test "$("$node_bin" -e 'console.log(new Function("return 42")())')" = "42"
 
-          log="$RUNNER_TEMP/kaspa-studio-macos-backend.log"
-          data_dir="$RUNNER_TEMP/kaspa-studio-macos-data"
+          log="$RUNNER_TEMP/kas-will-macos-backend.log"
+          data_dir="$RUNNER_TEMP/kas-will-macos-data"
           mkdir -p "$data_dir"
           HOST=127.0.0.1 \
-          PORT=4310 \
-          STUDIO_DATA_DIR="$data_dir" \
+          PORT=4320 \
+          KAS_WILL_DATA_DIR="$data_dir" \
           SILVERC_LATEST_BIN="$runtime/bin/silverc-latest" \
-          SILVERC_PREVIOUS_BIN="$runtime/bin/silverc-6f9e078" \
-          SILVERC_OLDER_BIN="$runtime/bin/silverc-cb34aa5" \
+          SILVERC_PREVIOUS_BIN="$runtime/bin/silverc-14dce9a" \
+          SILVERC_OLDER_BIN="$runtime/bin/silverc-6f9e078" \
+          SILVERC_CB34AA5_BIN="$runtime/bin/silverc-cb34aa5" \
           SILVERC_LEGACY_BIN="$runtime/bin/silverc-legacy" \
           KASCOV_PREFLIGHT_BIN="$runtime/bin/kascov-preflight" \
             "$node_bin" "$runtime/server/index.mjs" >"$log" 2>&1 &
@@ -122,7 +123,7 @@ jobs:
 
           healthy=false
           for attempt in {1..60}; do
-            if curl -fsS --max-time 2 http://127.0.0.1:4310/api/health >"$RUNNER_TEMP/health.json"; then
+            if curl -fsS --max-time 2 http://127.0.0.1:4320/api/health >"$RUNNER_TEMP/health.json"; then
               healthy=true
               break
             fi
@@ -136,7 +137,7 @@ jobs:
             exit 1
           fi
 
-          curl -fsS --max-time 5 http://127.0.0.1:4310/api/templates >"$RUNNER_TEMP/templates.json"
+          curl -fsS --max-time 5 http://127.0.0.1:4320/api/templates >"$RUNNER_TEMP/templates.json"
           "$node_bin" -e '
             const payload = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
             if (!Array.isArray(payload.templates) || payload.templates.length < 1) process.exit(1);
@@ -150,7 +151,7 @@ jobs:
           artifact="$(find src-tauri/target/release/bundle/dmg -name '*.dmg' -print -quit)"
           test -n "$artifact"
           mkdir -p release-assets
-          cp "$artifact" "release-assets/Kaspa-SilverScript-Studio-${version}-macos-arm64.dmg"
+          cp "$artifact" "release-assets/Kas-Will-${version}-macos-arm64.dmg"
 
       - name: Build Windows installers
         if: matrix.platform == 'windows'
@@ -160,24 +161,24 @@ jobs:
         if: matrix.platform == 'windows'
         shell: pwsh
         run: |
-          $executable = (Resolve-Path "src-tauri/target/release/app.exe").Path
+          $executable = (Resolve-Path "src-tauri/target/release/kas-will.exe").Path
           $process = Start-Process -FilePath $executable -PassThru
           try {
             $health = $null
             for ($attempt = 0; $attempt -lt 60; $attempt++) {
               try {
-                $health = Invoke-RestMethod -Uri "http://127.0.0.1:4310/api/health" -TimeoutSec 2
+                $health = Invoke-RestMethod -Uri "http://127.0.0.1:4320/api/health" -TimeoutSec 2
                 break
               } catch {
                 Start-Sleep -Milliseconds 500
               }
             }
             if (-not $health -or -not $health.ok) {
-              $log = Join-Path $env:APPDATA "io.kaspa.silverscript-studio/backend.log"
+              $log = Join-Path $env:APPDATA "io.kaspa.kas-will/backend.log"
               if (Test-Path $log) { Get-Content $log }
               throw "Packaged Windows local service did not become healthy"
             }
-            $templates = (Invoke-RestMethod -Uri "http://127.0.0.1:4310/api/templates" -TimeoutSec 5).templates
+            $templates = (Invoke-RestMethod -Uri "http://127.0.0.1:4320/api/templates" -TimeoutSec 5).templates
             if (-not $templates -or $templates.Count -lt 1) {
               throw "Packaged Windows local service returned no templates"
             }
@@ -196,8 +197,8 @@ jobs:
           $setup = Get-ChildItem "src-tauri/target/release/bundle/nsis" -Filter "*-setup.exe" | Select-Object -First 1
           if (-not $msi -or -not $setup) { throw "Windows MSI or NSIS installer is missing" }
           New-Item -ItemType Directory -Force -Path "release-assets" | Out-Null
-          Copy-Item $msi.FullName "release-assets/Kaspa-SilverScript-Studio-$version-windows-x64.msi"
-          Copy-Item $setup.FullName "release-assets/Kaspa-SilverScript-Studio-$version-windows-x64-setup.exe"
+          Copy-Item $msi.FullName "release-assets/Kas-Will-$version-windows-x64.msi"
+          Copy-Item $setup.FullName "release-assets/Kas-Will-$version-windows-x64-setup.exe"
 
       - name: Build Linux packages
         if: matrix.platform == 'linux'
@@ -213,9 +214,9 @@ jobs:
           test -n "$deb"
           test -n "$appimage"
           mkdir -p release-assets
-          cp "$deb" "release-assets/Kaspa-SilverScript-Studio-${version}-linux-amd64.deb"
-          cp "$appimage" "release-assets/Kaspa-SilverScript-Studio-${version}-linux-x86_64.AppImage"
-          chmod +x "release-assets/Kaspa-SilverScript-Studio-${version}-linux-x86_64.AppImage"
+          cp "$deb" "release-assets/Kas-Will-${version}-linux-amd64.deb"
+          cp "$appimage" "release-assets/Kas-Will-${version}-linux-x86_64.AppImage"
+          chmod +x "release-assets/Kas-Will-${version}-linux-x86_64.AppImage"
 
       - name: Record artifact hashes
         run: node scripts/write-release-checksums.mjs release-assets "${{ matrix.platform }}"
@@ -256,5 +257,5 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
             --latest \
-            --title "Kaspa SilverScript Studio ${GITHUB_REF_NAME}" \
+            --title "Kas Will ${GITHUB_REF_NAME}" \
             "${notes_args[@]}"

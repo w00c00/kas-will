@@ -12,7 +12,7 @@ Kas Will is a focused extraction of the inheritance workflow from SilverScript S
 
 ## 核心功能 / Highlights
 
-- KAS 多继承人签到金库：2–5 位继承人，固定比例合计 100%。
+- KAS 签到金库：支持 1–5 位继承人，固定比例合计 100%；单继承人可获得 100%。
 - 拥有者签到：签名延续同一 Covenant ID，并重置链上 DAA 期限。
 - 拥有者取回：由拥有者签名取回。
 - 到期继承：期限成熟后，任何人可触发，但收款钱包与比例由契约固定。
@@ -21,8 +21,10 @@ Kas Will is a focused extraction of the inheritance workflow from SilverScript S
 - 本地加密钱包：创建或导入助记词、复制地址、查询余额和断开连接；新助记词只显示一次。
 - 中英文界面：按系统语言和时区自动选择，也可手动切换。
 - 本地脚本引擎：签名或广播前在本机执行交易；Kascov 仅作为可选的辅助可视化验证。
+- 节点设置：留空使用 Kaspa Resolver 自动发现，也可在界面保存并测试本地 `ws://` 或远程 `wss://` wRPC 节点。
+- KCC20 名称：可按 Covenant ID 从 Kascov 读取名称和验证状态用于显示，但绝不作为资产身份或签名依据。
 
-- Multi-inheritor KAS check-in vault with 2–5 inheritors and exact 100% shares.
+- KAS check-in vault for one to five inheritors with exact 100% shares, including a sole-inheritor path.
 - Owner check-in continues the same Covenant ID and resets its on-chain DAA age.
 - Owner recovery remains signature-gated.
 - Mature distribution is permissionless to trigger, while recipients and shares remain covenant-bound.
@@ -31,6 +33,8 @@ Kas Will is a focused extraction of the inheritance workflow from SilverScript S
 - Encrypted local wallet with create/import, address copy, balance, and disconnect flows; a new mnemonic is shown once.
 - Automatic Chinese/English selection from system locale and time zone, plus a manual switch.
 - Bundled local Kaspa script execution before broadcast; Kascov remains optional visualization only.
+- Node settings support automatic Resolver discovery or a saved and tested local/custom `ws://` or `wss://` wRPC endpoint.
+- KCC20 names and validation status can be fetched from Kascov for display only; they never replace Covenant ID or template verification.
 
 ## 链上逻辑 / On-chain model
 
@@ -141,7 +145,9 @@ SilverScript and the preflight engine are native executables. Build release arti
 
 ## 配置 / Configuration
 
-Copy `.env.example` to `.env` only when custom node endpoints are needed.
+节点可直接在应用的“节点设置”页面配置并保存在本机。服务器部署也可复制 `.env.example` 使用环境变量。
+
+Node endpoints can be configured and tested directly from the in-app Node settings page and are stored locally. Server deployments may also copy `.env.example` and use environment variables.
 
 ```text
 KASPA_TN10_RPC_URL=ws://your-tn10-node:port

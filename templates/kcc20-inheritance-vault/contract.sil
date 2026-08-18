@@ -96,7 +96,7 @@ contract KCC20InheritanceVault(
         requireFee(minerFee);
         requireControllerInput();
         require(tx.inputs.length == 2);
-        require(inheritors.length >= 2);
+        require(inheritors.length >= 1);
         require(inheritors.length <= MAX_INHERITORS);
         require(sharesBps.length == inheritors.length);
         require(tx.outputs.length == inheritors.length);

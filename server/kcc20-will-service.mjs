@@ -241,7 +241,7 @@ export async function buildKcc20WillOperationPackage(
     witnesses = "00";
   } else {
     const inheritors = project.templateParameters?.inheritors || [];
-    if (inheritors.length < 2 || inheritors.length > 5) fail("KCC20 inheritance requires 2-5 inheritors");
+    if (inheritors.length < 1 || inheritors.length > 5) fail("KCC20 inheritance requires 1-5 inheritors");
     const resolved = inheritors.map((item) => ({ ...item, identity: xOnly(item.address, network) }));
     const tokenAmounts = distribute(previous.amount, resolved, "token");
     outputValues = distribute(availableKas, resolved, "KAS");

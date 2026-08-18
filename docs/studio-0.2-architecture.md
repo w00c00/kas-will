@@ -1,10 +1,10 @@
-# Studio 0.2 architecture / Studio 0.2 架构
+# Kas Will architecture / Kas Will 架构
 
 ## 中文
 
 ### 编译器兼容档案
 
-`config/compiler-profiles.json` 是可提交的兼容性清单，`config/compiler.json` 是本机生成的二进制路径、构建时间和 SHA-256 清单。默认档案固定官方 SilverScript `14dce9a5ce8769cdfbd0c8965f8764fa9c325067`；`6f9e078`、`cb34aa5` 和 `2a3961c` 隔离保留，用于复现 Studio 0.2.8、0.2.7 与更早项目。
+`config/compiler-profiles.json` 是可提交的兼容性清单，`config/compiler.json` 是本机生成的二进制路径、构建时间和 SHA-256 清单。默认档案固定官方 SilverScript `023c7eed6b85038c72233a62024c5476640445e3`；`14dce9a`、`6f9e078`、`cb34aa5` 和 `2a3961c` 隔离保留，用于复现旧编译产物。
 
 升级检查会报告已知变化，并只自动替换无歧义的名称。`6f9e078` 要求标量 byte 转 int 时明确使用 `signed()` 或 `unsigned()`，运行时 int 转 byte 使用 `as byte`；这些语义不能自动猜测。`.reverse()` 删除、字节序、位运算类型和任何状态布局变化也必须人工审查。迁移后仍必须使用真实构造参数完整编译并进行对抗性交易测试。
 
@@ -18,13 +18,13 @@
 
 `CovenantStateSource` 将“寻找当前活跃 Covenant UTXO”和具体索引服务解耦。Provider 只负责返回候选项；Source 会独立验证 outpoint、Covenant ID、P2SH script 和正金额。一个 Provider 返回多个已验证候选时会 fail closed，避免悄悄选择错误 lineage。
 
-Studio 当前依次尝试：节点原生 Covenant ID 查询（节点支持时）、outpoint 查询（节点支持时）、P2SH 地址 UTXO 查询。以后可以加入本地索引器或其他节点适配器，但不能绕过最终验证。
+Kas Will 当前依次尝试：节点原生 Covenant ID 查询（节点支持时）、outpoint 查询（节点支持时）、P2SH 地址 UTXO 查询。以后可以加入本地索引器或其他节点适配器，但不能绕过最终验证。
 
 接口：`POST /api/covenants/resolve`。
 
 ### 版本化 Covenant Descriptor
 
-Studio 新生成的 `.ssinvite` 为每个 Covenant 输入附带 canonical v1 descriptor。描述符固定 CAIP-2 网络、程序 SHA-256、Covenant ID、ABI 哈希、状态布局哈希、控制主体声明和本次授权主体，并单独提交 descriptor SHA-256。
+Kas Will 新生成的 `.ssinvite` 为每个 Covenant 输入附带 canonical v1 descriptor。描述符固定 CAIP-2 网络、程序 SHA-256、Covenant ID、ABI 哈希、状态布局哈希、控制主体声明和本次授权主体，并单独提交 descriptor SHA-256。
 
 导入时会从交易 UTXO 和 redeem program 重新计算这些值。ABI、状态布局、网络、程序或 Covenant ID 任一不匹配都会拒绝操作包。旧版操作包仍可读取，但界面会明确显示 `legacy-missing`；描述符只提高元数据完整性，不能证明 redeem program 的业务语义。
 
@@ -54,9 +54,9 @@ Studio 新生成的 `.ssinvite` 为每个 Covenant 输入附带 canonical v1 des
 
 ### Compiler compatibility profiles
 
-`config/compiler-profiles.json` is the committed compatibility catalog. The generated `config/compiler.json` records local binary paths, build times, and SHA-256 hashes. The default profile pins official SilverScript commit `14dce9a5ce8769cdfbd0c8965f8764fa9c325067`; isolated `6f9e078`, `cb34aa5`, and `2a3961c` profiles reproduce Studio 0.2.8, 0.2.7, and older projects.
+`config/compiler-profiles.json` is the committed compatibility catalog. The generated `config/compiler.json` records local binary paths, build times, and SHA-256 hashes. The default profile pins official SilverScript commit `023c7eed6b85038c72233a62024c5476640445e3`; isolated `14dce9a`, `6f9e078`, `cb34aa5`, and `2a3961c` profiles reproduce older artifacts.
 
-Compatibility checks report known changes and automatically apply only unambiguous renames. Commit `6f9e078` requires explicit `signed()`/`unsigned()` conversion from scalar byte and `as byte` for checked runtime int conversion; Studio never guesses that meaning. Removed `.reverse()`, byte ordering, bitwise typing, and state-layout changes also require manual review. Every migration still requires a full compile with realistic constructor arguments and adversarial transaction tests.
+Compatibility checks report known changes and automatically apply only unambiguous renames. Commit `6f9e078` requires explicit `signed()`/`unsigned()` conversion from scalar byte and `as byte` for checked runtime int conversion; Kas Will never guesses that meaning. Removed `.reverse()`, byte ordering, bitwise typing, and state-layout changes also require manual review. Every migration still requires a full compile with realistic constructor arguments and adversarial transaction tests.
 
 Endpoints:
 
@@ -68,7 +68,7 @@ Endpoints:
 
 `CovenantStateSource` separates active-covenant discovery from a particular index service. Providers return candidates; the source independently verifies the outpoint, covenant ID, P2SH script, and positive value. Multiple verified candidates from one provider fail closed instead of silently choosing a lineage.
 
-Studio currently tries native covenant-ID RPC when available, outpoint RPC when available, then P2SH-address UTXO lookup. Local indexers can be added later, but they cannot bypass final verification.
+Kas Will currently tries native covenant-ID RPC when available, outpoint RPC when available, then P2SH-address UTXO lookup. Local indexers can be added later, but they cannot bypass final verification.
 
 Endpoint: `POST /api/covenants/resolve`.
 
@@ -82,7 +82,7 @@ Import reconstructs these commitments from the transaction UTXO and redeem progr
 
 A plain P2PK input can independently authorize a covenant state transition. The selector chooses the smallest confirmed, non-coinbase UTXO that covers the required value. Authorization verifies network, address/x-only key ownership, P2PK script, outpoint, and amount.
 
-Signing touches only the declared P2PK input. Studio compares the signature-independent transaction commitment and verifies that no covenant input was changed. The confirmation phrase is `SIGN REVIEWED P2PK CO-SPEND`.
+Signing touches only the declared P2PK input. Kas Will compares the signature-independent transaction commitment and verifies that no covenant input was changed. The confirmation phrase is `SIGN REVIEWED P2PK CO-SPEND`.
 
 Endpoints:
 

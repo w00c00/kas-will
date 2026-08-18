@@ -52,22 +52,17 @@ function loadCompilerConfig() {
   const definitions = Array.isArray(compatibility.profiles) ? compatibility.profiles : [];
   const profiles = Object.fromEntries(definitions.map((definition) => {
     const local = localProfiles[definition.id] || {};
-    const isLatest = definition.upstreamCommit === SILVERSCRIPT_COMMIT;
     const legacyStored = !stored.profiles && definition.upstreamCommit === (stored.upstreamCommit || SILVERSCRIPT_LEGACY_COMMIT)
       ? stored
       : {};
-    const isPrevious = definition.upstreamCommit === SILVERSCRIPT_PREVIOUS_COMMIT;
-    const isOlder = definition.upstreamCommit === SILVERSCRIPT_OLDER_COMMIT;
-    const environmentBin = isLatest
-      ? process.env.SILVERC_LATEST_BIN || process.env.SILVERC_BIN
-      : isPrevious ? process.env.SILVERC_PREVIOUS_BIN || process.env.SILVERC_6F9E078_BIN
-        : isOlder ? process.env.SILVERC_OLDER_BIN || process.env.SILVERC_CB34AA5_BIN
-          : process.env.SILVERC_LEGACY_BIN;
-    const environmentSha = isLatest
-      ? process.env.SILVERC_LATEST_SHA256 || process.env.SILVERC_SHA256
-      : isPrevious ? process.env.SILVERC_PREVIOUS_SHA256 || process.env.SILVERC_6F9E078_SHA256
-        : isOlder ? process.env.SILVERC_OLDER_SHA256 || process.env.SILVERC_CB34AA5_SHA256
-          : process.env.SILVERC_LEGACY_SHA256;
+    const environmentByProfile = {
+      "latest-023c7ee": [process.env.SILVERC_LATEST_BIN || process.env.SILVERC_BIN, process.env.SILVERC_LATEST_SHA256 || process.env.SILVERC_SHA256],
+      "latest-14dce9a": [process.env.SILVERC_PREVIOUS_BIN, process.env.SILVERC_PREVIOUS_SHA256],
+      "latest-6f9e078": [process.env.SILVERC_OLDER_BIN || process.env.SILVERC_6F9E078_BIN, process.env.SILVERC_OLDER_SHA256 || process.env.SILVERC_6F9E078_SHA256],
+      "latest-cb34aa5": [process.env.SILVERC_CB34AA5_BIN, process.env.SILVERC_CB34AA5_SHA256],
+      "legacy-2a3961c": [process.env.SILVERC_LEGACY_BIN, process.env.SILVERC_LEGACY_SHA256]
+    };
+    const [environmentBin, environmentSha] = environmentByProfile[definition.id] || [];
     return [definition.id, Object.freeze({
       ...definition,
       bin: path.resolve(environmentBin || local.bin || legacyStored.bin || path.join(ROOT, definition.binary)),

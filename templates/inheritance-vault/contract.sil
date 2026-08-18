@@ -45,7 +45,7 @@ contract InheritanceVault(pubkey owner, pubkey[] inheritors, int[] sharesBps, in
         require(this.age >= inactivityPeriod);
         requireFee(minerFee);
         requireSingleCovenantInput();
-        require(inheritors.length >= 2);
+        require(inheritors.length >= 1);
         require(inheritors.length <= MAX_INHERITORS);
         require(sharesBps.length == inheritors.length);
         require(tx.outputs.length == inheritors.length);

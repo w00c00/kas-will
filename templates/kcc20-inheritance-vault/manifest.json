@@ -19,9 +19,10 @@
   "parameters": [
     { "id": "amountKas", "type": "amount", "projectField": "deployAmount", "required": true, "default": "0.5", "minimum": "0.5", "labelZh": "控制金库 KAS", "labelEn": "Controller vault KAS", "helpZh": "为签到与最终 KCC20 输出提供存储质量和手续费余量。", "helpEn": "Provides storage-mass and fee headroom for check-ins and final KCC20 outputs." },
     { "id": "ownerAddress", "type": "address", "argIndex": 0, "required": true, "useConnectedWallet": true, "labelZh": "拥有者钱包", "labelEn": "Owner wallet", "helpZh": "拥有者可签到或在到期前取回 Token。", "helpEn": "The owner can check in or recover the token before maturity." },
-    { "id": "inheritors", "type": "heirs", "keyArgIndex": 1, "shareArgIndex": 2, "disallowParameter": "ownerAddress", "minimum": 2, "maximum": 5, "required": true, "labelZh": "继承人与份额", "labelEn": "Inheritors and shares", "helpZh": "2–5 个钱包，比例总计 100%。", "helpEn": "Two to five wallets whose shares total 100%." },
+    { "id": "inheritors", "type": "heirs", "keyArgIndex": 1, "shareArgIndex": 2, "disallowParameter": "ownerAddress", "minimum": 1, "maximum": 5, "required": true, "labelZh": "继承人与份额", "labelEn": "Inheritors and shares", "helpZh": "1–5 个钱包，比例总计 100%；单继承人填写 100%。", "helpEn": "One to five wallets whose shares total 100%; use 100% for a sole inheritor." },
     { "id": "inactivityDays", "type": "duration", "argIndex": 3, "minimumSeconds": 60, "maximumSeconds": 315360000, "defaultValue": 180, "defaultUnit": "days", "required": true, "labelZh": "未签到等待时间", "labelEn": "Inactivity period", "helpZh": "1 分钟仅用于 TN10 测试。", "helpEn": "One minute is only for TN10 testing." },
     { "id": "tokenCovenantId", "type": "sha256", "argIndex": 4, "required": true, "labelZh": "KCC20 Covenant ID", "labelEn": "KCC20 covenant ID", "helpZh": "必须来自已验证的 Token 描述符和当前链上 UTXO。", "helpEn": "Must come from a verified token descriptor and current on-chain UTXO." },
+    { "id": "tokenDisplayName", "type": "text", "required": false, "maximumLength": 120, "labelZh": "Kascov 代币名称（仅显示）", "labelEn": "Kascov token name (display only)", "helpZh": "名称来自可选 Kascov 查询，不参与签名、模板绑定或资产身份判断。", "helpEn": "Fetched optionally from Kascov and never used for signing, template binding, or asset identity." },
     { "id": "tokenTemplatePrefixLength", "type": "integer", "argIndex": 5, "required": true, "minimum": 0, "maximum": 10000, "default": 0, "labelZh": "模板前缀长度", "labelEn": "Template prefix length" },
     { "id": "tokenTemplateSuffixLength", "type": "integer", "argIndex": 6, "required": true, "minimum": 1, "maximum": 10000, "default": 1, "labelZh": "模板后缀长度", "labelEn": "Template suffix length" },
     { "id": "tokenTemplateHash", "type": "sha256", "argIndex": 7, "required": true, "labelZh": "KCC20 模板哈希", "labelEn": "KCC20 template hash", "helpZh": "对描述符中的固定模板部分做承诺，不接受只靠名称识别的 Token。", "helpEn": "Commits to descriptor template bytes; token names alone are never trusted." }
@@ -46,7 +47,7 @@
   "transactionPlans": [
     { "transition": "checkIn", "inputs": [{ "role": "controller", "index": 0 }], "outputs": [{ "role": "same-controller", "index": 0 }] },
     { "transition": "recover", "inputs": [{ "role": "controller", "index": 0 }, { "role": "kcc20", "index": 1 }], "outputs": [{ "role": "owner-kcc20", "index": 0 }] },
-    { "transition": "inherit", "inputs": [{ "role": "mature-controller", "index": 0 }, { "role": "kcc20", "index": 1 }], "outputs": [{ "role": "inheritor-kcc20", "count": "2-5" }] }
+    { "transition": "inherit", "inputs": [{ "role": "mature-controller", "index": 0 }, { "role": "kcc20", "index": 1 }], "outputs": [{ "role": "inheritor-kcc20", "count": "1-5" }] }
   ],
   "example": {
     "titleZh": "把一个 TN10 KCC20 余额留给两位继承人",

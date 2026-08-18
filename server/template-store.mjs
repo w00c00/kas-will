@@ -115,7 +115,7 @@ function durationPeriod(value, minimumSeconds = 60, maximumSeconds = 315360000) 
   return { value: amount, unit, seconds };
 }
 
-function heirs(value, network, minimum = 2, maximum = 5) {
+function heirs(value, network, minimum = 1, maximum = 5) {
   if (!Array.isArray(value) || value.length < minimum || value.length > maximum) {
     throw parameterError(`Template requires ${minimum}-${maximum} inheritors`);
   }
@@ -126,8 +126,8 @@ function heirs(value, network, minimum = 2, maximum = 5) {
     if (used.has(identity.address)) throw parameterError("Inheritor wallet addresses must be different");
     used.add(identity.address);
     const shareBps = Number(item?.shareBps);
-    if (!Number.isSafeInteger(shareBps) || shareBps < 1 || shareBps > 9999) {
-      throw parameterError(`Inheritor ${index + 1} share must be an integer from 1 to 9999 basis points`);
+    if (!Number.isSafeInteger(shareBps) || shareBps < 1 || shareBps > 10000) {
+      throw parameterError(`Inheritor ${index + 1} share must be an integer from 1 to 10000 basis points`);
     }
     totalShares += shareBps;
     return { address: identity.address, publicKey: identity.publicKey, shareBps };
@@ -281,6 +281,13 @@ export class TemplateStore {
         if (!Number.isSafeInteger(value) || value < minimum || value > maximum) throw parameterError(`Template integer ${field.id} must be from ${minimum} to ${maximum}`);
         parameters[field.id] = value;
         if (Number.isInteger(field.argIndex)) constructorArgs[field.argIndex] = { kind: "int", data: value };
+      } else if (field.type === "text") {
+        const value = String(raw ?? field.default ?? "").trim();
+        const maximumLength = Number(field.maximumLength || 120);
+        if (value.length > maximumLength || /[\u0000-\u001f\u007f]/.test(value)) {
+          throw parameterError(`Template text ${field.id} must be plain text up to ${maximumLength} characters`);
+        }
+        parameters[field.id] = value;
       } else if (field.type === "durationDays") {
         const value = durationDays(raw, Number(field.minimum || 1), Number(field.maximum || 3650));
         parameters[field.id] = value.days;
@@ -293,7 +300,7 @@ export class TemplateStore {
         if (!Number.isSafeInteger(encoded)) throw parameterError("Template duration encoding exceeds the safe integer range");
         if (Number.isInteger(field.argIndex)) constructorArgs[field.argIndex] = { kind: "int", data: encoded };
       } else if (field.type === "heirs") {
-        const value = heirs(raw, networkConfig, Number(field.minimum || 2), Number(field.maximum || 5));
+        const value = heirs(raw, networkConfig, Number(field.minimum || 1), Number(field.maximum || 5));
         if (field.disallowParameter && parameters[field.disallowParameter] && value.some((item) => item.address === parameters[field.disallowParameter])) {
           throw parameterError("Inheritor wallets must be different from the owner wallet");
         }

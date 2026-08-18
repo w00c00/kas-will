@@ -6,6 +6,7 @@ import { config, publicConfig } from "./config.mjs";
 import { compileContract, compilerManifest, compilerProfiles, detectBreakingChanges, migrateSourceToProfile, staticAnalyze } from "./compiler.mjs";
 import { DraftStore } from "./draft-store.mjs";
 import { broadcastWalletTransfer, buildDeployDraft, buildWalletTransferDraft, broadcastDeploy, configureNodeAccess, discoverNetworks, findCovenantUtxo, kascovPreflight, nodeStatus, signAndBroadcastWalletTransfer, signDeployDraft, submitReviewedTransaction, transactionEvidence, walletBalance } from "./kaspa-service.mjs";
+import { fetchKascovTokenMetadata } from "./kascov-token-service.mjs";
 import { ProjectStore } from "./project-store.mjs";
 import { localCors, requireLocalOrigin, sha256 } from "./security.mjs";
 import { AppSettingsStore } from "./settings-store.mjs";
@@ -85,6 +86,17 @@ app.get("/api/node/status", async (req, res, next) => {
 });
 app.get("/api/nodes/discover", async (_req, res, next) => {
   try { res.json({ nodes: await discoverNetworks() }); } catch (error) { next(error); }
+});
+app.post("/api/node/test", async (req, res, next) => {
+  try { res.json({ node: await nodeStatus(String(req.body?.network || "tn10"), req.body?.rpcUrl) }); } catch (error) { next(error); }
+});
+app.get("/api/kcc20/metadata", async (req, res, next) => {
+  try {
+    res.json({ metadata: await fetchKascovTokenMetadata(
+      String(req.query.network || "tn10"),
+      String(req.query.covenantId || "")
+    ) });
+  } catch (error) { next(error); }
 });
 
 app.get("/api/wallets", (_req, res) => res.json({ wallets: wallets.list() }));
