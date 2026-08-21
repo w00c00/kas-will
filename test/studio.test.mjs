@@ -109,14 +109,100 @@ test("portable will packages are deterministic, template-bound and tamper-eviden
   };
   project.deployment = { txid: "22".repeat(32), covenantId: "33".repeat(32), network: "tn10", activeTxid: "22".repeat(32), activeOutputIndex: 0 };
 
-  const first = createPortableWillPackage(project, { exportedAt: "2026-08-18T00:00:00.000Z" });
-  const second = createPortableWillPackage(project, { exportedAt: "2026-08-19T00:00:00.000Z" });
+  const first = createPortableWillPackage(project, { exportedAt: "2026-08-18T00:00:00.000Z", templates });
+  const second = createPortableWillPackage(project, { exportedAt: "2026-08-19T00:00:00.000Z", templates });
   assert.equal(first.commitment, second.commitment);
+  assert.equal(first.payload.project.templateRevision, undefined);
   assert.equal(inspectPortableWillPackage(first, templates).project.deployment.covenantId, "33".repeat(32));
+  assert.equal(inspectPortableWillPackage(first, templates).templateRevision, "current");
 
   const tampered = structuredClone(first);
   tampered.payload.project.templateParameters.inheritors[0].shareBps = 5000;
   assert.throws(() => inspectPortableWillPackage(tampered, templates), /commitment does not match/i);
+});
+
+test("portable will packages accept pinned historical template revisions and reject unknown sources", () => {
+  const templates = new TemplateStore();
+  const ownerAddress = randomPrivateKey().toAddress("testnet-10").toString();
+  const inheritorAddress = randomPrivateKey().toAddress("testnet-10").toString();
+  const parameters = {
+    amountKas: "0.5",
+    ownerAddress,
+    inheritors: [{ address: inheritorAddress, shareBps: 10000 }],
+    inactivityDays: { value: 1, unit: "days" }
+  };
+  const current = templates.projectInput("inheritance-vault", "tn10", parameters);
+  const revision = templates.matchHistoryRevision("inheritance-vault", current.source);
+  assert.equal(revision, null, "current source must not match a historical revision");
+  const legacySource = templates.get("inheritance-vault").historyRevisions.find((item) => item.id === "pre-single-heir").source;
+  assert.notEqual(legacySource, current.source);
+
+  const legacyProject = {
+    ...current,
+    id: "legacy-portable-test",
+    name: "Legacy will",
+    source: legacySource,
+    artifact: {
+      programSha256: "11".repeat(32),
+      sourceSha256: sha256(legacySource),
+      constructorArgsSha256: sha256(JSON.stringify(current.constructorArgs)),
+      compiler: { id: current.compilerProfileId, upstreamCommit: SILVERSCRIPT_COMMIT }
+    },
+    deployment: { txid: "22".repeat(32), covenantId: "33".repeat(32), network: "tn10", status: "active", activeTxid: "22".repeat(32), activeOutputIndex: 0 }
+  };
+  const legacyPackage = createPortableWillPackage(legacyProject, { templates });
+  assert.equal(legacyPackage.payload.project.templateRevision, "pre-single-heir");
+  const inspected = inspectPortableWillPackage(legacyPackage, templates);
+  assert.equal(inspected.templateRevision, "pre-single-heir");
+  assert.equal(inspected.project.source, legacySource);
+
+  const unknownSourceProject = { ...legacyProject, source: `${legacySource}\n// drift\n` };
+  unknownSourceProject.artifact = { ...legacyProject.artifact, sourceSha256: sha256(unknownSourceProject.source) };
+  const unknownPackage = createPortableWillPackage(unknownSourceProject, { templates });
+  assert.equal(unknownPackage.payload.project.templateRevision, "unrecognized");
+  assert.throws(() => inspectPortableWillPackage(unknownPackage, templates), /differ from the deterministic template/i);
+
+  const tamperedLegacy = structuredClone(legacyPackage);
+  tamperedLegacy.payload.project.source = current.source;
+  assert.throws(() => inspectPortableWillPackage(tamperedLegacy, templates), /commitment does not match/i);
+});
+
+test("kcc20 portable packages accept the pre-token-name historical revision", () => {
+  const templates = new TemplateStore();
+  const ownerAddress = randomPrivateKey().toAddress("testnet-10").toString();
+  const inheritorAddress = randomPrivateKey().toAddress("testnet-10").toString();
+  const parameters = {
+    amountKas: "0.5",
+    ownerAddress,
+    inheritors: [{ address: inheritorAddress, shareBps: 10000 }],
+    inactivityDays: { value: 180, unit: "days" },
+    tokenCovenantId: "42".repeat(32),
+    tokenTemplatePrefixLength: 0,
+    tokenTemplateSuffixLength: 1,
+    tokenTemplateHash: "43".repeat(32)
+  };
+  const current = templates.projectInput("kcc20-inheritance-vault", "tn10", parameters);
+  const legacySource = templates.get("kcc20-inheritance-vault").historyRevisions.find((item) => item.id === "pre-single-heir").source;
+  const legacyParameters = { ...parameters };
+  delete legacyParameters.tokenDisplayName;
+  const legacyProject = {
+    ...current,
+    id: "legacy-kcc20-portable-test",
+    name: "Legacy KCC20 will",
+    source: legacySource,
+    templateParameters: legacyParameters,
+    artifact: {
+      programSha256: "55".repeat(32),
+      sourceSha256: sha256(legacySource),
+      constructorArgsSha256: sha256(JSON.stringify(current.constructorArgs)),
+      compiler: { id: current.compilerProfileId, upstreamCommit: SILVERSCRIPT_COMMIT }
+    },
+    deployment: null
+  };
+  const legacyPackage = createPortableWillPackage(legacyProject, { templates });
+  assert.equal(legacyPackage.payload.project.templateRevision, "pre-single-heir");
+  const inspected = inspectPortableWillPackage(legacyPackage, templates);
+  assert.equal(inspected.templateRevision, "pre-single-heir");
 });
 
 test("wallet role limits non-owners to mature inheritance distribution", () => {

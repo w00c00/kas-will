@@ -1,0 +1,13 @@
+{
+  "revisions": [
+    {
+      "id": "pre-single-heir",
+      "file": "contract-pre-single-heir.sil",
+      "sha256": "b3291a0f3374da927c9f8f3048052974b2edaae7656f260ac6ed0ea57fa13dd7",
+      "retiredAtCommit": "af1b9750c8b3014f80af1d6130d24f1d5bf2df82",
+      "retiredAt": "2026-08-18T11:52:47+08:00",
+      "noteZh": "单继承人支持之前的版本：要求至少 2 位继承人。此版本部署的链上遗嘱操作包仍可导入。",
+      "noteEn": "Version before single-heir support: required at least 2 inheritors. Operation packages for wills deployed with this version remain importable."
+    }
+  ]
+}

@@ -184,7 +184,7 @@ app.get("/api/projects/:id/portable-will", (req, res, next) => {
   try {
     const project = projects.get(req.params.id);
     if (!project) return res.status(404).json({ error: "Project not found" });
-    res.json({ package: createPortableWillPackage(project, { appVersion: APP_VERSION }) });
+    res.json({ package: createPortableWillPackage(project, { appVersion: APP_VERSION, templates }) });
   } catch (error) { next(error); }
 });
 app.post("/api/portable-wills/inspect", (req, res, next) => {
@@ -200,7 +200,8 @@ app.post("/api/portable-wills/inspect", (req, res, next) => {
         ownerAddress: inspected.project.templateParameters?.ownerAddress || "",
         inheritors: inspected.project.templateParameters?.inheritors || [],
         deployed: Boolean(inspected.project.deployment?.txid),
-        covenantId: inspected.project.deployment?.covenantId || ""
+        covenantId: inspected.project.deployment?.covenantId || "",
+        templateRevision: inspected.templateRevision
       }
     });
   } catch (error) { next(error); }
@@ -246,20 +247,31 @@ app.post("/api/portable-wills/import", async (req, res, next) => {
       const project = safeDeployment && !existing.deployment
         ? projects.save(existing.id, { deployment: safeDeployment })
         : existing;
-      return res.json({ project, imported: false, commitment: inspected.commitment });
+      return res.json({ project, imported: false, commitment: inspected.commitment, templateRevision: inspected.templateRevision });
     }
     const deterministic = templates.projectInput(inspected.templateId, "tn10", candidate.templateParameters, {
       language: req.body?.language,
       encodingVersion: Number(candidate.review?.parameterEncodingVersion || 1)
     });
+    const baseRecord = inspected.templateRevision === "current" ? deterministic : {
+      network: "tn10",
+      requirements: String(candidate.requirements || ""),
+      source: candidate.source,
+      constructorArgs: structuredClone(candidate.constructorArgs || []),
+      templateParameters: structuredClone(candidate.templateParameters || {}),
+      deployAmount: String(candidate.deployAmount || "0.5"),
+      specification: candidate.specification ? structuredClone(candidate.specification) : null,
+      transactionPlans: Array.isArray(candidate.transactionPlans) ? structuredClone(candidate.transactionPlans) : [],
+      review: candidate.review ? structuredClone(candidate.review) : null
+    };
     const created = projects.create({
-      ...deterministic,
+      ...baseRecord,
       id: `will-${inspected.commitment.slice(0, 20)}`,
       name: candidate.name,
       compilerProfileId: candidate.compilerProfileId
     });
     const project = projects.save(created.id, { artifact: compiled, deployment: safeDeployment });
-    res.status(201).json({ project, imported: true, commitment: inspected.commitment });
+    res.status(201).json({ project, imported: true, commitment: inspected.commitment, templateRevision: inspected.templateRevision });
   } catch (error) { next(error); }
 });
 app.get("/api/projects/:id/operations", (req, res, next) => {

@@ -60,6 +60,9 @@ function portablePayload(project) {
       compilerProfileId: String(project.compilerProfileId || ""),
       templateParameters: structuredClone(project.templateParameters || {}),
       deployAmount: String(project.deployAmount || "0"),
+      requirements: String(project.requirements || ""),
+      specification: structuredClone(project.specification || null),
+      transactionPlans: Array.isArray(project.transactionPlans) ? structuredClone(project.transactionPlans) : [],
       review: structuredClone(project.review || null),
       deployment: publicDeployment(project.deployment),
       artifact: artifactIdentity(project)
@@ -67,8 +70,19 @@ function portablePayload(project) {
   };
 }
 
-export function createPortableWillPackage(project, { appVersion = "0.1.0", exportedAt = new Date().toISOString() } = {}) {
+function resolveTemplateRevision(templates, templateId, source) {
+  if (!templates || typeof templates.matchHistoryRevision !== "function") return null;
+  return templates.matchHistoryRevision(templateId, source);
+}
+
+export function createPortableWillPackage(project, { appVersion = "0.1.0", exportedAt = new Date().toISOString(), templates = null } = {}) {
   const payload = portablePayload(project);
+  const templateId = String(payload.project.review?.templateId || "");
+  const template = templateId && templates ? templates.get(templateId) : null;
+  if (template && payload.project.source !== template.source) {
+    const revision = resolveTemplateRevision(templates, templateId, payload.project.source);
+    payload.project.templateRevision = revision ? revision.id : "unrecognized";
+  }
   return {
     kind: PORTABLE_WILL_KIND,
     version: PORTABLE_WILL_VERSION,
@@ -97,7 +111,15 @@ export function inspectPortableWillPackage(input, templates) {
   if (project.compilerProfileId !== expected.compilerProfileId || project.artifact?.compilerProfileId !== expected.compilerProfileId) {
     fail("Portable will does not use the template's pinned compiler profile", "PORTABLE_WILL_COMPILER_PROFILE_MISMATCH");
   }
-  if (project.source !== expected.source || JSON.stringify(project.constructorArgs) !== JSON.stringify(expected.constructorArgs)) {
+  let templateRevision = "current";
+  if (project.source !== expected.source) {
+    const revision = resolveTemplateRevision(templates, templateId, project.source);
+    if (!revision) {
+      fail("Portable will source or constructor arguments differ from the deterministic template", "PORTABLE_WILL_TEMPLATE_DRIFT");
+    }
+    templateRevision = revision.id;
+  }
+  if (JSON.stringify(project.constructorArgs) !== JSON.stringify(expected.constructorArgs)) {
     fail("Portable will source or constructor arguments differ from the deterministic template", "PORTABLE_WILL_TEMPLATE_DRIFT");
   }
   const identity = project.artifact || {};
@@ -117,7 +139,7 @@ export function inspectPortableWillPackage(input, templates) {
       fail("Portable will deployment state is invalid");
     }
   }
-  return { package: pkg, payload, project, templateId, commitment: actualCommitment };
+  return { package: pkg, payload, project, templateId, commitment: actualCommitment, templateRevision };
 }
 
 export function portableWillMatchesProject(inspected, project) {

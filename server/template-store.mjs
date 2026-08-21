@@ -167,12 +167,36 @@ export class TemplateStore {
         source,
         packContracts,
         constructorArgs: Array.isArray(manifest.constructorArgs) ? manifest.constructorArgs.map(compilerExpression) : [],
-        transactionPlans: Array.isArray(manifest.transactionPlans) ? manifest.transactionPlans : []
+        transactionPlans: Array.isArray(manifest.transactionPlans) ? manifest.transactionPlans : [],
+        historyRevisions: this.historyRevisions(normalized)
       };
     } catch (error) {
       if (error.code === "ENOENT") return null;
       throw error;
     }
+  }
+
+  historyRevisions(id) {
+    const directory = path.join(this.directory, safeId(id, "template id"), "history");
+    let stored;
+    try {
+      stored = readJson(path.join(directory, "history.json"));
+    } catch (error) {
+      if (error.code === "ENOENT") return [];
+      throw error;
+    }
+    return (Array.isArray(stored.revisions) ? stored.revisions : []).map((revision) => {
+      const source = fs.readFileSync(path.join(directory, revision.file), "utf8");
+      const actual = sha256(source);
+      if (actual !== String(revision.sha256 || "").toLowerCase()) {
+        throw Object.assign(new Error(`Template ${id} history revision ${revision.id} does not match its pinned SHA-256`), { status: 500, code: "TEMPLATE_HISTORY_MISMATCH" });
+      }
+      return { id: String(revision.id || ""), sha256: actual, source };
+    }).filter((revision) => revision.id && /^[0-9a-f]{64}$/.test(revision.sha256));
+  }
+
+  matchHistoryRevision(id, source) {
+    return this.historyRevisions(id).find((revision) => revision.source === source) || null;
   }
 
   deploymentBlockedReasons(id, input = {}) {
