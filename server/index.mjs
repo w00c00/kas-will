@@ -145,6 +145,8 @@ app.post("/api/templates/:id/projects", (req, res, next) => {
   try {
     if (!WILL_TEMPLATE_IDS.has(req.params.id)) throw Object.assign(new Error("Kas Will only supports inheritance templates"), { status: 404 });
     const input = templates.projectInput(req.params.id, req.body?.network, req.body?.parameters, { language: req.body?.language });
+    const name = String(req.body?.name || "").trim();
+    if (name) input.name = name;
     res.status(201).json({ project: projects.create(input) });
   } catch (error) { next(error); }
 });
