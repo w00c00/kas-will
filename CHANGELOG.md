@@ -1,5 +1,17 @@
 # Changelog / 更新日志
 
+## 0.2.0 — 2026-08-21
+
+- Operation packages exported from wills created before the single-heir template change now import again: retired contract sources ship under `templates/*/history` pinned by SHA-256, inspection accepts exactly those revisions, and every other check (commitment, compiler profile, artifact hashes, pinned-compiler reproduction, on-chain Covenant UTXO) stays strict.
+- Exports label their template revision and warn when a package needs a compatible client; imports show the matched revision.
+- Wills can be named at creation for the local list and package display; names never change on-chain rules.
+
+## 0.2.0 — 2026-08-21（中文）
+
+- 单继承人模板变更之前创建的遗嘱，其操作包现在可以重新导入：退役契约源码随仓库 `templates/*/history` 发布并固定 SHA-256，导入端只接受这些显式修订；承诺校验、编译器档案、产物哈希、固定编译器复现与链上 Covenant UTXO 核验全部保持严格。
+- 导出时标注模板版本，并在需要兼容客户端时给出双语提示；导入成功后显示匹配到的版本。
+- 创建遗嘱时可命名，仅用于本机列表和操作包显示，不改变链上规则。
+
 ## 0.1.0 — 2026-08-18
 
 - First standalone Kas Will desktop release for macOS, Windows, and Linux.

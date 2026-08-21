@@ -17,7 +17,8 @@ Kas Will is a focused extraction of the inheritance workflow from SilverScript S
 - 拥有者取回：由拥有者签名取回。
 - 到期继承：期限成熟后，任何人可触发，但收款钱包与比例由契约固定。
 - KCC20 全生命周期：转入遗嘱、签到、拥有者原子取回、到期原子拆分。
-- 每份遗嘱单独导出的 `.ssinvite`：其它电脑导入时重新核对固定模板、编译器、程序哈希与部署身份，并按当前钱包自动识别建立人、继承人或其它触发者。
+- 每份遗嘱单独导出的 `.ssinvite`：其它电脑导入时重新核对固定模板、编译器、程序哈希与部署身份，并按当前钱包自动识别建立人、继承人或其它触发者。历史模板版本（如单继承人支持之前部署的遗嘱）按仓库内固定 SHA-256 的退役契约源码显式兼容，未知来源依旧拒绝导入。
+- 遗嘱名称：创建时可命名，仅用于本机列表和操作包显示，不改变链上规则。
 - 简化的签到与提取页：建立人可签到或取回；其它钱包只能在到期后触发提取，资金仍严格发送到契约固定的继承地址。
 - 部署结果弹窗会自动刷新 Kascov 收录状态并提供交易与 Covenant 链接；Kascov 不可用时不影响本地节点操作。
 - 本地加密钱包：创建或导入助记词、复制地址、查询余额和断开连接；新助记词只显示一次。
@@ -31,7 +32,8 @@ Kas Will is a focused extraction of the inheritance workflow from SilverScript S
 - Owner recovery remains signature-gated.
 - Mature distribution is permissionless to trigger, while recipients and shares remain covenant-bound.
 - Full KCC20 lifecycle: fund, check in, atomically recover, and atomically split after maturity.
-- Each will has its own `.ssinvite` export. Another installation reproduces the pinned template, compiler, program hash, and deployment identity before classifying the connected wallet as creator, inheritor, or another trigger.
+- Each will has its own `.ssinvite` export. Another installation reproduces the pinned template, compiler, program hash, and deployment identity before classifying the connected wallet as creator, inheritor, or another trigger. Historical template revisions (such as wills deployed before single-heir support) are accepted explicitly against retired contract sources pinned by SHA-256 in this repository; unknown sources are still rejected.
+- Will names: optional at creation, used only for the local list and package display; they never change on-chain rules.
 - The simplified Check in & claim page lets the creator check in or recover; every other wallet can only trigger mature distribution to the covenant-fixed inheritor addresses.
 - Deployment dialogs automatically refresh Kascov indexing evidence and link to the transaction and Covenant; Kascov availability never gates local node operation.
 - Encrypted local wallet with create/import, address copy, balance, and disconnect flows; a new mnemonic is shown once.
