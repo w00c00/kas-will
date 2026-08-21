@@ -1,0 +1,2 @@
+# SilverScript sources are hashed byte-exactly (template history pins); force LF everywhere
+*.sil text eol=lf
