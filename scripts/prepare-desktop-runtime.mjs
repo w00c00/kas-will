@@ -23,7 +23,15 @@ for (const helper of helperNames) {
 }
 fs.rmSync(path.join(tauri, "runtime"), { recursive: true, force: true });
 fs.mkdirSync(runtime, { recursive: true });
-for (const entry of ["server", "src/kcc721-metadata.js", "templates", "knowledge", "config", "third_party", "dist", "node_modules", "package.json"]) copy(entry);
+for (const entry of ["server", "src/kcc721-metadata.js", "templates", "knowledge", "config", "third_party", "dist", "package.json"]) copy(entry);
+// Production-only server dependencies. Copying the whole node_modules drags
+// devDependency binaries (e.g. @tauri-apps/cli musl ELF objects) into the
+// bundle, and linuxdeploy rejects the AppImage when it cannot resolve
+// libc.musl-x86_64.so.1 for them.
+fs.copyFileSync(path.join(root, "package-lock.json"), path.join(runtime, "package-lock.json"));
+execFileSync(process.platform === "win32" ? "npm.cmd" : "npm",
+  ["ci", "--omit=dev", "--ignore-scripts", "--no-audit", "--no-fund"],
+  { cwd: runtime, stdio: "inherit", ...(process.platform === "win32" ? { shell: true } : {}) });
 fs.mkdirSync(path.join(runtime, "bin"), { recursive: true });
 for (const helper of helperNames) {
   const relative = binaryRelativePath(helper);
