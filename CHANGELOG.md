@@ -1,11 +1,13 @@
 # Changelog / 更新日志
 
 ## 1.0.0 — 2026-08-22
+- Owner recovery now runs as the same single guided flow as check-in (build → confirm with fee → wallet password → broadcast); previously it kept the three-step manual flow, which made a half-finished recovery look like "nothing happened". The mature distribution keeps its deliberate multi-step review.
 
 - Fixed the lifecycle card flashing endlessly after a will matured (a mature schedule resolved to zero remaining seconds, re-arming a full refresh on every tick).
 - The Chinese UI now says 资产继承计划 (asset inheritance plan) instead of 遗嘱 everywhere except the legal disclaimer, which still refers to a real legal will; the English UI keeps the neutral "will" and the Kas Will brand is unchanged.
 
 ## 1.0.0 — 2026-08-22（中文）
+- 拥有者取回改为与签到相同的一键引导流程（构建 → 含手续费的确认 → 钱包密码 → 广播）；此前仍是三步手动流程，只点第一步会被误以为"没有生效"。到期继承分配保留分步审查。
 
 - 修复继承计划到期后生命周期卡片持续闪烁的问题（到期状态的剩余秒数为 0，导致每次计时都重新触发整卡刷新）。
 - 中文界面全面改称“资产继承计划”，不再使用“遗嘱”（法律声明中指真实遗嘱处保留原词）；英文界面保留中性的 "will"，Kas Will 品牌名不变。

@@ -322,8 +322,8 @@ test("Kas Will has visible bilingual inheritance, portable will, wallet and node
   assert.match(uiSource, /showProgress\(/, "long operations must surface a progress card");
   assert.match(uiSource, /awaitRenewalConfirmation/, "check-in broadcasts must poll until the node confirms the reset");
   assert.match(uiSource, /remaining>=actual\*0\.9/, "renewal polling must wait for the schedule to actually restart");
-  assert.match(uiSource, /oneClickRenewal/, "check-in must run as a single guided build-sign-broadcast flow");
-  assert.match(uiSource, /b\.dataset\.op==="checkIn"\?oneClickRenewal\(\):buildOperation/, "the check-in button must use the one-click flow");
+  assert.match(uiSource, /oneClickOperation/, "check-in and owner recovery must run as a single guided build-sign-broadcast flow");
+  assert.match(uiSource, /\["checkIn","recover"\]\.includes\(b\.dataset\.op\)\?oneClickOperation/, "the check-in and recovery buttons must use the one-click flow");
   assert.match(uiSource, /\/api\/wallets\/transfer\/draft/, "the wallet page must expose KAS transfers");
   assert.match(uiSource, /\/api\/kcc20\/wallet\/tokens/, "the wallet page must expose the KCC20 registry");
   assert.match(uiSource, /\/api\/kcc20\/wallet\/transfer\/build/, "the wallet page must expose KCC20 transfers");

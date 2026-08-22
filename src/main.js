@@ -31,8 +31,8 @@ Object.assign(msg.en,{deleteDialogTitle:"Delete local will record",deleteDialogH
 Object.assign(msg.zh,{operationInProgress:"已有操作正在进行，请等待完成",progressCreating:"生成继承计划",progressCreateProject:"正在创建项目…",progressCompile:"正在固定编译契约…",progressDeploy:"部署继承计划",progressDeployDraft:"正在构建部署交易…",progressDeployAuth:"等待钱包授权…",progressDeploySign:"正在签名…",progressDeployBroadcast:"本地预检并广播中…",progressDeploySave:"正在更新本机记录…",progressOperation:"构建操作",progressOperationBuild:"正在读取链上状态并构建交易…",progressSigning:"正在签名…",progressBroadcast:"预检并广播",progressRenewalWait:"续签交易已广播，正在等待节点确认并重置期限…",renewalWaitHelp:"倒计时会在确认后自动更新为新期限。",renewalConfirmed:"续签已确认，期限已重置",renewalStillWaiting:"仍在等待节点确认；稍后会自动刷新",renewalTitle:"等待续签确认",sendTitle:"发送 TKAS",sendHelp:"交易在本机构建、本地预检后签名广播；手续费在构建后显示。",sendRecipient:"收款地址",sendAmount:"金额（TKAS）",buildTransfer:"构建转账",confirmSend:"签名并发送",transferBuilt:"转账已构建，请核对后发送",transferSent:"转账已广播",transferSendConfirm:"请确认已核对收款地址、金额和手续费，并立即签名广播？",receiveTitle:"收款地址",sendFailed:"转账失败"});
 Object.assign(msg.en,{operationInProgress:"An operation is already running; wait for it to finish",progressCreating:"Generating will",progressCreateProject:"Creating the project…",progressCompile:"Pinned compile of the covenant…",progressDeploy:"Deploying will",progressDeployDraft:"Building the deployment transaction…",progressDeployAuth:"Waiting for wallet authorization…",progressDeploySign:"Signing…",progressDeployBroadcast:"Local preflight and broadcast…",progressDeploySave:"Updating the local record…",progressOperation:"Building operation",progressOperationBuild:"Reading chain state and building the transaction…",progressSigning:"Signing…",progressBroadcast:"Preflight & broadcast",progressRenewalWait:"Check-in broadcast; waiting for the node to confirm and reset the period…",renewalWaitHelp:"The countdown updates automatically once confirmed.",renewalConfirmed:"Check-in confirmed; the period was reset",renewalStillWaiting:"Still waiting for node confirmation; it will refresh later",renewalTitle:"Awaiting check-in confirmation",sendTitle:"Send TKAS",sendHelp:"Transactions are built locally, preflighted by the local engine, then signed and broadcast; the fee appears after building.",sendRecipient:"Recipient address",sendAmount:"Amount (TKAS)",buildTransfer:"Build transfer",confirmSend:"Sign & send",transferBuilt:"Transfer built. Review it before sending.",transferSent:"Transfer broadcast",transferSendConfirm:"Confirm that you reviewed the recipient, amount and fee, then sign and broadcast now?",receiveTitle:"Receive address",sendFailed:"Transfer failed"});
 
-Object.assign(msg.zh,{renewalOneClickConfirm:"即将签名并广播签到续期交易（手续费 {fee} TKAS），期限会从当前区块重新计算。继续？",checkInProgress:"签到续期"});
-Object.assign(msg.en,{renewalOneClickConfirm:"This signs and broadcasts the check-in renewal (fee {fee} TKAS); the inactivity period restarts from the current block. Continue?",checkInProgress:"Check-in renewal"});
+Object.assign(msg.zh,{renewalOneClickConfirm:"即将签名并广播签到续期交易（手续费 {fee} TKAS），期限会从当前区块重新计算。继续？",checkInProgress:"签到续期",recoverOneClickConfirm:"即将签名并广播拥有者取回交易（手续费 {fee} TKAS），金库余额将退回你的钱包地址，本计划随即结束。继续？",recoverDoneText:"取回交易已提交，金库余额将退回你的钱包地址。"});
+Object.assign(msg.en,{renewalOneClickConfirm:"This signs and broadcasts the check-in renewal (fee {fee} TKAS); the inactivity period restarts from the current block. Continue?",checkInProgress:"Check-in renewal",recoverOneClickConfirm:"This signs and broadcasts the owner recovery (fee {fee} TKAS); the vault balance returns to your wallet address and the plan ends. Continue?",recoverDoneText:"Recovery submitted; the vault balance returns to your wallet address."});
 Object.assign(msg.zh,{kcc20WalletTitle:"KCC20 代币（TN10 实验）",kcc20WalletHelp:"余额来自 Kascov 仅供参考；发送前会用节点脚本哈希验证当前代币单元。",kcc20Empty:"尚未登记代币。粘贴发行方 descriptor 和一次当前 redeem program 完成登记。",kcc20AddToggle:"＋ 登记代币",kcc20Program:"当前 redeem program（hex，仅首次需要）",kcc20Register:"验证并登记",kcc20SendTitle:"发送 KCC20",kcc20SendToken:"代币",kcc20SendAmount:"数量",kcc20Registered:"代币已登记",kcc20BalanceUnknown:"余额暂不可用",kcc20RemoveConfirm:"从本机移除这个代币登记？不会影响链上资产。",kcc20TransferBuilt:"KCC20 转账已构建，请核对后签名广播。",kcc20TransferSent:"KCC20 转账已广播",kcc20NeedWallet:"请先连接钱包",kcc20Remove:"移除",kcc20PickRegistered:"从钱包已登记代币选择（可选）",kcc20PickManual:"— 手动粘贴 descriptor —",portableTrackNote:"操作包只需导入一次：建立人签到续期后，导入端会自动跟踪最新链上状态，无需重新导出。"});
 Object.assign(msg.en,{kcc20WalletTitle:"KCC20 tokens (TN10 experimental)",kcc20WalletHelp:"Balances come from Kascov and are advisory; sending verifies the current token cell against the node's script hash first.",kcc20Empty:"No tokens registered yet. Paste the issuer descriptor and the current redeem program once to register.",kcc20AddToggle:"＋ Register a token",kcc20Program:"Current redeem program (hex; only needed once)",kcc20Register:"Verify & register",kcc20SendTitle:"Send KCC20",kcc20SendToken:"Token",kcc20SendAmount:"Amount",kcc20Registered:"Token registered",kcc20BalanceUnknown:"Balance unavailable",kcc20RemoveConfirm:"Remove this token registration from this device? On-chain assets are unaffected.",kcc20TransferBuilt:"KCC20 transfer built. Review it before signing and broadcasting.",kcc20TransferSent:"KCC20 transfer broadcast",kcc20NeedWallet:"Connect a wallet first",kcc20Remove:"Remove",kcc20PickRegistered:"Pick a wallet-registered token (optional)",kcc20PickManual:"— paste a descriptor manually —",portableTrackNote:"Import a package once: after the owner renews, the importing device follows the latest chain state automatically; no re-export is needed."});
 
@@ -318,7 +318,7 @@ async function renderLifecycle(){
     state.countdownRefreshed=false;
     const noAction=!visibleOperations.length?`<div class="empty">${role==="disconnected"?t("walletNeeded"):(status.status==="spent"?(state.language==="zh"?"该计划已经完成支出":"This will has already been spent"):(state.language==="zh"?"当前钱包在此状态下没有可执行操作":"The connected wallet has no action in the current state"))}</div>`:"";
     card.innerHTML=`<div class="lifecycle-main"><div class="status-orb"><strong>${esc(label)}</strong><span>${kcc?"KCC20 · TN10":"KAS · TN10"}</span></div><div class="detail-list"><div><span>Covenant ID</span><code>${esc(short(status.covenantId,12,10))}</code></div><div><span>${state.language==="zh"?"锁定 KAS":"Locked KAS"}</span><b>${esc(status.valueKas||"—")} TKAS</b></div><div><span>Outpoint</span><code>${esc(short(status.activeOutpoint?.transactionId,10,8))}:${status.activeOutpoint?.index??"—"}</code></div><div><span>${t("daysLeft")}</span><b id="lifecycle-remaining">${status.schedule?(status.schedule.mature?t("countdownReached"):formatDuration(status.schedule.approximateRemainingSeconds)):"—"}</b></div></div></div>${kcc&&status.unspent?`<div class="token-source"><label><span>${state.language==="zh"?"当前 Token 交易 ID":"Current token transaction ID"}</span><input id="operation-token-txid" placeholder="64 hex" /></label><label><span>${state.language==="zh"?"输出序号":"Output index"}</span><input id="operation-token-index" type="number" min="0" value="0" /></label><label class="wide"><span>${state.language==="zh"?"当前 Token redeem program":"Current token redeem program"}</span><textarea id="operation-token-program" rows="4" placeholder="hex"></textarea></label></div>`:""}<div class="operation-actions">${visibleOperations.map(op=>`<button class="${op.id==="inherit"?"danger":op.id==="checkIn"?"primary":"ghost"} operation" data-op="${op.id}">${esc(state.language==="zh"?op.titleZh:op.titleEn)}</button>`).join("")}</div>${noAction}${kcc&&status.unspent?`<p class="experimental-note"><span>${esc(t("kcc20Builder"))}</span></p>`:""}`;
-    $$(".operation").forEach(b=>b.onclick=()=>b.dataset.op==="checkIn"?oneClickRenewal():buildOperation(b.dataset.op));
+    $$(".operation").forEach(b=>b.onclick=()=>["checkIn","recover"].includes(b.dataset.op)?oneClickOperation(b.dataset.op):buildOperation(b.dataset.op));
   }catch(e){
     if(e.name==="AbortError"||requestId!==state.lifecycleRequestId)return;
     state.countdownTargetMs=null;
@@ -328,34 +328,38 @@ async function renderLifecycle(){
   }
 }
 function renderWalletRole(project){const el=$("#wallet-role"),role=willWalletRole(project,state.wallet?.address);el.className=`role-banner ${role}`;el.textContent=!project?t("roleEmpty"):t(`${role}Role`);}
-// One-click check-in: build, review, authorize and broadcast in a single
-// guided flow, then wait for the node to confirm the reset. The separate
-// sign/broadcast buttons in the review panel stay available for other ops.
-async function oneClickRenewal(){
+// One-click guided flow for owner operations: build, review, authorize and
+// broadcast in a single action, then refresh or wait for node confirmation.
+// The mature distribution (inherit) keeps its deliberate multi-step review
+// because it sends funds to other people.
+async function oneClickOperation(operationId){
   const project=state.activeProject;
   if(!project)return;
   if(!state.wallet)return showResult({ok:false,title:t("operationFailed"),message:t("walletNeeded"),actions:[{label:t("connectWallet"),onClick:()=>page("wallet")}]});
+  const renewal=operationId==="checkIn";
   await exclusive(async()=>{
-    showProgress(t("checkInProgress"));
+    showProgress(renewal?t("checkInProgress"):t("recover"));
     try{
       progressStep(t("progressOperationBuild"));
-      const payload=await api(`/api/projects/${encodeURIComponent(project.id)}/operations/build`,{method:"POST",body:JSON.stringify({operationId:"checkIn",feeKas:"0.01"})});
-      state.package=payload.package;state.review=payload.review;state.operationId="checkIn";
+      const payload=await api(`/api/projects/${encodeURIComponent(project.id)}/operations/build`,{method:"POST",body:JSON.stringify({operationId,feeKas:"0.01"})});
+      state.package=payload.package;state.review=payload.review;state.operationId=operationId;
       $("#operation-review").hidden=false;renderPackageReview();
       $("#operation-review").scrollIntoView({behavior:"smooth",block:"start"});
       progressStep(t("progressDeployAuth"));
-      if(!confirm(t("renewalOneClickConfirm").replace("{fee}",String(payload.review?.feeKas??"0.01"))))return;
+      const confirmText=renewal?t("renewalOneClickConfirm"):t("recoverOneClickConfirm");
+      if(!confirm(confirmText.replace("{fee}",String(payload.review?.feeKas??"0.01"))))return;
       const secrets=await requestSecrets();
       progressStep(t("progressDeploySign"));
-      const signed=await api("/api/external-covenants/sign",{method:"POST",body:JSON.stringify({package:state.package,walletId:state.wallet.walletId,publicKey:state.wallet.publicKey,...secrets,confirmation:"SIGN REVIEWED EXTERNAL COVENANT",localRenewal:true})});
+      const signed=await api("/api/external-covenants/sign",{method:"POST",body:JSON.stringify({package:state.package,walletId:state.wallet.walletId,publicKey:state.wallet.publicKey,...secrets,confirmation:"SIGN REVIEWED EXTERNAL COVENANT",localRenewal:renewal})});
       state.package=signed.package;state.review=signed.review;renderPackageReview();
       progressStep(t("progressDeployBroadcast"));
-      const bc=await api("/api/external-covenants/broadcast",{method:"POST",body:JSON.stringify({package:state.package,confirmation:"BROADCAST REVIEWED COVENANT",localRenewal:true})});
+      const bc=await api("/api/external-covenants/broadcast",{method:"POST",body:JSON.stringify({package:state.package,confirmation:"BROADCAST REVIEWED COVENANT",localRenewal:renewal})});
       await loadProjects();
       if(state.activeProject)$("#operate-project").value=state.activeProject.id;
       hideProgress();
-      showResult({title:t("operationSuccess"),message:t("progressRenewalWait"),details:[{label:"TXID",value:bc.result.txid},{label:"Kascov",value:bc.result.kascovTransactionUrl,href:bc.result.kascovTransactionUrl}],actions:[{label:t("openKascov"),onClick:()=>openUrl(bc.result.kascovTransactionUrl)}]});
-      if(state.activeProject)void awaitRenewalConfirmation(state.activeProject.id);
+      showResult({title:t("operationSuccess"),message:renewal?t("progressRenewalWait"):t("recoverDoneText"),details:[{label:"TXID",value:bc.result.txid},{label:"Kascov",value:bc.result.kascovTransactionUrl,href:bc.result.kascovTransactionUrl}],actions:[{label:t("openKascov"),onClick:()=>openUrl(bc.result.kascovTransactionUrl)}]});
+      if(renewal&&state.activeProject)void awaitRenewalConfirmation(state.activeProject.id);
+      else if(state.activeProject)await renderLifecycle();
     }catch(e){
       if(!/cancel/i.test(e.message))showResult({ok:false,title:t("operationFailed"),message:e.message});
     }finally{hideProgress();}
