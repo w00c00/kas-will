@@ -1,5 +1,15 @@
 # Changelog / 更新日志
 
+## Unreleased
+
+- Fixed the lifecycle card flashing endlessly after a will matured (a mature schedule resolved to zero remaining seconds, re-arming a full refresh on every tick).
+- The Chinese UI now says 资产继承计划 (asset inheritance plan) instead of 遗嘱 everywhere except the legal disclaimer, which still refers to a real legal will; the English UI keeps the neutral "will" and the Kas Will brand is unchanged.
+
+## Unreleased（中文）
+
+- 修复继承计划到期后生命周期卡片持续闪烁的问题（到期状态的剩余秒数为 0，导致每次计时都重新触发整卡刷新）。
+- 中文界面全面改称“资产继承计划”，不再使用“遗嘱”（法律声明中指真实遗嘱处保留原词）；英文界面保留中性的 "will"，Kas Will 品牌名不变。
+
 ## 0.3.0 — 2026-08-22
 
 - Node operations are dramatically faster: the local service now keeps one warm wRPC connection per network (previously every request re-ran resolver discovery, which could take up to ~40 s) and pre-warms TN10 at startup. Connections idle out after three minutes and reconnect automatically after failures or node setting changes.

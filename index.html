@@ -10,10 +10,10 @@
 <body>
   <div class="shell">
     <aside class="sidebar">
-      <div class="brand"><div class="brand-mark">K</div><div><strong>Kas Will</strong><span data-i18n="brandSub">Kaspa 数字遗产</span></div></div>
+      <div class="brand"><div class="brand-mark">K</div><div><strong>Kas Will</strong><span data-i18n="brandSub">Kaspa 数字资产继承</span></div></div>
       <nav>
         <button class="nav active" data-page="home"><span>⌂</span><b data-i18n="navHome">概览</b></button>
-        <button class="nav" data-page="create"><span>＋</span><b data-i18n="navCreate">创建遗嘱</b></button>
+        <button class="nav" data-page="create"><span>＋</span><b data-i18n="navCreate">创建继承计划</b></button>
         <button class="nav" data-page="operate"><span>↻</span><b data-i18n="navOperate">签到与提取</b></button>
         <button class="nav" data-page="wallet"><span>◇</span><b data-i18n="navWallet">本地钱包</b></button>
         <button class="nav" data-page="settings"><span>⚙</span><b data-i18n="navSettings">节点设置</b></button>
@@ -30,19 +30,19 @@
 
       <section class="page active" id="page-home">
         <div class="hero">
-          <div class="hero-copy"><span class="hero-kicker">KASPA · SILVERSCRIPT · LOCAL FIRST</span><h2 data-i18n="heroTitle">定期签到。超时后，规则自动把资产交给你指定的人。</h2><p data-i18n="heroText">钱包、契约编译、交易预检和操作包都在本机完成。应用只需要能连接 Kaspa 节点，不依赖任何网站继续运行。</p><div class="hero-actions"><button class="primary" data-page-link="create" data-i18n="createFirst">创建第一个遗嘱</button><button class="ghost" data-page-link="operate" data-i18n="openPackage">导入遗嘱操作包</button></div></div>
+          <div class="hero-copy"><span class="hero-kicker">KASPA · SILVERSCRIPT · LOCAL FIRST</span><h2 data-i18n="heroTitle">定期签到。超时后，规则自动把资产交给你指定的人。</h2><p data-i18n="heroText">钱包、契约编译、交易预检和操作包都在本机完成。应用只需要能连接 Kaspa 节点，不依赖任何网站继续运行。</p><div class="hero-actions"><button class="primary" data-page-link="create" data-i18n="createFirst">创建第一个继承计划</button><button class="ghost" data-page-link="operate" data-i18n="openPackage">导入继承计划操作包</button></div></div>
           <div class="orbit"><div class="orbit-ring one"></div><div class="orbit-ring two"></div><div class="orbit-core"><span>KAS</span><b>WILL</b></div><i class="heir h1">01</i><i class="heir h2">02</i><i class="heir h3">03</i></div>
         </div>
-        <div class="metric-grid"><article><span data-i18n="metricWills">本机遗嘱</span><strong id="metric-wills">0</strong><small data-i18n="metricWillsSub">加密存储在本机</small></article><article><span data-i18n="metricActive">链上活动</span><strong id="metric-active">0</strong><small data-i18n="metricActiveSub">等待签到或到期</small></article><article><span data-i18n="metricAssets">资产模式</span><strong>KAS + KCC20</strong><small data-i18n="metricAssetsSub">KCC20 当前仅限 TN10 实验</small></article></div>
-        <div class="section-head"><div><span class="eyebrow">YOUR ESTATE PLANS</span><h3 data-i18n="plansTitle">遗产计划</h3></div><button class="text-button" id="refresh-projects" data-i18n="refresh">刷新</button></div>
-        <div id="plans" class="plans"><div class="empty" data-i18n="plansEmpty">还没有遗嘱。先创建一个 TN10 测试计划。</div></div>
+        <div class="metric-grid"><article><span data-i18n="metricWills">本机继承计划</span><strong id="metric-wills">0</strong><small data-i18n="metricWillsSub">加密存储在本机</small></article><article><span data-i18n="metricActive">链上活动</span><strong id="metric-active">0</strong><small data-i18n="metricActiveSub">等待签到或到期</small></article><article><span data-i18n="metricAssets">资产模式</span><strong>KAS + KCC20</strong><small data-i18n="metricAssetsSub">KCC20 当前仅限 TN10 实验</small></article></div>
+        <div class="section-head"><div><span class="eyebrow">YOUR ESTATE PLANS</span><h3 data-i18n="plansTitle">资产继承计划</h3></div><button class="text-button" id="refresh-projects" data-i18n="refresh">刷新</button></div>
+        <div id="plans" class="plans"><div class="empty" data-i18n="plansEmpty">还没有继承计划。先创建一个 TN10 测试计划。</div></div>
       </section>
 
       <section class="page" id="page-create">
         <div class="workspace-grid">
           <form class="panel form-panel" id="will-form">
-            <div class="panel-head"><div><span class="eyebrow">NEW ESTATE PLAN</span><h2 data-i18n="formTitle">创建链上遗嘱</h2></div><span class="step-badge">1 / 3</span></div>
-            <label><span data-i18n="willName">遗嘱名称</span><input id="will-name" maxlength="120" data-i18n-placeholder="willNamePlaceholder" placeholder="例如：家庭 KAS 遗嘱 / 父母备用金" /><small data-i18n="willNameHelp">只用于本机列表和操作包显示，不改变链上规则。</small></label>
+            <div class="panel-head"><div><span class="eyebrow">NEW ESTATE PLAN</span><h2 data-i18n="formTitle">创建链上继承计划</h2></div><span class="step-badge">1 / 3</span></div>
+            <label><span data-i18n="willName">计划名称</span><input id="will-name" maxlength="120" data-i18n-placeholder="willNamePlaceholder" placeholder="例如：家庭 KAS 继承计划 / 父母备用金" /><small data-i18n="willNameHelp">只用于本机列表和操作包显示，不改变链上规则。</small></label>
             <label><span data-i18n="assetType">资产类型</span><div class="segmented"><button type="button" class="segment active" data-asset="kas">KAS</button><button type="button" class="segment" data-asset="kcc20">KCC20 <em>TN10</em></button></div></label>
             <div class="two-cols"><label><span data-i18n="lockedAmount">控制金库金额</span><div class="input-suffix"><input id="amount" value="0.5" inputmode="decimal" /><b>TKAS</b></div></label><label><span data-i18n="period">未签到期限</span><div class="duration"><input id="period-value" type="number" min="1" value="180" /><select id="period-unit"><option value="minutes" data-i18n="minutes">分钟</option><option value="hours" data-i18n="hours">小时</option><option value="days" selected data-i18n="days">天</option><option value="weeks" data-i18n="weeks">周</option></select></div></label></div>
             <label><span data-i18n="owner">拥有者 / 签到钱包</span><input id="owner-address" readonly data-i18n-placeholder="connectFirst" placeholder="请先连接本地钱包" /><small data-i18n="ownerHelp">这个钱包可以签到重置期限，也可以在到期前取回。</small></label>
@@ -59,18 +59,18 @@
             </div>
             <div class="form-actions"><button class="primary wide" type="submit" id="create-will" data-i18n="buildWill">生成并固定编译</button></div>
           </form>
-          <aside class="panel preview-panel"><span class="eyebrow">ON-CHAIN RULES</span><h3 data-i18n="previewTitle">这份遗嘱将如何工作</h3><div class="timeline"><div><i>01</i><p><strong data-i18n="t1Title">部署</strong><span data-i18n="t1Text">把 KAS 控制资金锁入唯一 Covenant UTXO。</span></p></div><div><i>02</i><p><strong data-i18n="t2Title">签到</strong><span data-i18n="t2Text">拥有者签名并延续同一 Covenant ID，期限重新开始。</span></p></div><div><i>03</i><p><strong data-i18n="t3Title">到期</strong><span data-i18n="t3Text">任何人可触发，但地址、比例和 Token 模板都不能被替换。</span></p></div></div><div class="safety"><b>!</b><p><strong data-i18n="legalTitle">技术工具，不替代法律遗嘱</strong><span data-i18n="legalText">正式使用前需要法律咨询、密钥备份、继承人通知和独立安全审计。</span></p></div><div id="build-result" class="build-result" hidden></div></aside>
+          <aside class="panel preview-panel"><span class="eyebrow">ON-CHAIN RULES</span><h3 data-i18n="previewTitle">这份继承计划将如何工作</h3><div class="timeline"><div><i>01</i><p><strong data-i18n="t1Title">部署</strong><span data-i18n="t1Text">把 KAS 控制资金锁入唯一 Covenant UTXO。</span></p></div><div><i>02</i><p><strong data-i18n="t2Title">签到</strong><span data-i18n="t2Text">拥有者签名并延续同一 Covenant ID，期限重新开始。</span></p></div><div><i>03</i><p><strong data-i18n="t3Title">到期</strong><span data-i18n="t3Text">任何人可触发，但地址、比例和 Token 模板都不能被替换。</span></p></div></div><div class="safety"><b>!</b><p><strong data-i18n="legalTitle">技术工具，不替代法律遗嘱</strong><span data-i18n="legalText">正式使用前需要法律咨询、密钥备份、继承人通知和独立安全审计。</span></p></div><div id="build-result" class="build-result" hidden></div></aside>
         </div>
       </section>
 
       <section class="page" id="page-operate">
         <div class="section-head"><div><span class="eyebrow">LIFECYCLE</span><h2 data-i18n="operateTitle">签到、取回与到期分配</h2></div><select id="operate-project"></select></div>
         <div class="panel portable-panel">
-          <div><span class="eyebrow">PORTABLE WILL</span><h3 data-i18n="portableTitle">导入或导出遗嘱操作包</h3><p data-i18n="portableHelp">在其它电脑导入后，会先重新验证固定模板、编译器和哈希，再按已连接钱包自动显示可用操作。</p><p class="panel-note" data-i18n="portableTrackNote">操作包只需导入一次：建立人签到续期后，导入端会自动跟踪最新链上状态，无需重新导出。</p></div>
-          <div class="portable-actions"><input type="file" id="will-package-file" accept=".ssinvite,.json" /><button class="ghost" id="export-active-will" disabled data-i18n="exportSelected">导出所选遗嘱</button><button class="danger" id="delete-active-will" disabled data-i18n="deleteSelected">删除所选记录</button></div>
-          <div id="wallet-role" class="role-banner" data-i18n="roleEmpty">选择或导入遗嘱后识别当前钱包身份。</div>
+          <div><span class="eyebrow">PORTABLE WILL</span><h3 data-i18n="portableTitle">导入或导出继承计划操作包</h3><p data-i18n="portableHelp">在其它电脑导入后，会先重新验证固定模板、编译器和哈希，再按已连接钱包自动显示可用操作。</p><p class="panel-note" data-i18n="portableTrackNote">操作包只需导入一次：建立人签到续期后，导入端会自动跟踪最新链上状态，无需重新导出。</p></div>
+          <div class="portable-actions"><input type="file" id="will-package-file" accept=".ssinvite,.json" /><button class="ghost" id="export-active-will" disabled data-i18n="exportSelected">导出所选计划</button><button class="danger" id="delete-active-will" disabled data-i18n="deleteSelected">删除所选记录</button></div>
+          <div id="wallet-role" class="role-banner" data-i18n="roleEmpty">选择或导入计划后识别当前钱包身份。</div>
         </div>
-        <div id="lifecycle-card" class="panel lifecycle-card"><div class="empty" data-i18n="selectPlan">选择一个已部署遗嘱查看链上状态。</div></div>
+        <div id="lifecycle-card" class="panel lifecycle-card"><div class="empty" data-i18n="selectPlan">选择一个已部署计划查看链上状态。</div></div>
         <div id="operation-review" class="panel review-panel" hidden><div class="panel-head"><div><span class="eyebrow">TRANSACTION REVIEW</span><h3 data-i18n="packageReview">本次操作确认</h3></div></div><div id="package-review" class="empty" data-i18n="packageEmpty">选择签到、取回或提取后，会在这里显示交易网络、Covenant ID、输入输出、手续费和签名状态。</div><div class="button-row"><button class="ghost" id="download-package" disabled data-i18n="download">导出本次交易包</button><button class="primary" id="sign-package" disabled data-i18n="sign">签署当前操作</button><button class="danger" id="broadcast-package" disabled data-i18n="broadcast">预检并广播</button></div></div>
       </section>
 
@@ -107,7 +107,7 @@
 
   <dialog id="secret-dialog"><form method="dialog" class="dialog-card"><h3 data-i18n="authorize">本地钱包授权</h3><p data-i18n="authorizeHelp">密码只发送给本机 127.0.0.1 服务，不写入项目或操作包。</p><label><span data-i18n="walletPassword">钱包密码（至少 10 位）</span><input id="sign-password" type="password" /></label><label><span data-i18n="paymentSecret">可选 Payment Secret</span><input id="sign-payment" type="password" /></label><div class="button-row"><button value="cancel" class="ghost" data-i18n="cancel">取消</button><button value="confirm" class="primary" data-i18n="confirm">确认</button></div></form></dialog>
   <dialog id="mnemonic-dialog"><form method="dialog" class="dialog-card mnemonic"><h3 data-i18n="mnemonicTitle">助记词只显示一次</h3><p data-i18n="mnemonicHelp">离线抄写并安全保存。不要截图、不要上传云盘、不要发给任何人。</p><code id="mnemonic-value"></code><label class="check"><input id="mnemonic-check" type="checkbox" /><span data-i18n="mnemonicConfirm">我已经完成离线备份</span></label><button class="primary wide" id="mnemonic-close" value="confirm" disabled data-i18n="done">完成</button></form></dialog>
-  <dialog id="delete-dialog"><form method="dialog" class="dialog-card delete-card"><h3 data-i18n="deleteDialogTitle">删除本机遗嘱记录</h3><p id="delete-dialog-help"></p><p class="account-address" id="delete-record-name"></p>
+  <dialog id="delete-dialog"><form method="dialog" class="dialog-card delete-card"><h3 data-i18n="deleteDialogTitle">删除本机继承计划记录</h3><p id="delete-dialog-help"></p><p class="account-address" id="delete-record-name"></p>
     <div class="delete-step" id="delete-backup-step" hidden><div class="delete-step-head"><span class="step-badge">1</span><b data-i18n="deleteBackupTitle">第 1 步 · 备份操作包</b></div><p data-i18n="deleteBackupHelp">删除前必须先把当前操作包另存为备份；每次导出都会弹出保存窗口，必须手动选择保存位置。</p><button type="button" class="ghost wide" id="delete-backup-button" data-i18n="backupNowButton">另存备份操作包</button><div id="delete-backup-result" class="delete-backup-result" hidden></div></div>
     <div class="delete-step"><div class="delete-step-head"><span class="step-badge" id="delete-phrase-step-badge">2</span><b data-i18n="deletePhraseTitle">第 2 步 · 输入确认短语</b></div><p data-i18n="deletePhraseHelp">请输入 DELETE LOCAL WILL RECORD 以确认删除。</p><input id="delete-phrase-input" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="DELETE LOCAL WILL RECORD" /></div>
     <div class="button-row"><button value="cancel" class="ghost" data-i18n="cancel">取消</button><button value="confirm" class="danger" id="delete-confirm-button" disabled data-i18n="deleteConfirmButton">确认删除本机记录</button></div>

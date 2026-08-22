@@ -292,7 +292,9 @@ test("Kas Will has visible bilingual inheritance, portable will, wallet and node
   for (const id of ["will-form", "will-name", "kcc20-fields", "lookup-token", "operate-project", "will-package-file", "export-active-will", "delete-active-will", "delete-dialog", "delete-backup-button", "delete-phrase-input", "delete-confirm-button", "result-dialog", "app-version", "wallet-select", "disconnect-wallet", "tn10-rpc-url", "save-node-settings", "operation-progress", "operation-progress-title", "operation-progress-step", "build-transfer", "send-transfer", "send-recipient", "kcc20-token-list", "kcc20-register", "kcc20-send-token", "kcc20-build", "kcc20-sign", "kcc20-broadcast"]) {
     assert.match(html, new RegExp(`id=["']${id}["']`), `${id} must be visible in the app shell`);
   }
-  assert.match(html, /导入或导出遗嘱操作包|Import or export a will operation package/);
+  assert.match(html, /导入或导出继承计划操作包|Import or export a will operation package/);
+  const zhWillNodes = html.split("\n").filter((line) => line.includes("data-i18n") && line.includes("遗嘱") && !line.includes('data-i18n="legalTitle"'));
+  assert.deepEqual(zhWillNodes, [], "the Chinese UI must use the neutral inheritance-plan wording (only the legal disclaimer may mention 法律遗嘱)");
   assert.doesNotMatch(html, /data-page="packages"/);
   assert.match(html, /不依赖任何网站|No website dependency/);
   assert.match(uiSource, /detectPreferredLanguage/);

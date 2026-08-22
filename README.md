@@ -2,7 +2,7 @@
 
 **Kaspa 本地优先的链上遗产继承桌面应用 / A local-first Kaspa inheritance desktop app**
 
-Kas Will 从 SilverScript Studio 的继承模块独立出来，内置本地加密钱包、固定版本 SilverScript 编译器、Kaspa 脚本引擎预检和可移植遗嘱操作包。应用不依赖任何网站：只要能连接 Kaspa 节点，就可以创建钱包、编译契约、签到、跨设备导入遗嘱、构建交易和广播。
+Kas Will 从 SilverScript Studio 的继承模块独立出来，内置本地加密钱包、固定版本 SilverScript 编译器、Kaspa 脚本引擎预检和可移植继承计划操作包。应用不依赖任何网站：只要能连接 Kaspa 节点，就可以创建钱包、编译契约、签到、跨设备导入继承计划、构建交易和广播。
 
 Kas Will is a focused extraction of the inheritance workflow from SilverScript Studio. It bundles an encrypted local wallet, pinned SilverScript compiler, local Kaspa script-engine preflight, and portable will packages. No website is required: with access to a Kaspa node, it can create wallets, compile covenants, import a will on another device, check in, build transactions, and broadcast.
 
@@ -16,9 +16,9 @@ Kas Will is a focused extraction of the inheritance workflow from SilverScript S
 - 拥有者签到：签名延续同一 Covenant ID，并重置链上 DAA 期限。
 - 拥有者取回：由拥有者签名取回。
 - 到期继承：期限成熟后，任何人可触发，但收款钱包与比例由契约固定。
-- KCC20 全生命周期：转入遗嘱、签到、拥有者原子取回、到期原子拆分。
-- 每份遗嘱单独导出的 `.ssinvite`：其它电脑导入时重新核对固定模板、编译器、程序哈希与部署身份，并按当前钱包自动识别建立人、继承人或其它触发者。历史模板版本（如单继承人支持之前部署的遗嘱）按仓库内固定 SHA-256 的退役契约源码显式兼容，未知来源依旧拒绝导入。
-- 遗嘱名称：创建时可命名，仅用于本机列表和操作包显示，不改变链上规则。
+- KCC20 全生命周期：转入继承计划、签到、拥有者原子取回、到期原子拆分。
+- 每份继承计划单独导出的 `.ssinvite`：其它电脑导入时重新核对固定模板、编译器、程序哈希与部署身份，并按当前钱包自动识别建立人、继承人或其它触发者。历史模板版本（如单继承人支持之前部署的继承计划）按仓库内固定 SHA-256 的退役契约源码显式兼容，未知来源依旧拒绝导入。
+- 计划名称：创建时可命名，仅用于本机列表和操作包显示，不改变链上规则。
 - 简化的签到与提取页：建立人可签到或取回；其它钱包只能在到期后触发提取，资金仍严格发送到契约固定的继承地址。
 - 部署结果弹窗会自动刷新 Kascov 收录状态并提供交易与 Covenant 链接；Kascov 不可用时不影响本地节点操作。
 - 本地加密钱包：创建或导入助记词、复制地址、查询余额和断开连接；新助记词只显示一次。
@@ -78,9 +78,9 @@ KCC20 uses two cooperating covenants: the Kas Will controller at input `0` and t
 
 The operation screen requires the current token transaction ID, output index, and redeem program. Kas Will locally verifies P2SH, Covenant ID, template lengths, template hash, state encoding, ownership type, and amount. The token UTXO must carry enough TKAS for the large script's storage mass and fee.
 
-## 跨设备遗嘱操作包 / Cross-device will packages
+## 跨设备继承计划操作包 / Cross-device will packages
 
-1. 在首页的每份遗嘱卡片或“签到与提取”页导出该遗嘱自己的 `.ssinvite`。
+1. 在首页的每份继承计划卡片或“签到与提取”页导出该继承计划自己的 `.ssinvite`。
 2. 通过可信渠道把文件交给需要签到、取回或到期触发提取的电脑。
 3. 导入时 Kas Will 验证包承诺，并用固定 SilverScript 编译器重新编译确定性模板；源码、参数、程序哈希或部署身份不一致都会拒绝。
 4. 导入后直接停留在“签到与提取”页。建立人钱包看到签到和取回；继承人或其它钱包只在成熟后看到提取。
@@ -108,7 +108,7 @@ The file is transport, not proof of who sent it. Wallet identity and transaction
 a3f384648424b067ecfbe76336e159410b5bf46ce7f8d4050ba3aa2577bb2fb1
 ```
 
-兼容性档案保留 `14dce9a`、`6f9e078`、`cb34aa5` 和 legacy `2a3961c`，用于重现旧项目。新建遗嘱使用 `023c7ee`。破坏性变更检测覆盖动态 `.split()` 结果、固定长度强制转换、旧入口语法、旧消息签名名、outpoint 字段、名称遮蔽和循环边界。检测不能替代完整编译和对抗性交易测试。
+兼容性档案保留 `14dce9a`、`6f9e078`、`cb34aa5` 和 legacy `2a3961c`，用于重现旧项目。新建继承计划使用 `023c7ee`。破坏性变更检测覆盖动态 `.split()` 结果、固定长度强制转换、旧入口语法、旧消息签名名、outpoint 字段、名称遮蔽和循环边界。检测不能替代完整编译和对抗性交易测试。
 
 Compatibility profiles retain `14dce9a`, `6f9e078`, `cb34aa5`, and legacy `2a3961c` for reproducibility; new wills use `023c7ee`. Breaking-change checks cover dynamic `.split()` results, fixed-length casts, legacy entry syntax, message-signature names, outpoint fields, declaration shadowing, loop bounds, and related changes. Detection never replaces full compilation and adversarial transaction testing.
 
