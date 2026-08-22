@@ -337,11 +337,16 @@ async function oneClickOperation(operationId){
   if(!project)return;
   if(!state.wallet)return showResult({ok:false,title:t("operationFailed"),message:t("walletNeeded"),actions:[{label:t("connectWallet"),onClick:()=>page("wallet")}]});
   const renewal=operationId==="checkIn";
+  // KCC20 vault recover is an atomic token operation and needs the current
+  // token cell fields exactly like the manual builder.
+  const kcc=project.review?.templateId==="kcc20-inheritance-vault"&&operationId!=="checkIn";
+  const buildBody={operationId,feeKas:kcc?"0.02":"0.01"};
+  if(kcc)Object.assign(buildBody,{tokenTransactionId:$("#operation-token-txid")?.value.trim(),tokenOutputIndex:Number($("#operation-token-index")?.value||0),tokenProgramHex:$("#operation-token-program")?.value.trim()});
   await exclusive(async()=>{
     showProgress(renewal?t("checkInProgress"):t("recover"));
     try{
       progressStep(t("progressOperationBuild"));
-      const payload=await api(`/api/projects/${encodeURIComponent(project.id)}/operations/build`,{method:"POST",body:JSON.stringify({operationId,feeKas:"0.01"})});
+      const payload=await api(`/api/projects/${encodeURIComponent(project.id)}/operations/build`,{method:"POST",body:JSON.stringify(buildBody)});
       state.package=payload.package;state.review=payload.review;state.operationId=operationId;
       $("#operation-review").hidden=false;renderPackageReview();
       $("#operation-review").scrollIntoView({behavior:"smooth",block:"start"});
@@ -482,41 +487,32 @@ async function buildKcc20Transfer(){
       const transfer=payload.transfer;
       const review=$("#kcc20-review");review.hidden=false;
       review.innerHTML=`<strong>${esc(t("kcc20TransferBuilt"))}</strong><br>${esc(transfer.name||transfer.ticker||"KCC20")}: <b>${esc(transfer.amount)}</b> → <code>${esc(short(recipient,12,9))}</code><br>${state.language==="zh"?"手续费":"Fee"}: <b>${esc(payload.review.feeKas)} TKAS</b> · ${state.language==="zh"?"本地预检":"Local preflight"}: ${esc(payload.preflight?.verdict||"—")}`;
-      $("#kcc20-sign").disabled=false;$("#kcc20-broadcast").disabled=true;
+      $("#kcc20-send").disabled=false;
     }catch(e){showResult({ok:false,title:t("operationFailed"),message:e.message});}
     finally{hideProgress();}
   });
 }
-async function signKcc20Transfer(){
+async function sendKcc20Transfer(){
   if(!state.kcc20Package||!state.kcc20Review)return;
   if(!state.wallet)return toast(t("walletNeeded"),"bad");
   await exclusive(async()=>{
-    showProgress(t("progressSigning"));
+    showProgress(t("confirmSend"));
     try{
+      if(!confirm(t("transferSendConfirm")))return;
+      progressStep(t("progressDeployAuth"));
       const secrets=await requestSecrets();
-      const payload=await api("/api/external-covenants/sign",{method:"POST",body:JSON.stringify({package:state.kcc20Package,walletId:state.wallet.walletId,publicKey:state.wallet.publicKey,...secrets,confirmation:"SIGN REVIEWED EXTERNAL COVENANT"})});
-      state.kcc20Package=payload.package;state.kcc20Review=payload.review;
-      $("#kcc20-broadcast").disabled=!payload.review.complete;
-      toast(t("signed"));
-    }catch(e){if(!/cancel/i.test(e.message))showResult({ok:false,title:t("operationFailed"),message:e.message});}
-    finally{hideProgress();}
-  });
-}
-async function broadcastKcc20Transfer(){
-  if(!state.kcc20Package||!state.kcc20Review?.complete)return;
-  if(!confirm(t("transferSendConfirm")))return;
-  await exclusive(async()=>{
-    showProgress(t("progressBroadcast"));progressStep(t("progressBroadcast"));
-    try{
-      const payload=await api("/api/external-covenants/broadcast",{method:"POST",body:JSON.stringify({package:state.kcc20Package,confirmation:"BROADCAST REVIEWED COVENANT"})});
+      progressStep(t("progressDeploySign"));
+      const signed=await api("/api/external-covenants/sign",{method:"POST",body:JSON.stringify({package:state.kcc20Package,walletId:state.wallet.walletId,publicKey:state.wallet.publicKey,...secrets,confirmation:"SIGN REVIEWED EXTERNAL COVENANT"})});
+      progressStep(t("progressDeployBroadcast"));
+      const payload=await api("/api/external-covenants/broadcast",{method:"POST",body:JSON.stringify({package:signed.package,confirmation:"BROADCAST REVIEWED COVENANT"})});
       const result=payload.result;
       state.kcc20Package=null;state.kcc20Review=null;
-      $("#kcc20-sign").disabled=true;$("#kcc20-broadcast").disabled=true;
+      $("#kcc20-send").disabled=true;
       const review=$("#kcc20-review");review.hidden=true;
       $("#kcc20-send-amount").value="";
       await Promise.all([refreshBalance(),loadKcc20Tokens()]);
       showResult({title:t("kcc20TransferSent"),details:[{label:"TXID",value:result.txid},{label:"Kascov",value:result.kascovTransactionUrl,href:result.kascovTransactionUrl}]});
-    }catch(e){showResult({ok:false,title:t("operationFailed"),message:e.message});}
+    }catch(e){if(!/cancel/i.test(e.message))showResult({ok:false,title:t("operationFailed"),message:e.message});}
     finally{hideProgress();}
   });
 }
@@ -587,6 +583,6 @@ async function init(){
 }
 
 $$("[data-page]").forEach(el=>el.onclick=()=>page(el.dataset.page));$$("[data-page-link]").forEach(el=>el.onclick=()=>page(el.dataset.pageLink));$("#lang-toggle").onclick=()=>{state.language=state.language==="zh"?"en":"zh";localStorage.setItem("kas-will-language",state.language);applyLanguage();page($$(".nav.active")[0]?.dataset.page||"home");};$$(".segment").forEach(el=>el.onclick=()=>selectAsset(el.dataset.asset));$("#add-heir").onclick=addHeir;$("#parse-descriptor").onclick=parseDescriptor;$("#lookup-token").onclick=()=>lookupTokenMetadata(false);$("#will-form").onsubmit=createWill;$("#refresh-projects").onclick=loadProjects;$("#operate-project").onchange=renderLifecycle;$("#will-package-file").onchange=(event)=>importWillPackage(event.target.files?.[0]);$("#unlock-wallet").onclick=unlockWallet;$("#create-wallet").onclick=createWallet;$("#refresh-balance").onclick=refreshBalance;$("#disconnect-wallet").onclick=disconnectWallet;$("#build-transfer").onclick=buildTransfer;$("#send-transfer").onclick=sendTransfer;$("#kcc20-registered-select").onchange=useRegisteredKcc20Token;
-$("#kcc20-register").onclick=registerKcc20Token;$("#kcc20-refresh").onclick=()=>void loadKcc20Tokens();$("#kcc20-build").onclick=buildKcc20Transfer;$("#kcc20-sign").onclick=signKcc20Transfer;$("#kcc20-broadcast").onclick=broadcastKcc20Transfer;$("#test-tn10-node").onclick=()=>testNode("tn10");$("#test-mainnet-node").onclick=()=>testNode("mainnet");$("#auto-tn10-node").onclick=()=>useAutomaticNode("tn10");$("#auto-mainnet-node").onclick=()=>useAutomaticNode("mainnet");$("#save-node-settings").onclick=saveNodeSettings;$("#mnemonic-check").onchange=(e)=>$("#mnemonic-close").disabled=!e.target.checked;$("#sign-package").onclick=signPackage;$("#download-package").onclick=downloadPackage;$("#broadcast-package").onclick=broadcastPackage;
+$("#kcc20-register").onclick=registerKcc20Token;$("#kcc20-refresh").onclick=()=>void loadKcc20Tokens();$("#kcc20-build").onclick=buildKcc20Transfer;$("#kcc20-send").onclick=sendKcc20Transfer;$("#test-tn10-node").onclick=()=>testNode("tn10");$("#test-mainnet-node").onclick=()=>testNode("mainnet");$("#auto-tn10-node").onclick=()=>useAutomaticNode("tn10");$("#auto-mainnet-node").onclick=()=>useAutomaticNode("mainnet");$("#save-node-settings").onclick=saveNodeSettings;$("#mnemonic-check").onchange=(e)=>$("#mnemonic-close").disabled=!e.target.checked;$("#sign-package").onclick=signPackage;$("#download-package").onclick=downloadPackage;$("#broadcast-package").onclick=broadcastPackage;
 
 init().catch((error)=>toast(error.message,"bad"));

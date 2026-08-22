@@ -289,7 +289,7 @@ test("desktop runtime includes server-imported KCC721 metadata code", () => {
 test("Kas Will has visible bilingual inheritance, portable will, wallet and node entrypoints", () => {
   const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
   const uiSource = fs.readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
-  for (const id of ["will-form", "will-name", "kcc20-fields", "lookup-token", "operate-project", "will-package-file", "export-active-will", "delete-active-will", "delete-dialog", "delete-backup-button", "delete-phrase-input", "delete-confirm-button", "result-dialog", "app-version", "wallet-select", "disconnect-wallet", "tn10-rpc-url", "save-node-settings", "operation-progress", "operation-progress-title", "operation-progress-step", "build-transfer", "send-transfer", "send-recipient", "kcc20-token-list", "kcc20-register", "kcc20-send-token", "kcc20-build", "kcc20-sign", "kcc20-broadcast"]) {
+  for (const id of ["will-form", "will-name", "kcc20-fields", "lookup-token", "operate-project", "will-package-file", "export-active-will", "delete-active-will", "delete-dialog", "delete-backup-button", "delete-phrase-input", "delete-confirm-button", "result-dialog", "app-version", "wallet-select", "disconnect-wallet", "tn10-rpc-url", "save-node-settings", "operation-progress", "operation-progress-title", "operation-progress-step", "build-transfer", "send-transfer", "send-recipient", "kcc20-token-list", "kcc20-register", "kcc20-send-token", "kcc20-build", "kcc20-send"]) {
     assert.match(html, new RegExp(`id=["']${id}["']`), `${id} must be visible in the app shell`);
   }
   assert.match(html, /导入或导出继承计划操作包|Import or export a will operation package/);
@@ -323,6 +323,8 @@ test("Kas Will has visible bilingual inheritance, portable will, wallet and node
   assert.match(uiSource, /awaitRenewalConfirmation/, "check-in broadcasts must poll until the node confirms the reset");
   assert.match(uiSource, /remaining>=actual\*0\.9/, "renewal polling must wait for the schedule to actually restart");
   assert.match(uiSource, /oneClickOperation/, "check-in and owner recovery must run as a single guided build-sign-broadcast flow");
+  assert.match(uiSource, /sendKcc20Transfer/, "KCC20 wallet sends must be one guided sign-and-broadcast action");
+  assert.match(uiSource, /tokenProgramHex:\$\("\#operation-token-program"\)/, "one-click recovery must carry KCC20 token cell fields");
   assert.match(uiSource, /\["checkIn","recover"\]\.includes\(b\.dataset\.op\)\?oneClickOperation/, "the check-in and recovery buttons must use the one-click flow");
   assert.match(uiSource, /\/api\/wallets\/transfer\/draft/, "the wallet page must expose KAS transfers");
   assert.match(uiSource, /\/api\/kcc20\/wallet\/tokens/, "the wallet page must expose the KCC20 registry");
