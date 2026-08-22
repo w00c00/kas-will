@@ -314,6 +314,7 @@ test("Kas Will has visible bilingual inheritance, portable will, wallet and node
   assert.match(uiSource, /export_text_file/, "exports must be written through the explicit save-location command");
   assert.match(uiSource, /lifecycle-remaining/, "the check-in & claim countdown must render a live element");
   assert.match(uiSource, /startCountdownTicker/, "the countdown must tick without a page reload");
+  assert.match(uiSource, /liveSchedule=status\.schedule&&!status\.schedule\.mature/, "a mature will must not arm the countdown ticker (endless refresh flashing)");
   assert.match(uiSource, /\$\{d} 天 \$\{h}:\$\{m}:\$\{s\}|\$\{d\}d \$\{h\}:\$\{m\}:\$\{s\}/, "the countdown must show seconds");
   assert.match(uiSource, /function exclusive/, "mutating operations must run one at a time");
   assert.match(uiSource, /showProgress\(/, "long operations must surface a progress card");
