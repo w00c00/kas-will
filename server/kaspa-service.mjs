@@ -74,8 +74,16 @@ const runtimeRpcUrls = {
 let rpcClientFactoryForTests = null;
 
 export function configureNodeAccess(settings = {}) {
+  const previous = { ...runtimeRpcUrls };
   runtimeRpcUrls.tn10 = String(settings.tn10RpcUrl || config.rpcUrls.tn10 || "").trim();
   runtimeRpcUrls.mainnet = String(settings.mainnetRpcUrl || config.rpcUrls.mainnet || "").trim();
+  for (const id of Object.keys(NETWORKS)) {
+    if (previous[id] !== runtimeRpcUrls[id]) {
+      for (const key of [...sharedRpcPool.keys()]) {
+        if (key.startsWith(`${id}:`)) dropSharedRpc(key, sharedRpcPool.get(key));
+      }
+    }
+  }
 }
 
 function normalizeRpcUrl(value) {
@@ -95,23 +103,94 @@ export function setRpcClientFactoryForTests(factory = null) {
 }
 
 async function withRpc(network, action, directUrl = runtimeRpcUrls[network.id]) {
-  const rpc = rpcClientFactoryForTests
-    ? rpcClientFactoryForTests(network, directUrl)
-    : directUrl
-      ? new kaspa.RpcClient({ url: directUrl, networkId: network.kaspaNetworkId })
-      : new kaspa.RpcClient({ resolver: new kaspa.Resolver(), networkId: network.kaspaNetworkId });
-  await rpc.connect();
-  try {
-    const serverInfo = await rpc.getServerInfo();
-    if (String(serverInfo?.networkId || "") !== network.kaspaNetworkId) {
-      throw Object.assign(new Error(`Kaspa node is on ${serverInfo?.networkId || "an unknown network"}, expected ${network.kaspaNetworkId}`), {
-        code: "KASPA_NODE_WRONG_NETWORK"
-      });
+  if (rpcClientFactoryForTests) {
+    const rpc = rpcClientFactoryForTests(network, directUrl);
+    await rpc.connect();
+    try {
+      const serverInfo = await rpc.getServerInfo();
+      if (String(serverInfo?.networkId || "") !== network.kaspaNetworkId) {
+        throw Object.assign(new Error(`Kaspa node is on ${serverInfo?.networkId || "an unknown network"}, expected ${network.kaspaNetworkId}`), {
+          code: "KASPA_NODE_WRONG_NETWORK"
+        });
+      }
+      return await action(rpc, serverInfo);
+    } finally {
+      try { await rpc.disconnect?.(); } catch {}
+      try { await rpc.stop?.(); } catch {}
     }
-    return await action(rpc, serverInfo);
+  }
+  return sharedRpcAction(network, directUrl, action);
+}
+
+// Resolver discovery can take seconds (worst observed: ~40s) on the public
+// TN10 pool, so keep one warm connection per network instead of reconnecting
+// on every request. Connections close after an idle timeout and are dropped
+// as soon as a call fails so the next request reconnects cleanly.
+const RPC_IDLE_MS = 180_000;
+const sharedRpcPool = new Map();
+
+function dropSharedRpc(key, entry) {
+  if (sharedRpcPool.get(key) !== entry) return;
+  sharedRpcPool.delete(key);
+  clearTimeout(entry.idleTimer);
+  for (const closer of entry.closers) {
+    try { closer(); } catch {}
+  }
+}
+
+async function sharedRpcAction(network, directUrl, action) {
+  const key = `${network.id}:${directUrl || "resolver"}`;
+  let entry = sharedRpcPool.get(key);
+  if (!entry) {
+    entry = { rpc: null, serverInfo: null, closers: [], refCount: 0, idleTimer: null, connecting: null };
+    sharedRpcPool.set(key, entry);
+    entry.connecting = (async () => {
+      const rpc = directUrl
+        ? new kaspa.RpcClient({ url: directUrl, networkId: network.kaspaNetworkId })
+        : new kaspa.RpcClient({ resolver: new kaspa.Resolver(), networkId: network.kaspaNetworkId });
+      try {
+        await rpc.connect();
+        const serverInfo = await rpc.getServerInfo();
+        if (String(serverInfo?.networkId || "") !== network.kaspaNetworkId) {
+          throw Object.assign(new Error(`Kaspa node is on ${serverInfo?.networkId || "an unknown network"}, expected ${network.kaspaNetworkId}`), {
+            code: "KASPA_NODE_WRONG_NETWORK"
+          });
+        }
+        entry.rpc = rpc;
+        entry.serverInfo = serverInfo;
+        entry.closers.push(() => {
+          try { rpc.disconnect?.(); } catch {}
+          try { rpc.stop?.(); } catch {}
+        });
+      } catch (error) {
+        try { rpc.disconnect?.(); } catch {}
+        try { rpc.stop?.(); } catch {}
+        dropSharedRpc(key, entry);
+        throw error;
+      }
+    })();
+  }
+  await entry.connecting;
+  entry.refCount += 1;
+  clearTimeout(entry.idleTimer);
+  try {
+    const result = await action(entry.rpc, entry.serverInfo);
+    entry.idleTimer = setTimeout(() => {
+      if (entry.refCount <= 0) dropSharedRpc(key, entry);
+    }, RPC_IDLE_MS);
+    entry.idleTimer.unref?.();
+    return result;
+  } catch (error) {
+    dropSharedRpc(key, entry);
+    throw error;
   } finally {
-    try { await rpc.disconnect?.(); } catch {}
-    try { await rpc.stop?.(); } catch {}
+    entry.refCount -= 1;
+  }
+}
+
+export function disconnectIdleRpcClients() {
+  for (const [key, entry] of [...sharedRpcPool.entries()]) {
+    if (entry.refCount <= 0) dropSharedRpc(key, entry);
   }
 }
 
@@ -319,7 +398,7 @@ function assertProgramHex(programHex) {
   return hex;
 }
 
-async function fetchSpendableUtxos(network, address) {
+export async function fetchSpendableUtxos(network, address) {
   const response = await withRpc(network, (rpc) => rpc.getUtxosByAddresses([address]));
   return (response.entries || []).map(normalizeUtxo)
     .filter((item) => item.outpoint.transactionId && item.script && !item.isCoinbase)

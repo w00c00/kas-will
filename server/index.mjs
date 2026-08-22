@@ -8,6 +8,7 @@ import { DraftStore } from "./draft-store.mjs";
 import { broadcastWalletTransfer, buildDeployDraft, buildWalletTransferDraft, broadcastDeploy, configureNodeAccess, discoverNetworks, findCovenantUtxo, kascovPreflight, nodeStatus, signAndBroadcastWalletTransfer, signDeployDraft, submitReviewedTransaction, transactionEvidence, walletBalance } from "./kaspa-service.mjs";
 import { fetchKascovTokenMetadata } from "./kascov-token-service.mjs";
 import { ProjectStore } from "./project-store.mjs";
+import { assertProjectDeleteAuthorized } from "./project-delete.mjs";
 import { localCors, requireLocalOrigin, sha256 } from "./security.mjs";
 import { AppSettingsStore } from "./settings-store.mjs";
 import { TemplateStore } from "./template-store.mjs";
@@ -19,6 +20,7 @@ import { assertInheritanceDistributionOpen, assertLocalRenewalOpen, assertLocalR
 import { signP2pkCoSpendPackage } from "./p2pk-cospend.mjs";
 import { createP2pkCoSpendAuthorization, selectP2pkFundingUtxo } from "./p2pk-cospend.mjs";
 import { buildKcc20WillOperationPackage } from "./kcc20-will-service.mjs";
+import { buildKcc20WalletTransfer, Kcc20TokenRegistry, listKcc20WalletTokens, registerKcc20WalletToken } from "./kcc20-wallet-service.mjs";
 import { createPortableWillPackage, inspectPortableWillPackage, portableWillMatchesProject } from "./portable-will-service.mjs";
 
 fs.mkdirSync(config.dataDir, { recursive: true, mode: 0o700 });
@@ -27,6 +29,7 @@ const drafts = new DraftStore(config.dataDir);
 const templates = new TemplateStore();
 const WILL_TEMPLATE_IDS = new Set(["inheritance-vault", "kcc20-inheritance-vault"]);
 const wallets = new WalletService(config.dataDir);
+const kcc20Tokens = new Kcc20TokenRegistry(config.dataDir);
 const settings = new AppSettingsStore(config.dataDir);
 configureNodeAccess(settings.public());
 const sessionToken = crypto.randomBytes(24).toString("hex");
@@ -112,12 +115,37 @@ app.post("/api/node/test", async (req, res, next) => {
   try { res.json({ node: await nodeStatus(String(req.body?.network || "tn10"), req.body?.rpcUrl) }); } catch (error) { next(error); }
 });
 app.get("/api/kcc20/metadata", async (req, res, next) => {
+  try { res.json({ metadata: await fetchKascovTokenMetadata(String(req.query.network || "tn10"), String(req.query.covenantId || "")) }); } catch (error) { next(error); }
+});
+app.get("/api/kcc20/wallet/tokens", async (req, res, next) => {
+  try { res.json(await listKcc20WalletTokens({ address: req.query.address }, { registry: kcc20Tokens })); } catch (error) { next(error); }
+});
+app.post("/api/kcc20/wallet/tokens", async (req, res, next) => {
   try {
-    res.json({ metadata: await fetchKascovTokenMetadata(
-      String(req.query.network || "tn10"),
-      String(req.query.covenantId || "")
-    ) });
+    const { token } = await registerKcc20WalletToken(req.body || {}, { registry: kcc20Tokens });
+    // Kascov naming is advisory only; registration never depends on it.
+    try {
+      const metadata = await fetchKascovTokenMetadata("tn10", token.covenantId);
+      const record = kcc20Tokens.get(token.covenantId);
+      if (metadata?.found && record) {
+        record.name = record.name || metadata.name || "";
+        record.ticker = record.ticker || metadata.ticker || "";
+        kcc20Tokens.save(record);
+        token.name = record.name;
+        token.ticker = record.ticker;
+      }
+    } catch { /* advisory naming unavailable */ }
+    res.status(201).json({ token });
   } catch (error) { next(error); }
+});
+app.delete("/api/kcc20/wallet/tokens/:covenantId", (req, res, next) => {
+  try {
+    if (!kcc20Tokens.remove(String(req.params.covenantId || ""))) return res.status(404).json({ error: "Token not registered" });
+    res.json({ deleted: true });
+  } catch (error) { next(error); }
+});
+app.post("/api/kcc20/wallet/transfer/build", async (req, res, next) => {
+  try { res.json(await buildKcc20WalletTransfer(req.body || {}, { registry: kcc20Tokens })); } catch (error) { next(error); }
 });
 
 app.get("/api/wallets", (_req, res) => res.json({ wallets: wallets.list() }));
@@ -176,6 +204,8 @@ app.put("/api/projects/:id", (req, res, next) => {
 });
 app.delete("/api/projects/:id", (req, res, next) => {
   try {
+    const project = projects.get(req.params.id);
+    assertProjectDeleteAuthorized(project, req.body || {}, { appVersion: APP_VERSION, templates });
     if (!projects.remove(req.params.id)) return res.status(404).json({ error: "Project not found" });
     res.json({ deleted: true, id: req.params.id });
   } catch (error) { next(error); }
@@ -439,14 +469,31 @@ app.post("/api/external-covenants/broadcast", async (req, res, next) => {
     if (provenance.kind === "silverstudio-template-operation" && provenance.projectId) {
       const current = projects.get(provenance.projectId);
       const inputOutpoint = inspected.review.inputOutpoint || {};
+      const inputTxid = String(inputOutpoint.transactionId || "").toLowerCase();
       const expectedTxid = String(current?.deployment?.activeTxid || current?.deployment?.txid || "").toLowerCase();
       const identityMatches = current
         && current.network === inspected.package.network
         && current.review?.templateId === provenance.templateId
         && current.deployment?.covenantId === inspected.review.covenantId
-        && current.artifact?.programSha256 === inspected.review.programSha256
-        && String(inputOutpoint.transactionId || "").toLowerCase() === expectedTxid;
-      if (identityMatches) {
+        && current.artifact?.programSha256 === inspected.review.programSha256;
+      // A record imported on another device may lag behind a renewal done
+      // elsewhere; accept a spend of the currently live cell as well so the
+      // record keeps tracking the covenant without a re-import.
+      const spendsLiveCell = identityMatches && inputTxid !== expectedTxid && current.deployment?.covenantId
+        ? await (async () => {
+          try {
+            const live = await findCovenantUtxo(
+              current.network,
+              current.artifact.programHex,
+              expectedTxid,
+              current.deployment.activeOutputIndex ?? 0,
+              current.deployment.covenantId
+            );
+            return inputTxid === String(live.outpoint?.transactionId || "").toLowerCase();
+          } catch { return false; }
+        })()
+        : false;
+      if (identityMatches && (inputTxid === expectedTxid || spendsLiveCell)) {
         const continuation = inspected.review.outputs.find((output) => String(output.covenantId || "").toLowerCase() === inspected.review.covenantId);
         const history = Array.isArray(current.deployment.history) ? current.deployment.history.slice(-99) : [];
         history.push({
@@ -531,6 +578,9 @@ app.use((error, req, res, _next) => {
 const server = app.listen(config.port, config.host, () => {
   console.log(`Kas Will: http://${config.host}:${config.port}`);
   console.log(`Local data: ${config.dataDir}`);
+  // Warm the shared TN10 wRPC connection in the background so the first
+  // user-triggered operation does not pay the resolver discovery cost.
+  nodeStatus("tn10").catch(() => {});
 });
 
 function shutdown() {

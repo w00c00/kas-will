@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .build/
+build/
 .env
 .env.local
 data/
@@ -11,3 +12,6 @@ config/compiler.json
 config/kascov-preflight.local.json
 *.log
 .DS_Store
+.workbuddy/
+src-tauri/icons/android/
+src-tauri/icons/ios/

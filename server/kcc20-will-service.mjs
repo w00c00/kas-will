@@ -48,9 +48,22 @@ function templateHash(prefix, suffix) {
 }
 
 function tokenState(programHex, project) {
+  const descriptor = {
+    templateHash: project.templateParameters?.tokenTemplateHash,
+    prefixLength: project.templateParameters?.tokenTemplatePrefixLength,
+    suffixLength: project.templateParameters?.tokenTemplateSuffixLength
+  };
+  return decodeKcc20TokenProgram(programHex, descriptor);
+}
+
+// Descriptor-driven decode used by both the will flows and the wallet-level
+// KCC20 registry: verifies the immutable template hash, canonical state
+// encoding and a positive, non-minter amount before returning the template
+// bytes and the decoded state.
+export function decodeKcc20TokenProgram(programHex, descriptor) {
   const program = Buffer.from(hex(programHex, null, "KCC20 redeem program"), "hex");
-  const prefixLength = Number(project.templateParameters?.tokenTemplatePrefixLength);
-  const suffixLength = Number(project.templateParameters?.tokenTemplateSuffixLength);
+  const prefixLength = Number(descriptor?.prefixLength);
+  const suffixLength = Number(descriptor?.suffixLength);
   if (!Number.isSafeInteger(prefixLength) || prefixLength < 0 || !Number.isSafeInteger(suffixLength) || suffixLength < 1) {
     fail("KCC20 template lengths are invalid");
   }
@@ -63,7 +76,7 @@ function tokenState(programHex, project) {
   if (state[0] !== 0x20 || state[33] !== 0x01 || state[35] !== 0x08 || state[44] !== 0x01) {
     fail("KCC20 state uses a non-canonical field encoding", "KCC20_STATE_ENCODING_MISMATCH");
   }
-  const expectedHash = hex(project.templateParameters?.tokenTemplateHash, 32, "KCC20 template hash");
+  const expectedHash = hex(descriptor?.templateHash, 32, "KCC20 template hash");
   if (templateHash(prefix, suffix) !== expectedHash) fail("KCC20 redeem program does not match the committed template hash", "KCC20_TEMPLATE_HASH_MISMATCH");
   const amount = state.readBigInt64LE(36);
   if (amount <= 0n) fail("KCC20 state amount must be positive");
@@ -79,11 +92,13 @@ function tokenState(programHex, project) {
   };
 }
 
-function encodeTokenProgram(state, ownerIdentifier, identifierType, amount) {
+export function encodeKcc20TokenProgram(template, ownerIdentifier, identifierType, amount) {
+  const prefix = Buffer.isBuffer(template?.prefix) ? template.prefix : Buffer.from(hex(template?.prefixHex, null, "KCC20 template prefix"), "hex");
+  const suffix = Buffer.isBuffer(template?.suffix) ? template.suffix : Buffer.from(hex(template?.suffixHex, null, "KCC20 template suffix"), "hex");
   const amountBytes = Buffer.alloc(8);
   amountBytes.writeBigInt64LE(BigInt(amount));
   return Buffer.concat([
-    state.prefix,
+    prefix,
     Buffer.from([0x20]),
     Buffer.from(hex(ownerIdentifier, 32, "token owner identifier"), "hex"),
     Buffer.from([0x01]),
@@ -92,8 +107,16 @@ function encodeTokenProgram(state, ownerIdentifier, identifierType, amount) {
     amountBytes,
     Buffer.from([0x01]),
     Buffer.from([0]),
-    state.suffix
+    suffix
   ]).toString("hex");
+}
+
+export function kcc20TemplateHash(prefixHex, suffixHex) {
+  return templateHash(Buffer.from(hex(prefixHex, null, "KCC20 template prefix"), "hex"), Buffer.from(hex(suffixHex, null, "KCC20 template suffix"), "hex"));
+}
+
+export function kcc20WalletIdentity(address, network) {
+  return xOnly(address, network);
 }
 
 function stateArgument(ownerIdentifier, identifierType, amount) {
@@ -232,12 +255,12 @@ export async function buildKcc20WillOperationPackage(
   if (operationId === "fundKcc20") {
     tokenStates = [{ ownerIdentifier: controllerId, identifierType: 2, amount: previous.amount }];
     outputValues = [availableKas];
-    tokenPrograms = [encodeTokenProgram(previous, controllerId, 2, previous.amount)];
+    tokenPrograms = [encodeKcc20TokenProgram(previous, controllerId, 2, previous.amount)];
     tokenSignatures = [{ kind: "signature", publicKey: owner.publicKey }];
   } else if (operationId === "recover") {
     tokenStates = [{ ownerIdentifier: owner.publicKey, identifierType: 0, amount: previous.amount }];
     outputValues = [availableKas];
-    tokenPrograms = [encodeTokenProgram(previous, owner.publicKey, 0, previous.amount)];
+    tokenPrograms = [encodeKcc20TokenProgram(previous, owner.publicKey, 0, previous.amount)];
     witnesses = "00";
   } else {
     const inheritors = project.templateParameters?.inheritors || [];
@@ -246,7 +269,7 @@ export async function buildKcc20WillOperationPackage(
     const tokenAmounts = distribute(previous.amount, resolved, "token");
     outputValues = distribute(availableKas, resolved, "KAS");
     tokenStates = resolved.map((item, index) => ({ ownerIdentifier: item.identity.publicKey, identifierType: 0, amount: tokenAmounts[index] }));
-    tokenPrograms = tokenStates.map((item) => encodeTokenProgram(previous, item.ownerIdentifier, 0, item.amount));
+    tokenPrograms = tokenStates.map((item) => encodeKcc20TokenProgram(previous, item.ownerIdentifier, 0, item.amount));
     witnesses = "00";
   }
 

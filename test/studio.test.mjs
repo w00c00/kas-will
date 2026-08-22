@@ -10,9 +10,10 @@ import { parseAiContract } from "../server/ai-providers.mjs";
 import { compileContract, compilerManifest, compilerProfiles, detectBreakingChanges, encodeConstructorArgsForProfile, migrateSourceToProfile, staticAnalyze } from "../server/compiler.mjs";
 import { DraftStore } from "../server/draft-store.mjs";
 import { publicConfig, SILVERSCRIPT_COMMIT } from "../server/config.mjs";
-import { buildDeployDraft, buildWalletTransferDraft, configureNodeAccess, kascovPreflight, nodeStatus, setRpcClientFactoryForTests, sompiToKas, toKascovPreflightTransaction, walletBalance } from "../server/kaspa-service.mjs";
+import { buildDeployDraft, buildWalletTransferDraft, configureNodeAccess, findCovenantUtxo, kascovPreflight, nodeStatus, setRpcClientFactoryForTests, sompiToKas, toKascovPreflightTransaction, walletBalance } from "../server/kaspa-service.mjs";
 import { fetchKascovTokenMetadata } from "../server/kascov-token-service.mjs";
 import { ProjectStore, SAMPLE_SOURCE } from "../server/project-store.mjs";
+import { assertProjectDeleteAuthorized, DELETE_CONFIRMATION_PHRASE, deleteRequiresBackup } from "../server/project-delete.mjs";
 import { AiSettingsStore, AppSettingsStore } from "../server/settings-store.mjs";
 import { TemplateStore } from "../server/template-store.mjs";
 import { WalletService } from "../server/wallet-service.mjs";
@@ -30,6 +31,8 @@ import { CovenantStateSource, covenantStateProvider, verifyCovenantStateCandidat
 import { createP2pkCoSpendAuthorization, selectP2pkFundingUtxo, signP2pkCoSpendPackage } from "../server/p2pk-cospend.mjs";
 import { buildAtomicCovenantPackage } from "../server/atomic-covenant-builder.mjs";
 import { buildKcc20WillOperationPackage, decodeKcc20TokenState } from "../server/kcc20-will-service.mjs";
+import { decodeKcc20TokenProgram, encodeKcc20TokenProgram, kcc20TemplateHash } from "../server/kcc20-will-service.mjs";
+import { Kcc20TokenRegistry, registerKcc20WalletToken } from "../server/kcc20-wallet-service.mjs";
 import { canonicalKcc721Metadata } from "../src/kcc721-metadata.js";
 import { binaryRelativePath, cargoReleaseBinary, executableName } from "../scripts/platform-binaries.mjs";
 import { createPortableWillPackage, inspectPortableWillPackage } from "../server/portable-will-service.mjs";
@@ -286,7 +289,7 @@ test("desktop runtime includes server-imported KCC721 metadata code", () => {
 test("Kas Will has visible bilingual inheritance, portable will, wallet and node entrypoints", () => {
   const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
   const uiSource = fs.readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
-  for (const id of ["will-form", "will-name", "kcc20-fields", "lookup-token", "operate-project", "will-package-file", "export-active-will", "delete-active-will", "result-dialog", "app-version", "wallet-select", "disconnect-wallet", "tn10-rpc-url", "save-node-settings"]) {
+  for (const id of ["will-form", "will-name", "kcc20-fields", "lookup-token", "operate-project", "will-package-file", "export-active-will", "delete-active-will", "delete-dialog", "delete-backup-button", "delete-phrase-input", "delete-confirm-button", "result-dialog", "app-version", "wallet-select", "disconnect-wallet", "tn10-rpc-url", "save-node-settings", "operation-progress", "operation-progress-title", "operation-progress-step", "build-transfer", "send-transfer", "send-recipient", "kcc20-token-list", "kcc20-register", "kcc20-send-token", "kcc20-build", "kcc20-sign", "kcc20-broadcast"]) {
     assert.match(html, new RegExp(`id=["']${id}["']`), `${id} must be visible in the app shell`);
   }
   assert.match(html, /导入或导出遗嘱操作包|Import or export a will operation package/);
@@ -304,6 +307,23 @@ test("Kas Will has visible bilingual inheritance, portable will, wallet and node
   assert.match(uiSource, /JSON\.stringify\(\{network:"tn10",parameters,language:state\.language,name\}\)/, "custom will names must be sent when creating a template project");
   assert.doesNotMatch(uiSource, /state\.projects=full\.filter\(p=>\["inheritance-vault","kcc20-inheritance-vault"\]/, "legacy local records must not be hidden before users can delete them");
   assert.doesNotMatch(uiSource, /page\("operate"\);renderLifecycle\(\)/, "operation navigation must not duplicate lifecycle requests");
+  assert.match(uiSource, /requestDeleteConfirmation/, "deletion must open the strict confirmation dialog");
+  assert.doesNotMatch(uiSource, /confirm\(t\("deleteWillConfirm"\)\)/, "deletion must not fall back to a plain confirm()");
+  assert.match(uiSource, /DELETE_CONFIRMATION_PHRASE\s*=\s*"DELETE LOCAL WILL RECORD"/, "deletion phrase must match the server-side gate");
+  assert.match(uiSource, /@tauri-apps\/plugin-dialog/, "package exports must open the native save dialog in the desktop app");
+  assert.match(uiSource, /export_text_file/, "exports must be written through the explicit save-location command");
+  assert.match(uiSource, /lifecycle-remaining/, "the check-in & claim countdown must render a live element");
+  assert.match(uiSource, /startCountdownTicker/, "the countdown must tick without a page reload");
+  assert.match(uiSource, /\$\{d} 天 \$\{h}:\$\{m}:\$\{s\}|\$\{d\}d \$\{h\}:\$\{m\}:\$\{s\}/, "the countdown must show seconds");
+  assert.match(uiSource, /function exclusive/, "mutating operations must run one at a time");
+  assert.match(uiSource, /showProgress\(/, "long operations must surface a progress card");
+  assert.match(uiSource, /awaitRenewalConfirmation/, "check-in broadcasts must poll until the node confirms the reset");
+  assert.match(uiSource, /remaining>=actual\*0\.9/, "renewal polling must wait for the schedule to actually restart");
+  assert.match(uiSource, /oneClickRenewal/, "check-in must run as a single guided build-sign-broadcast flow");
+  assert.match(uiSource, /b\.dataset\.op==="checkIn"\?oneClickRenewal\(\):buildOperation/, "the check-in button must use the one-click flow");
+  assert.match(uiSource, /\/api\/wallets\/transfer\/draft/, "the wallet page must expose KAS transfers");
+  assert.match(uiSource, /\/api\/kcc20\/wallet\/tokens/, "the wallet page must expose the KCC20 registry");
+  assert.match(uiSource, /\/api\/kcc20\/wallet\/transfer\/build/, "the wallet page must expose KCC20 transfers");
 });
 
 test("desktop helpers use native executable names on Windows and Unix", () => {
@@ -463,6 +483,140 @@ test("projects can be deleted without creating a replacement", () => {
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("deleting an operated will requires the typed phrase plus a matching fresh backup commitment", () => {
+  const templates = new TemplateStore();
+  const ownerAddress = randomPrivateKey().toAddress("testnet-10").toString();
+  const inheritorAddress = randomPrivateKey().toAddress("testnet-10").toString();
+  const project = templates.projectInput("inheritance-vault", "tn10", {
+    amountKas: "0.5",
+    ownerAddress,
+    inheritors: [{ address: inheritorAddress, shareBps: 10000 }],
+    inactivityDays: { value: 1, unit: "days" }
+  });
+  project.id = "delete-backup-test";
+  project.artifact = {
+    programSha256: "44".repeat(32),
+    sourceSha256: sha256(project.source),
+    constructorArgsSha256: sha256(JSON.stringify(project.constructorArgs)),
+    compiler: { id: project.compilerProfileId, upstreamCommit: SILVERSCRIPT_COMMIT }
+  };
+  project.deployment = { txid: "22".repeat(32), covenantId: "33".repeat(32), network: "tn10", activeTxid: "22".repeat(32), activeOutputIndex: 0 };
+  const options = { appVersion: "0.2.0", templates };
+
+  assert.equal(deleteRequiresBackup(project), true);
+  assert.throws(() => assertProjectDeleteAuthorized(project, {}, options), (error) => error.code === "PROJECT_DELETE_CONFIRMATION_REQUIRED");
+  assert.throws(() => assertProjectDeleteAuthorized(project, { confirmation: DELETE_CONFIRMATION_PHRASE }, options), (error) => error.code === "PROJECT_DELETE_BACKUP_REQUIRED");
+  assert.throws(() => assertProjectDeleteAuthorized(project, { confirmation: DELETE_CONFIRMATION_PHRASE, backupCommitment: "aa".repeat(32) }, options), (error) => error.code === "PROJECT_DELETE_BACKUP_MISMATCH");
+  const commitment = createPortableWillPackage(project, { appVersion: options.appVersion, templates }).commitment;
+  assertProjectDeleteAuthorized(project, { confirmation: DELETE_CONFIRMATION_PHRASE, backupCommitment: commitment }, options);
+
+  const draft = structuredClone(project);
+  draft.deployment = null;
+  assert.equal(deleteRequiresBackup(draft), false);
+  assertProjectDeleteAuthorized(draft, { confirmation: DELETE_CONFIRMATION_PHRASE }, options);
+
+  const legacy = structuredClone(project);
+  legacy.review = { templateId: "owner-vault" };
+  assert.equal(deleteRequiresBackup(legacy), false);
+  assertProjectDeleteAuthorized(legacy, { confirmation: DELETE_CONFIRMATION_PHRASE }, options);
+  assert.throws(() => assertProjectDeleteAuthorized(null, {}, options), (error) => error.code === "PROJECT_NOT_FOUND");
+
+  const unexportable = structuredClone(project);
+  unexportable.artifact = null;
+  assert.equal(deleteRequiresBackup(unexportable), true);
+  assertProjectDeleteAuthorized(unexportable, { confirmation: DELETE_CONFIRMATION_PHRASE }, options);
+});
+
+test("KCC20 programs round-trip through the descriptor-bound codec", () => {
+  const ownerPublicKey = "9f".repeat(32);
+  const template = { prefixHex: "00", suffixHex: "0000ff" };
+  const descriptor = {
+    templateHash: kcc20TemplateHash(template.prefixHex, template.suffixHex),
+    prefixLength: 1,
+    suffixLength: 3
+  };
+  const programHex = encodeKcc20TokenProgram(template, ownerPublicKey, 0, 123456789n);
+  const decoded = decodeKcc20TokenProgram(programHex, descriptor);
+  assert.equal(decoded.ownerIdentifier, ownerPublicKey);
+  assert.equal(decoded.identifierType, 0);
+  assert.equal(decoded.amount, 123456789n);
+  assert.equal(decoded.isMinter, false);
+  assert.equal(decoded.prefix.toString("hex"), template.prefixHex);
+  assert.equal(decoded.suffix.toString("hex"), template.suffixHex);
+
+  const wrongDescriptor = { ...descriptor, templateHash: "ab".repeat(32) };
+  assert.throws(() => decodeKcc20TokenProgram(programHex, wrongDescriptor), (error) => error.code === "KCC20_TEMPLATE_HASH_MISMATCH");
+});
+
+test("the KCC20 wallet registry verifies and stores descriptor-bound templates", async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "kas-will-kcc20-registry-test-"));
+  try {
+    const registry = new Kcc20TokenRegistry(directory);
+    const ownerPublicKey = "11".repeat(32);
+    const template = { prefixHex: "aa", suffixHex: "bb" };
+    const descriptor = {
+      covenantId: "cc".repeat(32),
+      templateHash: kcc20TemplateHash(template.prefixHex, template.suffixHex),
+      prefixLength: 1,
+      suffixLength: 1
+    };
+    const programHex = encodeKcc20TokenProgram(template, ownerPublicKey, 0, 500n);
+    const liveCell = {
+      covenantId: descriptor.covenantId,
+      entry: { entry: { outpoint: { transactionId: "dd".repeat(32), index: 0 }, amount: 20000 } }
+    };
+    const findUtxo = async () => liveCell;
+
+    const { token } = await registerKcc20WalletToken(
+      { descriptor, programHex, name: "Test Token" },
+      { registry, findUtxo }
+    );
+    assert.equal(token.covenantId, descriptor.covenantId);
+    assert.equal(token.name, "Test Token");
+    const record = registry.get(descriptor.covenantId);
+    assert.equal(record.prefixHex, template.prefixHex);
+    assert.equal(record.suffixHex, template.suffixHex);
+
+    // A minter cell is rejected outright.
+    const minterProgram = programHex.slice(0, 2 + 90) + "01" + programHex.slice(2 + 92);
+    await assert.rejects(
+      () => registerKcc20WalletToken({ descriptor, programHex: minterProgram }, { registry, findUtxo }),
+      (error) => error.code === "KCC20_MINTER_REJECTED"
+    );
+    // A dead cell cannot register the template.
+    const deadFind = async () => { throw Object.assign(new Error("not found"), { code: "COVENANT_UTXO_NOT_FOUND" }); };
+    await assert.rejects(
+      () => registerKcc20WalletToken({ descriptor, programHex }, { registry, findUtxo: deadFind }),
+      (error) => error.code === "COVENANT_UTXO_NOT_FOUND"
+    );
+    assert.equal(registry.remove(descriptor.covenantId), true);
+    assert.equal(registry.remove(descriptor.covenantId), false);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("Kascov token metadata exposes advisory per-owner balances", async () => {
+  const ownerAddress = "kaspatest:qz" + "a".repeat(30);
+  const metadata = await fetchKascovTokenMetadata("tn10", "11".repeat(32), async () => ({
+    ok: true,
+    json: async () => ({
+      token: { covenant_id: "11".repeat(32), name: "Round Trip", fields: { tick: "RTRIP" }, status: "verified", supply: 1000 },
+      validation: { status: "verified" },
+      balances: [
+        { balance: 250, cells: 1, owner: `presence:${"22".repeat(32)}`, owner_address: ownerAddress },
+        { balance: 750, cells: 1, owner: `covenant:${"33".repeat(32)}` }
+      ]
+    })
+  }));
+  assert.equal(metadata.found, true);
+  assert.equal(metadata.name, "Round Trip");
+  assert.equal(metadata.balances.length, 2);
+  assert.equal(metadata.balances[0].ownerAddress, ownerAddress);
+  assert.equal(metadata.balances[0].balance, "250");
+  assert.equal(metadata.balances[1].ownerAddress, "");
 });
 
 test("switching project context clears portable packages and lifecycle invitations", () => {
@@ -756,8 +910,111 @@ test("configured inheritance permits a legitimate 50/50 split that matches the e
   }), ["Configured template source or constructor arguments changed; re-apply the template before deployment"]);
 });
 
-test("mature inheritance supports one inheritor and conserves the entire covenant value", async () => {
+test("check-in renewal resets the schedule and stale imported records keep renewing via the live cell", async () => {
   const templates = new TemplateStore();
+  const template = templates.get("inheritance-vault");
+  const parameters = configuredTemplateParameters(template);
+  const configured = templates.projectInput(template.id, "tn10", parameters);
+  const artifact = await compileContract(configured);
+  const covenantId = "aa".repeat(32);
+  const periodDaa = BigInt(configured.constructorArgs[3].data);
+  const project = {
+    id: "renewal-chain-test",
+    ...configured,
+    artifact,
+    deployment: { txid: "bb".repeat(32), activeTxid: "bb".repeat(32), activeOutputIndex: 0, covenantId, network: "tn10" },
+    review: { ...configured.review, templateId: template.id }
+  };
+  const p2sh = kaspa.payToScriptHashScript(artifact.programHex);
+  const p2shAddress = kaspa.addressFromScriptPublicKey(p2sh, "testnet-10").toString();
+  const virtualDaa = periodDaa + 100_000n;
+  let liveCell = { transactionId: "bb".repeat(32), index: 0, blockDaaScore: virtualDaa - periodDaa + 100n };
+  const wasmCell = () => kaspa.Transaction.deserializeFromSafeJSON(JSON.stringify({
+    id: "00".repeat(32),
+    version: 1,
+    inputs: [{
+      transactionId: liveCell.transactionId,
+      index: liveCell.index,
+      sequence: "0",
+      sigOpCount: 0,
+      computeBudget: 0,
+      signatureScript: "",
+      utxo: {
+        address: p2shAddress,
+        amount: "50000000",
+        scriptPublicKey: `0000${p2sh.script}`,
+        blockDaaScore: String(liveCell.blockDaaScore),
+        isCoinbase: false,
+        covenantId
+      }
+    }],
+    outputs: [{ value: "1", scriptPublicKey: `0000${kaspa.payToAddressScript(configured.templateParameters.ownerAddress).script}`, covenant: null }],
+    subnetworkId: "00".repeat(20), lockTime: "0", gas: "0", storageMass: "0", payload: ""
+  })).inputs[0].utxo;
+  const rawCell = () => ({
+    outpoint: { transactionId: liveCell.transactionId, index: liveCell.index },
+    address: p2shAddress,
+    amount: 50_000_000n,
+    scriptPublicKey: new kaspa.ScriptPublicKey(0, p2sh.script),
+    blockDaaScore: liveCell.blockDaaScore,
+    isCoinbase: false,
+    covenantId
+  });
+  setRpcClientFactoryForTests(() => ({
+    async connect() {},
+    async disconnect() {},
+    async stop() {},
+    async getServerInfo() { return { networkId: "testnet-10" }; },
+    async getUtxosByAddresses() { return { entries: [rawCell()] }; }
+  }));
+  const preflight = async () => ({
+    ok: true,
+    verdict: "ready",
+    stage: "draft",
+    fee: { estimate_sompi: 1_740_100 },
+    masses: { compute: 15_401, storage: 61_632, transient: 10_724 }
+  });
+  try {
+    const source = await findCovenantUtxo("tn10", artifact.programHex, project.deployment.activeTxid, 0, covenantId);
+    assert.equal(source.outpoint.transactionId, liveCell.transactionId);
+    const status = buildLifecycleStatus(project, source, { virtualDaaScore: String(virtualDaa) });
+    assert.equal(status.status, "active");
+    assert.equal(status.schedule.remainingDaa, "100");
+
+    const built = await buildTemplateOperationPackage({ operationId: "checkIn", feeKas: "0.01" }, project, template, async () => ({ entry: wasmCell(), covenantId, address: p2shAddress }), preflight);
+    const inspected = inspectExternalCovenantPackage(built.package);
+    assert.equal(inspected.review.operation.kind, "renewal");
+    assert.equal(inspected.review.operation.continuation, true);
+    assertLocalRenewalPackage(project, inspected, status);
+
+    // The cell moved after a renewal done elsewhere; an imported record that
+    // still points at the previous outpoint must keep following the covenant.
+    liveCell = { transactionId: "cc".repeat(32), index: 0, blockDaaScore: virtualDaa - 50n };
+    const staleRecord = structuredClone(project);
+    const liveSource = await findCovenantUtxo("tn10", artifact.programHex, staleRecord.deployment.activeTxid, 0, covenantId);
+    assert.equal(liveSource.outpoint.transactionId, "cc".repeat(32));
+    const liveStatus = buildLifecycleStatus(staleRecord, liveSource, { virtualDaaScore: String(virtualDaa) });
+    const actual = Number(liveStatus.schedule.approximateActualSeconds);
+    const remaining = Number(liveStatus.schedule.approximateRemainingSeconds);
+    assert.ok(remaining >= actual * 0.9, `renewal must reset the countdown (remaining ${remaining} of ${actual})`);
+
+    const staleBuild = await buildTemplateOperationPackage({ operationId: "checkIn", feeKas: "0.01" }, staleRecord, template, async () => ({ entry: wasmCell(), covenantId, address: p2shAddress }), preflight);
+    const staleInspected = inspectExternalCovenantPackage(staleBuild.package);
+    assert.equal(staleInspected.review.inputOutpoint.transactionId, "cc".repeat(32));
+    assertLocalRenewalPackage(staleRecord, staleInspected, liveStatus);
+
+    // Once the covenant has matured, renewal is rejected with a stable code.
+    liveCell = { transactionId: "dd".repeat(32), index: 0, blockDaaScore: virtualDaa - periodDaa - 10n };
+    const matureSource = await findCovenantUtxo("tn10", artifact.programHex, liveCell.transactionId, 0, covenantId);
+    const matureStatus = buildLifecycleStatus(staleRecord, matureSource, { virtualDaaScore: String(virtualDaa) });
+    assert.equal(matureStatus.status, "mature");
+    assert.throws(() => assertLocalRenewalOpen(matureStatus), (error) => error.code === "RENEWAL_EXPIRED");
+  } finally {
+    setRpcClientFactoryForTests();
+  }
+});
+
+test("mature inheritance supports one inheritor and conserves the entire covenant value", async () => {  const templates = new TemplateStore();
   const template = templates.get("inheritance-vault");
   const parameters = configuredTemplateParameters(template);
   parameters.inheritors = [{ ...parameters.inheritors[0], shareBps: 10000 }];

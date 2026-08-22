@@ -9,8 +9,8 @@ function lifecycleStateError(message, code) {
 const MAX_PHRASE_FREE_RENEWAL_FEE = 2_000_000n;
 
 export function assertLocalRenewalOpen(status) {
-  if (!status?.unspent) throw authorizationError("The local inheritance covenant is no longer unspent");
-  if (status.schedule?.mature) throw authorizationError("The inheritance covenant has expired and can no longer be renewed");
+  if (!status?.unspent) throw Object.assign(authorizationError("The local inheritance covenant is no longer unspent"), { code: "RENEWAL_ALREADY_SPENT" });
+  if (status?.schedule?.mature) throw Object.assign(authorizationError("The inheritance covenant has expired and can no longer be renewed"), { code: "RENEWAL_EXPIRED" });
   return true;
 }
 
@@ -48,8 +48,14 @@ export function assertLocalRenewalPackage(project, inspected, status = null) {
   if (renewalFee < 1000n || renewalFee > MAX_PHRASE_FREE_RENEWAL_FEE) {
     throw authorizationError("Local one-click renewal fee must be from 0.00001 to 0.02 TKAS");
   }
-  const activeTxid = String(project.deployment?.activeTxid || project.deployment?.txid || "").toLowerCase();
-  if (!activeTxid || String(review.inputOutpoint?.transactionId || "").toLowerCase() !== activeTxid) {
+  // Accept a renewal that spends either the locally recorded cell or the
+  // currently live cell: an imported record on another device keeps tracking
+  // the covenant after the owner renewed elsewhere, and must not require a
+  // re-export to keep renewing.
+  const recordedTxid = String(project.deployment?.activeTxid || project.deployment?.txid || "").toLowerCase();
+  const liveTxid = String(status?.activeOutpoint?.transactionId || "").toLowerCase();
+  const inputTxid = String(review.inputOutpoint?.transactionId || "").toLowerCase();
+  if (!recordedTxid || (inputTxid !== recordedTxid && inputTxid !== liveTxid)) {
     throw authorizationError("Renewal does not spend the current local project UTXO");
   }
   if (project.deployment?.covenantId !== review.covenantId

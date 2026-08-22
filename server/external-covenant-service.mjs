@@ -447,12 +447,14 @@ export async function signExternalCovenantPackage(input, walletService) {
   const resolved = normalized(pkg);
   const publicKey = String(input.publicKey || "").toLowerCase();
   if (!/^[0-9a-f]{64}$/.test(publicKey)) throw packageError("Connected wallet public key is invalid");
+  const p2pkAuthorization = normalizedP2pkAuthorization(pkg, resolved);
+  const ownsP2pkInput = p2pkAuthorization && !p2pkAuthorization.signed && p2pkAuthorization.publicKey === publicKey;
   const slots = resolved.covenants.flatMap((covenant, covenantInputIndex) => signatureSlots(covenant.selected, covenant.argumentsList, {
     covenantInputIndex,
     transactionInputIndex: covenant.inputIndex
   }));
   const matching = slots.filter((slot) => slot.publicKey === publicKey && !slot.signed);
-  if (!matching.length) throw packageError("Connected wallet has no unsigned slot in this covenant entrypoint", "NO_MATCHING_SIGNATURE_SLOT");
+  if (!matching.length && !ownsP2pkInput) throw packageError("Connected wallet has no unsigned slot in this covenant entrypoint", "NO_MATCHING_SIGNATURE_SLOT");
   for (const slot of matching) {
     const covenant = resolved.covenants[slot.covenantInputIndex];
     const signature = await walletService.createCovenantInputSignature({
@@ -473,6 +475,17 @@ export async function signExternalCovenantPackage(input, walletService) {
     pkg.covenantInputs[slot.covenantInputIndex].arguments = covenant.argumentsList;
   }
   if (pkg.covenantInputs.length === 1) pkg.covenantInput = pkg.covenantInputs[0];
+  if (ownsP2pkInput) {
+    pkg.transactionSafeJson = await walletService.signP2pkInput({
+      walletId: input.walletId,
+      walletSecret: input.walletSecret,
+      paymentSecret: input.paymentSecret,
+      network: pkg.network,
+      transactionSafeJson: pkg.transactionSafeJson,
+      inputIndex: p2pkAuthorization.inputIndex,
+      expectedAddress: p2pkAuthorization.address
+    });
+  }
   const remaining = resolved.covenants.flatMap((covenant, covenantInputIndex) => signatureSlots(covenant.selected, covenant.argumentsList, { covenantInputIndex })).filter((slot) => !slot.signed);
   let preflight = null;
   if (!remaining.length) {

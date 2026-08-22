@@ -224,6 +224,17 @@ fn backend_diagnostics(app: AppHandle) -> BackendDiagnostics {
     backend_diagnostics_value(&app)
 }
 
+// Writes a package backup to a path that the user just picked in the native
+// save dialog, so every export gets an explicit, per-invocation location.
+#[tauri::command]
+fn export_text_file(path: String, contents: String) -> Result<(), String> {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return Err("Save location was not selected".into());
+    }
+    fs::write(trimmed, contents).map_err(|error| error.to_string())
+}
+
 #[tauri::command]
 fn restart_backend(app: AppHandle) -> Result<BackendDiagnostics, String> {
     if let Some(child) = app.state::<BackendState>().child.lock().unwrap().take() {
@@ -237,10 +248,12 @@ fn restart_backend(app: AppHandle) -> Result<BackendDiagnostics, String> {
 pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(BackendState::default())
         .invoke_handler(tauri::generate_handler![
             backend_diagnostics,
-            restart_backend
+            restart_backend,
+            export_text_file
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

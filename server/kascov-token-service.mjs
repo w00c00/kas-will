@@ -46,6 +46,12 @@ export async function fetchKascovTokenMetadata(networkId, covenantId, fetchImpl 
       validationReason: metadataText(validation.reason, 240),
       supply: token.supply == null ? null : String(token.supply),
       holders: Number.isSafeInteger(Number(token.holders)) ? Number(token.holders) : null,
+      balances: Array.isArray(payload?.balances) ? payload.balances.map((entry) => ({
+        balance: String(entry?.balance ?? ""),
+        cells: Number.isSafeInteger(Number(entry?.cells)) ? Number(entry.cells) : 0,
+        owner: metadataText(entry?.owner, 100),
+        ownerAddress: String(entry?.owner_address || "").trim().toLowerCase()
+      })) : [],
       source: "kascov",
       advisoryOnly: true,
       endpoint,
