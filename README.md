@@ -6,9 +6,9 @@ Kas Will 从 SilverScript Studio 的继承模块独立出来，内置本地加�
 
 Kas Will is a focused extraction of the inheritance workflow from SilverScript Studio. It bundles an encrypted local wallet, pinned SilverScript compiler, local Kaspa script-engine preflight, and portable will packages. No website is required: with access to a Kaspa node, it can create wallets, compile covenants, import a will on another device, check in, build transactions, and broadcast.
 
-> 当前版本 `0.3.0` 仅用于 **TN10 实验测试**。主网签名与广播默认关闭。它是技术工具，不替代法律遗嘱、律师意见、密钥备份或独立安全审计。
+> 当前版本 `1.0.0` 仅用于 **TN10 实验测试**。主网签名与广播默认关闭。它是技术工具，不替代法律遗嘱、律师意见、密钥备份或独立安全审计。
 >
-> Version `0.3.0` is **TN10 experimental software**. Mainnet signing and broadcast are disabled by default. It is a technical tool—not a substitute for a legal will, legal advice, key backups, or an independent audit.
+> Version `1.0.0` is **TN10 experimental software**. Mainnet signing and broadcast are disabled by default. It is a technical tool—not a substitute for a legal will, legal advice, key backups, or an independent audit.
 
 ## 核心功能 / Highlights
 

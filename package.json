@@ -1,6 +1,6 @@
 {
   "name": "kas-will",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Local-first bilingual Kaspa inheritance wallet and covenant desktop app",
