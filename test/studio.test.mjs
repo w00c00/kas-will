@@ -329,6 +329,20 @@ test("Kas Will has visible bilingual inheritance, portable will, wallet and node
   assert.match(uiSource, /\/api\/wallets\/transfer\/draft/, "the wallet page must expose KAS transfers");
   assert.match(uiSource, /\/api\/kcc20\/wallet\/tokens/, "the wallet page must expose the KCC20 registry");
   assert.match(uiSource, /\/api\/kcc20\/wallet\/transfer\/build/, "the wallet page must expose KCC20 transfers");
+
+  // Every static label must have an English string, and static translation
+  // must consult the merged dictionaries — otherwise newly added sections
+  // silently fall back to Chinese after the language toggle.
+  assert.match(uiSource, /msg\.en\?\.\[key\]\|\|en\[key\]/, "static labels must resolve through the merged dictionaries");
+  const enObjectStart = uiSource.indexOf("const en = {");
+  const enBase = uiSource.slice(enObjectStart, uiSource.indexOf("\n};", enObjectStart));
+  const enAssignments = uiSource.split("\n").filter((line) => line.includes("Object.assign(msg.en") || /Object\.assign\(en,/.test(line));
+  const markupKeys = [...new Set([...html.matchAll(/data-i18n(?:-placeholder)?="([^"]+)"/g)].map((match) => match[1]))];
+  assert.ok(markupKeys.length > 40, "expected to collect a meaningful set of i18n keys");
+  for (const key of markupKeys) {
+    const defined = enBase.includes(`${key}:`) || enAssignments.some((line) => line.includes(`${key}:`));
+    assert.equal(defined, true, `i18n key ${key} must have an English string for the language toggle`);
+  }
 });
 
 test("desktop helpers use native executable names on Windows and Unix", () => {

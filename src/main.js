@@ -81,8 +81,11 @@ async function openUrl(url){try{await openExternal(url);}catch{window.open(url,"
 
 function applyLanguage(){
   document.documentElement.lang=state.language==="zh"?"zh-CN":"en";
-  $$('[data-i18n]').forEach((el)=>{ el.dataset.zh ||= el.textContent; const key=el.dataset.i18n; el.textContent=state.language==="en"?(en[key]||el.dataset.zh):el.dataset.zh; });
-  $$('[data-i18n-placeholder]').forEach((el)=>{ el.dataset.zhPlaceholder ||= el.placeholder; const key=el.dataset.i18nPlaceholder; el.placeholder=state.language==="en"?(en[key]||el.dataset.zhPlaceholder):el.dataset.zhPlaceholder; });
+  // Static labels resolve through the same merged dictionaries as t():
+  // later feature strings live in msg.en, not only the base `en` object.
+  const staticText=(key,fallback)=>state.language==="en"?(msg.en?.[key]||en[key]||fallback):fallback;
+  $$('[data-i18n]').forEach((el)=>{ el.dataset.zh ||= el.textContent; el.textContent=staticText(el.dataset.i18n,el.dataset.zh); });
+  $$('[data-i18n-placeholder]').forEach((el)=>{ el.dataset.zhPlaceholder ||= el.placeholder; el.placeholder=staticText(el.dataset.i18nPlaceholder,el.dataset.zhPlaceholder); });
   $("#lang-toggle").textContent=state.language==="zh"?"EN":"中文";
   renderHeirs(); renderProjects(); renderWallet(); renderPackageReview(); renderWalletRole(state.activeProject); renderTokenMetadata(); renderNodeSettings();
 }
