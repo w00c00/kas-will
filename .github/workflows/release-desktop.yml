@@ -6,6 +6,11 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish a new version only after all native builds pass
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -22,7 +27,7 @@ jobs:
       matrix:
         include:
           - name: macOS Apple Silicon
-            os: macos-14
+            os: macos-15
             platform: macos
           - name: Windows x64
             os: windows-latest
@@ -63,6 +68,10 @@ jobs:
 
       - name: Install JavaScript dependencies
         run: npm ci
+
+      - name: Verify macOS architecture
+        if: matrix.platform == 'macos'
+        run: test "$(uname -m)" = "arm64"
 
       - name: Build pinned SilverScript compilers
         run: npm run setup:silverc
@@ -147,6 +156,7 @@ jobs:
             const payload = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
             if (!Array.isArray(payload.templates) || payload.templates.length < 1) process.exit(1);
           ' "$RUNNER_TEMP/templates.json"
+          node scripts/smoke-packaged-runtime.mjs http://127.0.0.1:4320
 
       - name: Stage macOS artifact
         if: matrix.platform == 'macos'
@@ -187,6 +197,8 @@ jobs:
             if (-not $templates -or $templates.Count -lt 1) {
               throw "Packaged Windows local service returned no templates"
             }
+            node scripts/smoke-packaged-runtime.mjs http://127.0.0.1:4320
+            if ($LASTEXITCODE -ne 0) { throw "Packaged Windows compiler verification failed" }
           } finally {
             if (-not $process.HasExited) {
               & taskkill.exe /PID $process.Id /T /F | Out-Null
@@ -210,6 +222,22 @@ jobs:
         # --verbose surfaces linuxdeploy stderr, which the bundler otherwise
         # swallows into an opaque "failed to run linuxdeploy".
         run: npm run desktop:build -- --bundles deb,appimage --verbose
+
+      - name: Smoke test extracted Linux local service
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          appimage="$(find "$GITHUB_WORKSPACE/src-tauri/target/release/bundle/appimage" -name '*.AppImage' -print -quit)"
+          test -n "$appimage"
+          extract_dir="$RUNNER_TEMP/kas-will-appimage"
+          mkdir -p "$extract_dir"
+          cd "$extract_dir"
+          "$appimage" --appimage-extract >/dev/null
+          script="$(find "$extract_dir/squashfs-root" -path '*/runtime/app/server/index.mjs' -print -quit)"
+          node_bin="$(find "$extract_dir/squashfs-root" -type f -name node -print -quit)"
+          test -n "$script"
+          test -x "$node_bin"
+          node "$GITHUB_WORKSPACE/scripts/smoke-packaged-runtime.mjs" "$node_bin" "${script%/server/index.mjs}"
 
       - name: Stage Linux artifacts
         if: matrix.platform == 'linux'
@@ -236,7 +264,7 @@ jobs:
 
   release:
     name: Publish GitHub Release
-    if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-')
+    if: (startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-')) || (github.event_name == 'workflow_dispatch' && inputs.publish)
     needs: build
     runs-on: ubuntu-22.04
     permissions:
@@ -250,24 +278,29 @@ jobs:
           path: release-assets
           merge-multiple: true
 
-      - name: Create or refresh release and upload native packages
+      - name: Publish a new release with verified native packages
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          notes="docs/releases/${GITHUB_REF_NAME}.md"
+          version="$(node -p "require('./package.json').version")"
+          tag="v${version}"
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "$tag" ]; then
+            echo "Tag differs from the packaged application version"
+            exit 1
+          fi
+          notes="docs/releases/${tag}.md"
           if test -f "$notes"; then
             notes_args=(--notes-file "$notes")
           else
             notes_args=(--generate-notes)
           fi
-          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" release-assets/* --clobber --repo "$GITHUB_REPOSITORY"
-            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --latest --title "Kas Will ${GITHUB_REF_NAME}" "${notes_args[@]}"
-          else
-            gh release create "$GITHUB_REF_NAME" release-assets/* \
-              --repo "$GITHUB_REPOSITORY" \
-              --verify-tag \
-              --latest \
-              --title "Kas Will ${GITHUB_REF_NAME}" \
-              "${notes_args[@]}"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release already exists; refusing to overwrite without explicit approval"
+            exit 1
           fi
+          gh release create "$tag" release-assets/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --latest \
+            --title "Kas Will ${tag}" \
+            "${notes_args[@]}"

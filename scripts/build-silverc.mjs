@@ -56,6 +56,9 @@ function buildProfile({ id, commit, outputName, configuredSource }) {
   fs.mkdirSync(path.dirname(destination), { recursive: true });
   fs.copyFileSync(source, destination);
   makeExecutable(destination);
+  // The binaries are retained in bin/. Do not keep six isolated Cargo
+  // target trees until the end: they exhaust small hosted-runner disks.
+  fs.rmSync(targetDirectory, { recursive: true, force: true });
   return destination;
 }
 
