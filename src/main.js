@@ -52,6 +52,8 @@ function renderNetwork(){
   $("#kcc20-network-badge").textContent=networkLabel(state.network);
   select.querySelector('[value="mainnet"]').disabled=state.config?.allowMainnet===false;
   const zh=state.language==="zh",symbol=networkSymbol(state.network);
+  $$('[data-network-symbol]').forEach(el=>el.textContent=symbol);
+  for(const id of ["#send-recipient","#kcc20-send-recipient"]){const el=$(id);if(el)el.placeholder=state.network==="mainnet"?"kaspa:…":"kaspatest:…";}
   $("#network-warning").textContent=state.network==="mainnet"
     ?(zh?"主网 · 真实 KAS / KCC20 · 实验功能，未独立审计。先验证备份、恢复与小额完整流程。":"MAINNET · Real KAS / KCC20 · Experimental, not independently audited. Verify backups, recovery and a complete small-value lifecycle first.")
     :(zh?"TN10 测试网 · TKAS 无主网价值；旧遗嘱不会自动迁移。":"TN10 TESTNET · TKAS has no mainnet value; existing wills are never migrated automatically.");
@@ -206,10 +208,10 @@ async function useAutomaticNode(network){$(network==="tn10"?"#tn10-rpc-url":"#ma
 function renderHeirs(){
   const list=$("#heirs-list"); if(!list)return; const rows=[...list.querySelectorAll(".heir-row")].map((r)=>({address:r.querySelector(".heir-address")?.value||"",share:r.querySelector(".heir-share")?.value||""}));
   const values=rows.length?rows:[{address:"",share:"100"}];
-  list.innerHTML=values.map((row,index)=>`<div class="heir-row"><input class="heir-address" value="${esc(row.address)}" placeholder="kaspatest:…" aria-label="Inheritor ${index+1}"/><div class="input-suffix"><input class="heir-share" type="number" min="0.01" max="100" step="0.01" value="${esc(row.share)}"/><b>%</b></div><button class="remove-heir" type="button" data-index="${index}">×</button></div>`).join("");
+  list.innerHTML=values.map((row,index)=>`<div class="heir-row"><input class="heir-address" value="${esc(row.address)}" placeholder="${state.network==="mainnet"?"kaspa:…":"kaspatest:…"}" aria-label="Inheritor ${index+1}"/><div class="input-suffix"><input class="heir-share" type="number" min="0.01" max="100" step="0.01" value="${esc(row.share)}"/><b>%</b></div><button class="remove-heir" type="button" data-index="${index}">×</button></div>`).join("");
   $$(".remove-heir").forEach((button)=>button.onclick=()=>{ if($$(".heir-row").length<=1)return toast(state.language==="zh"?"至少需要一位继承人":"At least one inheritor is required","bad"); button.closest(".heir-row").remove(); });
 }
-function addHeir(){ const max=state.asset==="kcc20"&&$("#token-protocol").value==="kcc20-final"?3:5; if($$(".heir-row").length>=max)return toast(state.language==="zh"?`最多 ${max} 位继承人`:`Maximum ${max} inheritors`,"bad"); $("#heirs-list").insertAdjacentHTML("beforeend",`<div class="heir-row"><input class="heir-address" placeholder="kaspatest:…"/><div class="input-suffix"><input class="heir-share" type="number" min="0.01" max="100" step="0.01" value="0"/><b>%</b></div><button class="remove-heir" type="button">×</button></div>`); renderHeirs(); }
+function addHeir(){ const max=state.asset==="kcc20"&&$("#token-protocol").value==="kcc20-final"?3:5; if($$(".heir-row").length>=max)return toast(state.language==="zh"?`最多 ${max} 位继承人`:`Maximum ${max} inheritors`,"bad"); $("#heirs-list").insertAdjacentHTML("beforeend",`<div class="heir-row"><input class="heir-address" placeholder="${state.network==="mainnet"?"kaspa:…":"kaspatest:…"}"/><div class="input-suffix"><input class="heir-share" type="number" min="0.01" max="100" step="0.01" value="0"/><b>%</b></div><button class="remove-heir" type="button">×</button></div>`); renderHeirs(); }
 function selectAsset(asset){ state.asset=asset; $$(".segment").forEach((el)=>el.classList.toggle("active",el.dataset.asset===asset)); $("#kcc20-fields").hidden=asset!=="kcc20"; if(asset==="kcc20"&&!state.kcc20Tokens.length&&state.wallet)void loadKcc20Tokens(); }
 
 Object.assign(msg.zh,{tokenProtocol:"代币协议（不能与旧版混用）",tokenExtension:"扩展承诺（无扩展填 64 个 0）",kcc20ExperimentalText:"KCC20 Final 六字段参考实现支持主网 / TN10，最多 3 位继承人；旧四字段仅限 TN10。主网实验功能未独立审计。",descriptorBad:"描述符无效：请核对网络、协议、Covenant ID、模板状态视图长度和哈希。"});

@@ -306,6 +306,8 @@ test("Kas Will has visible bilingual inheritance, portable will, wallet and node
   assert.match(uiSource, /loading-state/, "operation page must show a non-blocking loading state");
   assert.match(uiSource, /function isWillProject/, "will template filtering must be explicit");
   assert.match(html, /id="kcc20-network-badge"/);
+  assert.match(html, /<b data-network-symbol>/);
+  assert.doesNotMatch(html, /id="amount"[^\n]*<b>TKAS<\/b>/);
   assert.doesNotMatch(html, /data-asset="kcc20">KCC20 <em>TN10/);
   assert.match(uiSource, /\$\("#kcc20-network-badge"\)\.textContent=networkLabel\(state\.network\)/);
   assert.match(uiSource, /legacyWillText/, "legacy local records must stay visible for deletion");

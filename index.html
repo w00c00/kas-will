@@ -19,7 +19,7 @@
         <button class="nav" data-page="settings"><span>⚙</span><b data-i18n="navSettings">节点设置</b></button>
       </nav>
       <div class="offline-card"><span class="pulse"></span><div><strong data-i18n="offlineTitle">本地优先</strong><small data-i18n="offlineText">不依赖网站；直连 Kaspa 节点</small></div></div>
-      <div class="sidebar-foot"><div><strong id="app-version">Kas Will v0.1.0</strong><span id="compiler-pill">023c7ee · TN10</span></div><button id="lang-toggle">EN</button></div>
+      <div class="sidebar-foot"><div><strong id="app-version">Kas Will</strong><span id="compiler-pill">SilverScript</span></div><button id="lang-toggle">EN</button></div>
     </aside>
 
     <main>
@@ -45,7 +45,7 @@
             <div class="panel-head"><div><span class="eyebrow">NEW ESTATE PLAN</span><h2 data-i18n="formTitle">创建链上继承计划</h2></div><span class="step-badge">1 / 3</span></div>
             <label><span data-i18n="willName">计划名称</span><input id="will-name" maxlength="120" data-i18n-placeholder="willNamePlaceholder" placeholder="例如：家庭 KAS 继承计划 / 父母备用金" /><small data-i18n="willNameHelp">只用于本机列表和操作包显示，不改变链上规则。</small></label>
             <label><span data-i18n="assetType">资产类型</span><div class="segmented"><button type="button" class="segment active" data-asset="kas">KAS</button><button type="button" class="segment" data-asset="kcc20">KCC20 <em id="kcc20-network-badge">—</em></button></div></label>
-            <div class="two-cols"><label><span data-i18n="lockedAmount">控制金库金额</span><div class="input-suffix"><input id="amount" value="0.5" inputmode="decimal" /><b>TKAS</b></div></label><label><span data-i18n="period">未签到期限</span><div class="duration"><input id="period-value" type="number" min="1" value="180" /><select id="period-unit"><option value="minutes" data-i18n="minutes">分钟</option><option value="hours" data-i18n="hours">小时</option><option value="days" selected data-i18n="days">天</option><option value="weeks" data-i18n="weeks">周</option></select></div></label></div>
+            <div class="two-cols"><label><span data-i18n="lockedAmount">控制金库金额</span><div class="input-suffix"><input id="amount" value="0.5" inputmode="decimal" /><b data-network-symbol>—</b></div></label><label><span data-i18n="period">未签到期限</span><div class="duration"><input id="period-value" type="number" min="1" value="180" /><select id="period-unit"><option value="minutes" data-i18n="minutes">分钟</option><option value="hours" data-i18n="hours">小时</option><option value="days" selected data-i18n="days">天</option><option value="weeks" data-i18n="weeks">周</option></select></div></label></div>
             <label><span data-i18n="owner">拥有者 / 签到钱包</span><input id="owner-address" readonly data-i18n-placeholder="connectFirst" placeholder="请先连接本地钱包" /><small data-i18n="ownerHelp">这个钱包可以签到重置期限，也可以在到期前取回。</small></label>
             <div class="heirs-head"><div><span data-i18n="heirs">继承人与比例</span><small data-i18n="heirsHelp">1–5 人，合计必须为 100%；单继承人填写 100%</small></div><button class="mini" type="button" id="add-heir" data-i18n="addHeir">＋ 添加继承人</button></div>
             <div id="heirs-list"></div>
