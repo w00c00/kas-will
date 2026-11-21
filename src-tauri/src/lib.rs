@@ -41,19 +41,22 @@ fn runtime_paths(app: &AppHandle) -> Result<(PathBuf, PathBuf, PathBuf, PathBuf,
         .resource_dir()
         .map_err(|error| error.to_string())?;
     let executable_suffix = if cfg!(windows) { ".exe" } else { "" };
+    let helper = |name: &str| {
+        let file = resource_dir.join(format!("runtime/app/bin/{name}{executable_suffix}"));
+        let mut archive_name = file.as_os_str().to_os_string();
+        archive_name.push(".gz");
+        let compressed = PathBuf::from(archive_name);
+        if cfg!(target_os = "linux") && compressed.is_file() { compressed } else { file }
+    };
     Ok((
         resource_dir.join("runtime/app/server/index.mjs"),
-        resource_dir.join(format!("runtime/app/bin/silverc-1.0.0{executable_suffix}")),
-        resource_dir.join(format!("runtime/app/bin/silverc-latest{executable_suffix}")),
-        resource_dir.join(format!("runtime/app/bin/silverc-14dce9a{executable_suffix}")),
-        resource_dir.join(format!("runtime/app/bin/silverc-6f9e078{executable_suffix}")),
-        resource_dir.join(format!(
-            "runtime/app/bin/silverc-cb34aa5{executable_suffix}"
-        )),
-        resource_dir.join(format!("runtime/app/bin/silverc-legacy{executable_suffix}")),
-        resource_dir.join(format!(
-            "runtime/app/bin/kascov-preflight{executable_suffix}"
-        )),
+        helper("silverc-1.0.0"),
+        helper("silverc-latest"),
+        helper("silverc-14dce9a"),
+        helper("silverc-6f9e078"),
+        helper("silverc-cb34aa5"),
+        helper("silverc-legacy"),
+        helper("kascov-preflight"),
     ))
 }
 

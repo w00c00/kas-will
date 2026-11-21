@@ -73,11 +73,33 @@ jobs:
         if: matrix.platform == 'macos'
         run: test "$(uname -m)" = "arm64"
 
+      - name: Restore exact native helper builds
+        id: native-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            bin
+            config/compiler.json
+            config/kascov-preflight.local.json
+          key: native-v1-${{ matrix.platform }}-${{ runner.arch }}-${{ hashFiles('config/compiler-profiles.json', 'config/kascov-preflight.json', 'rust-toolchain.toml', 'scripts/build-silverc.mjs', 'scripts/build-kascov-preflight.mjs', 'scripts/platform-binaries.mjs', 'vendor/kascov-preflight/Cargo.*', 'vendor/kascov-preflight/crates/**') }}
+
       - name: Build pinned SilverScript compilers
+        if: steps.native-cache.outputs.cache-hit != 'true'
         run: npm run setup:silverc
 
       - name: Build pinned local preflight engine
+        if: steps.native-cache.outputs.cache-hit != 'true'
         run: npm run setup:kascov-preflight
+
+      - name: Cache only native tools and public provenance
+        if: steps.native-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            bin
+            config/compiler.json
+            config/kascov-preflight.local.json
+          key: ${{ steps.native-cache.outputs.cache-primary-key }}
 
       - name: Verify application and native helpers
         run: npm run verify

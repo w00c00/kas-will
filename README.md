@@ -205,9 +205,13 @@ npm run verify
 
 The suite covers deterministic template compilation, compiler provenance, KAS renewal/recovery/mature distribution, KCC20 template binding, KCC20 funding through `sig[]`, atomic KCC20 mature distribution, real local script-engine execution, package signing, fee/mass checks, wallet encryption, wrong-network rejection, and stale-workspace cleanup.
 
-2026-11-21 本地验证：70 项应用测试、60 项 Rust 引擎测试通过；Final 参考 Token 的入金、签名取回、1/3 继承人分配、数量守恒、篡改拒绝和过小 KAS 载体质量超限均已执行。Apple Silicon Mac 应用已编译；内置 Node 服务在隔离数据目录通过启动及模板 API 冒烟检查。未做 Windows/Linux 本次构建、真实链上广播或独立审计，未覆盖现有安装或迁移资产。主网地址的 KAS / Final KCC20 流程仅在本地 VM 执行，不是链上实测。
+2026-11-21 本地验证：72 项应用测试、60 项 Rust 引擎测试通过；Final 参考 Token 的入金、签名取回、1/3 继承人分配、数量守恒、篡改拒绝和过小 KAS 载体质量超限均已执行。Apple Silicon Mac 应用已编译；内置 Node 服务在隔离数据目录通过启动及模板 API 冒烟检查。主网地址的 KAS / Final KCC20 流程仅在本地 VM 执行，不是链上实测。没有执行真实资金交易、独立审计或资产迁移。
 
-Local verification on 2026-11-21: 70 application tests and 60 Rust engine tests pass. Final reference-token funding, signed recovery, one/three-heir distribution, conservation, tampering rejection and insufficient KAS carrier mass are exercised. The Apple Silicon Mac app builds; its bundled Node service passes isolated startup/template API smoke checks. No Windows/Linux build, live-chain broadcast, independent audit, installed-app replacement or asset migration was performed in this update. Mainnet-address KAS and Final KCC20 transitions are exercised only in the local VM, not on the live chain.
+Local verification on 2026-11-21: 72 application tests and 60 Rust engine tests pass. Final reference-token funding, signed recovery, one/three-heir distribution, conservation, tampering rejection and insufficient KAS carrier mass are exercised. The Apple Silicon Mac app builds; its bundled Node service passes isolated startup/template API smoke checks. Mainnet-address KAS and Final KCC20 transitions are exercised only in the local VM, not on the live chain. No real-fund transaction, independent audit or asset migration was performed.
+
+Linux 将固定编译器和预检引擎作为 gzip 资源内置，启动时验证原始 SHA256 后解压到应用自己的 `.runtime-helpers` 缓存。这样 AppImage 的加载路径重写不会破坏固定程序；不下载工具、不跳过哈希校验。
+
+Linux bundles pinned compilers and preflight as gzip resources, verifies the original SHA256 and materializes them in the app-owned `.runtime-helpers` cache. This prevents AppImage RPATH rewriting from altering pinned programs. No tool download or hash-check bypass is used.
 
 协议来源 / Protocol sources: [SilverScript v1.0.0](https://github.com/kaspanet/silverscript/releases/tag/v1.0.0), [KCC standards snapshot](https://github.com/kaspanet/kccs/tree/1ed87aef59faff8354061aee30f734a3b8b2c3d2), [KCC20 reference snapshot](https://github.com/argent-lang/kcc20-reference/tree/27f8403fee55863125b044c73b2c9449d997a6ca). Exact integration pins are recorded in `config/protocol-baseline.json`.
 

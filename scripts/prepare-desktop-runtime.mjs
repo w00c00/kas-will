@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { gzipSync } from "node:zlib";
 
 import { binaryRelativePath, executableName, makeExecutable } from "./platform-binaries.mjs";
 
@@ -36,8 +37,13 @@ fs.mkdirSync(path.join(runtime, "bin"), { recursive: true });
 for (const helper of helperNames) {
   const relative = binaryRelativePath(helper);
   const destination = path.join(runtime, relative);
-  fs.copyFileSync(path.join(root, relative), destination);
-  makeExecutable(destination);
+  if (process.platform === "linux") {
+    // Keep linuxdeploy from mutating the exact pinned ELF bytes.
+    fs.writeFileSync(`${destination}.gz`, gzipSync(fs.readFileSync(path.join(root, relative)), { level: 9 }));
+  } else {
+    fs.copyFileSync(path.join(root, relative), destination);
+    makeExecutable(destination);
+  }
 }
 
 const hostLine = execFileSync("rustc", ["-vV"], { encoding: "utf8" }).split("\n").find((line) => line.startsWith("host: "));

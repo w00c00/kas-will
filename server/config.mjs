@@ -3,10 +3,12 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
+import { resolveNativeBinary } from "./native-runtime.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 dotenv.config({ path: path.join(ROOT, ".env") });
 dotenv.config({ path: path.join(ROOT, ".env.local"), override: true });
+const DATA_DIRECTORY = path.resolve(process.env.KAS_WILL_DATA_DIR || process.env.STUDIO_DATA_DIR || path.join(ROOT, "data"));
 
 export const APP_VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")).version;
 
@@ -67,10 +69,12 @@ function loadCompilerConfig() {
       "legacy-2a3961c": [process.env.SILVERC_LEGACY_BIN, process.env.SILVERC_LEGACY_SHA256]
     };
     const [environmentBin, environmentSha] = environmentByProfile[definition.id] || [];
+    const sha256 = String(environmentSha || local.sha256 || legacyStored.sha256 || "").toLowerCase();
+    const candidate = environmentBin || local.bin || legacyStored.bin || path.join(ROOT, definition.binary);
     return [definition.id, Object.freeze({
       ...definition,
-      bin: path.resolve(environmentBin || local.bin || legacyStored.bin || path.join(ROOT, definition.binary)),
-      sha256: String(environmentSha || local.sha256 || legacyStored.sha256 || "").toLowerCase(),
+      bin: resolveNativeBinary(candidate, sha256, DATA_DIRECTORY),
+      sha256,
       builtAt: local.builtAt || legacyStored.builtAt || ""
     })];
   }));
@@ -94,7 +98,7 @@ function loadPreflightConfig() {
   try { stored = JSON.parse(fs.readFileSync(file, "utf8")); } catch {}
   try { local = JSON.parse(fs.readFileSync(localFile, "utf8")); } catch {}
   return {
-    bin: path.resolve(process.env.KASCOV_PREFLIGHT_BIN || path.join(ROOT, local.binary || stored.binary || "bin/kascov-preflight")),
+    bin: resolveNativeBinary(process.env.KASCOV_PREFLIGHT_BIN || path.join(ROOT, local.binary || stored.binary || "bin/kascov-preflight"), String(process.env.KASCOV_PREFLIGHT_SHA256 || local.sha256 || "").toLowerCase(), DATA_DIRECTORY),
     sha256: String(process.env.KASCOV_PREFLIGHT_SHA256 || local.sha256 || "").toLowerCase(),
     upstreamCommit: stored.upstreamCommit || "",
     rustyKaspaCommit: stored.rustyKaspaCommit || "",
@@ -116,7 +120,7 @@ export const config = Object.freeze({
   root: ROOT,
   host: process.env.HOST || "127.0.0.1",
   port: Number(process.env.PORT || 4320),
-  dataDir: path.resolve(process.env.KAS_WILL_DATA_DIR || process.env.STUDIO_DATA_DIR || path.join(ROOT, "data")),
+  dataDir: DATA_DIRECTORY,
   kascovBaseUrl: String(process.env.KASCOV_BASE_URL || "https://kascov.io").replace(/\/$/, ""),
   enableKascovVerify: bool(process.env.ENABLE_KASCOV_VERIFY),
   preflightEngine: Object.freeze(loadPreflightConfig()),

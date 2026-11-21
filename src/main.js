@@ -49,6 +49,7 @@ function isWillProject(project){ return WILL_TEMPLATE_IDS.has(project?.review?.t
 function renderNetwork(){
   const select=$("#network-select");if(!select)return;
   select.value=state.network;
+  $("#kcc20-network-badge").textContent=networkLabel(state.network);
   select.querySelector('[value="mainnet"]').disabled=state.config?.allowMainnet===false;
   const zh=state.language==="zh",symbol=networkSymbol(state.network);
   $("#network-warning").textContent=state.network==="mainnet"
@@ -372,7 +373,7 @@ async function renderLifecycle(){
     return;
   }
   card.setAttribute("aria-busy","true");
-  card.innerHTML=`<div class="loading-state"><span class="loading-spinner"></span><strong>${state.language==="zh"?"正在读取 Covenant 状态…":"Reading covenant state…"}</strong><small>${state.language==="zh"?"正在连接 TN10 节点，页面不会重复发起请求。":"Connecting to the TN10 node; duplicate requests are suppressed."}</small></div>`;
+  card.innerHTML=`<div class="loading-state"><span class="loading-spinner"></span><strong>${state.language==="zh"?"正在读取 Covenant 状态…":"Reading covenant state…"}</strong><small>${state.language==="zh"?"正在连接当前计划的节点，页面不会重复发起请求。":"Connecting to the will’s network node; duplicate requests are suppressed."}</small></div>`;
   try{
     const [{status},{operations}]=await Promise.all([
       api(`/api/projects/${id}/lifecycle-status`,{signal:controller.signal}),
@@ -600,7 +601,7 @@ async function awaitRenewalConfirmation(projectId){
   const card=$("#lifecycle-card");
   if(card){
     card.setAttribute("aria-busy","true");
-    card.innerHTML=`<div class="loading-state"><span class="loading-spinner"></span><strong>${esc(t("progressRenewalWait"))}</strong><small>${esc(t("renewalWaitHelp"))}</small></div>`;
+  card.innerHTML=`<div class="loading-state"><span class="loading-spinner"></span><strong>${esc(t("progressRenewalWait"))}</strong><small>${esc(t("renewalWaitHelp"))}</small></div>`;
   }
   const started=Date.now();
   showProgress(t("renewalTitle"));
