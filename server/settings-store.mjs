@@ -59,14 +59,14 @@ export class AppSettingsStore {
   }
 
   defaults() {
-    return { defaultNetwork: "tn10", defaultWalletId: "", aiAutoLockMinutes: 15, tn10RpcUrl: "", mainnetRpcUrl: "" };
+    return { defaultNetwork: "mainnet", defaultWalletId: "", aiAutoLockMinutes: 15, tn10RpcUrl: "", mainnetRpcUrl: "" };
   }
 
   read() {
     try {
       const stored = JSON.parse(fs.readFileSync(this.file, "utf8"));
       return {
-        defaultNetwork: ["tn10", "mainnet"].includes(stored.defaultNetwork) ? stored.defaultNetwork : "tn10",
+        defaultNetwork: ["tn10", "mainnet"].includes(stored.defaultNetwork) ? stored.defaultNetwork : "mainnet",
         defaultWalletId: typeof stored.defaultWalletId === "string" ? stored.defaultWalletId.slice(0, 64) : "",
         aiAutoLockMinutes: AUTO_LOCK_MINUTES.has(Number(stored.aiAutoLockMinutes)) ? Number(stored.aiAutoLockMinutes) : 15,
         tn10RpcUrl: safeRpcUrl(stored.tn10RpcUrl),

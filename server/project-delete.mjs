@@ -1,6 +1,6 @@
 import { createPortableWillPackage } from "./portable-will-service.mjs";
 
-const WILL_TEMPLATE_IDS = new Set(["inheritance-vault", "kcc20-inheritance-vault"]);
+const WILL_TEMPLATE_IDS = new Set(["inheritance-vault", "kcc20-inheritance-vault", "kcc20-final-inheritance-vault"]);
 const HEX_32 = /^[0-9a-f]{64}$/;
 
 export const DELETE_CONFIRMATION_PHRASE = "DELETE LOCAL WILL RECORD";

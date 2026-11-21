@@ -1,6 +1,6 @@
 # Kas Will contributor guidance
 
-- Treat this repository as a TN10 experimental inheritance application. Mainnet must remain fail-closed until an independent audit and a separately approved release.
+- The owner explicitly approved enabling experimental mainnet on 2026-11-21. Preserve the TN10 switch, strict network isolation, real-KAS confirmations and ALLOW_MAINNET=false kill switch. This approval is not an independent audit: never describe this release as audited or mainnet-ready.
 - Pin every SilverScript build to an exact official `kaspanet/silverscript` commit and binary SHA-256.
 - Fully compile every contract with realistic arguments and run the bundled Kaspa script engine before describing a transition as valid.
 - Review active input position, Covenant ID counts, continuation bindings, value conservation, fee bounds, replay, reordered inputs/outputs, state substitution, and immutable-field mutation.

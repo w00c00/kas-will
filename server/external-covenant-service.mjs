@@ -6,6 +6,7 @@ import { config, NETWORKS } from "./config.mjs";
 import { sha256, transactionCommitment } from "./security.mjs";
 import { kascovPreflight, sompiToKas } from "./kaspa-service.mjs";
 import { operationPresentation } from "./operation-metadata.mjs";
+import { kcc1DispatchTag } from "./kcc20-final.mjs";
 import { caip2Network, normalizePackageNetwork, verifyCovenantDescriptor } from "./covenant-descriptor.mjs";
 
 const require = createRequire(import.meta.url);
@@ -56,7 +57,9 @@ function cleanAbi(value) {
     const name = String(entry?.name || "");
     if (!/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(name)) throw packageError("Covenant ABI contains an invalid entrypoint name");
     if (!Array.isArray(entry.inputs) || entry.inputs.length > 32) throw packageError(`Covenant ABI entrypoint ${name} has invalid inputs`);
-    return { name, inputs: entry.inputs.map((item) => ({ name: String(item?.name || ""), type_name: String(item?.type_name || "") })) };
+    const dispatchTag = entry.dispatchTag;
+    if (dispatchTag !== undefined && !/^[0-9a-f]{8}$/.test(dispatchTag)) throw packageError("Invalid KCC-1 dispatch tag");
+    return { name, ...(dispatchTag ? { dispatchTag } : {}), inputs: entry.inputs.map((item) => ({ name: String(item?.name || ""), type_name: String(item?.type_name || "") })) };
   });
 }
 
@@ -120,6 +123,14 @@ function normalizedCovenant(transaction, metadata) {
     }
   }
   const stateFields = selected.inputs.some((input) => ["State", "State[]"].includes(input.type_name)) ? cleanStateFields(metadata.stateFields) : [];
+  if (abi.some((entry) => entry.dispatchTag)) {
+    if (!abi.every((entry) => entry.dispatchTag && entry.dispatchTag === kcc1DispatchTag(entry, stateFields))) throw packageError("KCC-1 ABI dispatch tags do not match their signatures");
+  }
+  for (let index = 0; index < selected.inputs.length; index++) {
+    const value = argumentsList[index];
+    if (value?.kind === "signature-witness" && (selected.inputs[index].type_name !== "byte[]" || value.prefixHex !== "00"
+      || !/^[0-9a-f]{64}$/.test(value.publicKey || "") || (value.hex && !/^[0-9a-f]{130}$/.test(value.hex)))) throw packageError("Invalid KCC-2 P2PK signature witness");
+  }
   const programSha256 = sha256(Buffer.from(programHex, "hex"));
   const descriptor = metadata.descriptor
     ? verifyCovenantDescriptor(metadata.descriptor, {
@@ -204,6 +215,10 @@ function stateObject(value) {
 }
 
 function appendArgument(builder, type, value, stateFields = []) {
+  if (type === "byte[]" && value?.kind === "signature-witness") {
+    builder.addData(Buffer.concat([bytes(value.prefixHex, 1), bytes(value.hex, 65)]));
+    return;
+  }
   if (type === "int") {
     let data;
     try { data = BigInt(value?.data); } catch { throw packageError("Covenant int argument is invalid"); }
@@ -290,6 +305,10 @@ function appendArgument(builder, type, value, stateFields = []) {
 
 function signatureSlots(selected, values, context = {}) {
   return selected.inputs.flatMap((input, index) => {
+    if (input.type_name === "byte[]" && values[index]?.kind === "signature-witness") return [{
+      index, name: input.name, publicKey: values[index].publicKey,
+      signed: /^[0-9a-f]{130}$/i.test(values[index].hex || ""), ...context
+    }];
     if (input.type_name === "sig") return [{
       index,
       name: input.name,
@@ -425,7 +444,8 @@ export function finalizeExternalCovenantPackage(input) {
   for (const covenant of resolved.covenants) {
     const argumentScript = new kaspa.ScriptBuilder(COVENANT_SCRIPT_OPTIONS);
     covenant.selected.inputs.forEach((definition, index) => appendArgument(argumentScript, definition.type_name, covenant.argumentsList[index], covenant.stateFields));
-    if (covenant.abi.length > 1) argumentScript.addI64(BigInt(covenant.abi.findIndex((entry) => entry.name === covenant.selected.name)));
+    if (covenant.selected.dispatchTag) argumentScript.addData(bytes(covenant.selected.dispatchTag, 4));
+    else if (covenant.abi.length > 1) argumentScript.addI64(BigInt(covenant.abi.findIndex((entry) => entry.name === covenant.selected.name)));
     transactionInputs[covenant.inputIndex].signatureScript = kaspa.ScriptBuilder
       .fromScript(covenant.programHex, COVENANT_SCRIPT_OPTIONS)
       .encodePayToScriptHashSignatureScript(argumentScript.drain());
@@ -470,7 +490,8 @@ export async function signExternalCovenantPackage(input, walletService) {
       const current = covenant.argumentsList[slot.index];
       current.items[slot.itemIndex] = { ...current.items[slot.itemIndex], kind: "signature", publicKey, hex: signature };
     } else {
-      covenant.argumentsList[slot.index] = { ...covenant.argumentsList[slot.index], kind: "signature", publicKey, hex: signature };
+      const current = covenant.argumentsList[slot.index];
+      covenant.argumentsList[slot.index] = { ...current, kind: current.kind === "signature-witness" ? "signature-witness" : "signature", publicKey, hex: signature };
     }
     pkg.covenantInputs[slot.covenantInputIndex].arguments = covenant.argumentsList;
   }

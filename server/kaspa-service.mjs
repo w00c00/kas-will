@@ -3,7 +3,8 @@ import fs from "node:fs";
 import { spawn } from "node:child_process";
 import { config, NETWORKS } from "./config.mjs";
 import { sha256, transactionCommitment } from "./security.mjs";
-import { CovenantStateSource, covenantStateProvider } from "./covenant-state-source.mjs";
+import { CovenantStateSource, covenantStateProvider, queryCovenantIndex } from "./covenant-state-source.mjs";
+import { requireNetwork } from "./network-policy.mjs";
 
 const require = createRequire(import.meta.url);
 const kaspa = require("@kluster/kaspa-wasm");
@@ -353,6 +354,7 @@ export async function signAndBroadcastWalletTransfer(input, draftStore, walletSe
 export async function broadcastWalletTransfer(input, draftStore) {
   const draft = draftStore.get(input.draftId);
   if (!draft || draft.kind !== "wallet-transfer") throw Object.assign(new Error("Wallet transfer draft was not found"), { status: 404 });
+  requireNetwork(draft.network, { spend: true });
   if (draft.status === "broadcast") return draft.result;
   const signedJson = typeof input.signedTransactionSafeJson === "string" ? input.signedTransactionSafeJson : JSON.stringify(input.signedTransactionSafeJson);
   if (transactionCommitment(signedJson) !== draft.commitment) throw new Error("Signed transaction differs from the approved transfer draft");
@@ -729,6 +731,7 @@ export async function buildDeployDraft(input, draftStore) {
 export async function broadcastDeploy({ draftId, signedTransactionSafeJson }, draftStore) {
   const draft = draftStore.get(draftId);
   if (!draft) throw Object.assign(new Error("Deployment draft was not found"), { status: 404 });
+  requireNetwork(draft.network, { spend: true });
   if (draft.status === "broadcast") return draft.result;
   const signedJson = typeof signedTransactionSafeJson === "string" ? signedTransactionSafeJson : JSON.stringify(signedTransactionSafeJson);
   if (transactionCommitment(signedJson) !== draft.commitment) throw new Error("Signed transaction differs from the approved deployment draft");
@@ -783,6 +786,8 @@ export async function findCovenantUtxo(networkId, programHex, txid, outputIndex 
   const expectedId = String(expectedCovenantId || "").toLowerCase();
   const result = await withRpc(network, async (rpc) => {
     const providers = [
+      covenantStateProvider("native-covenant-index-rpc", async () => queryCovenantIndex(rpc, expectedId),
+        () => Boolean(expectedId && typeof rpc.getUtxosByCovenantIds === "function")),
       covenantStateProvider("native-covenant-rpc", async () => {
         const response = await rpc.getUtxosByCovenantId({ covenantId: expectedId, limit: 300 });
         return response?.entries || response?.utxos || [];

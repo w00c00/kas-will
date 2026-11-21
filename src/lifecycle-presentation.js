@@ -1,7 +1,7 @@
 export function lifecycleRenewalAvailable(summary, templateId) {
   return Boolean(
     summary?.unspent
-    && ["inheritance-vault", "kcc20-inheritance-vault"].includes(templateId)
+    && ["inheritance-vault", "kcc20-inheritance-vault", "kcc20-final-inheritance-vault"].includes(templateId)
     && !summary?.schedule?.mature
   );
 }
@@ -9,7 +9,7 @@ export function lifecycleRenewalAvailable(summary, templateId) {
 export function lifecycleInheritanceDistributionAvailable(summary, templateId) {
   return Boolean(
     summary?.unspent
-    && ["inheritance-vault", "kcc20-inheritance-vault"].includes(templateId)
+    && ["inheritance-vault", "kcc20-inheritance-vault", "kcc20-final-inheritance-vault"].includes(templateId)
     && summary?.schedule?.mature
   );
 }

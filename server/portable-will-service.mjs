@@ -1,8 +1,10 @@
 import { sha256, stable } from "./security.mjs";
+import { config } from "./config.mjs";
+import { requireNetwork } from "./network-policy.mjs";
 
 export const PORTABLE_WILL_KIND = "kas-will-portable-will";
 export const PORTABLE_WILL_VERSION = 1;
-const WILL_TEMPLATE_IDS = new Set(["inheritance-vault", "kcc20-inheritance-vault"]);
+const WILL_TEMPLATE_IDS = new Set(["inheritance-vault", "kcc20-inheritance-vault", "kcc20-final-inheritance-vault"]);
 const HEX_32 = /^[0-9a-f]{64}$/;
 const GIT_COMMIT = /^[0-9a-f]{40}$/;
 
@@ -101,14 +103,19 @@ export function inspectPortableWillPackage(input, templates) {
   if (!HEX_32.test(String(pkg.commitment || "").toLowerCase()) || actualCommitment !== String(pkg.commitment).toLowerCase()) {
     fail("Portable will package commitment does not match its contents", "PORTABLE_WILL_COMMITMENT_MISMATCH");
   }
-  if (payload?.network !== "tn10") fail("Kas Will v0.1.0 portable packages are TN10-only", "PORTABLE_WILL_WRONG_NETWORK");
+  requireNetwork(payload?.network);
   const project = payload?.project;
   const templateId = String(project?.review?.templateId || "");
   if (!WILL_TEMPLATE_IDS.has(templateId)) fail("Portable package does not contain a supported inheritance template");
+  if (payload.network === "mainnet" && (templateId === "kcc20-inheritance-vault" || project.compilerProfileId !== "stable-1.0.0" || Number(project.review?.parameterEncodingVersion) !== 2)) fail("Mainnet packages require stable templates and DAA-encoded parameters", "PORTABLE_WILL_WRONG_NETWORK");
   const expected = templates.projectInput(templateId, payload.network, project.templateParameters, {
     encodingVersion: Number(project.review?.parameterEncodingVersion || 1)
   });
-  if (project.compilerProfileId !== expected.compilerProfileId || project.artifact?.compilerProfileId !== expected.compilerProfileId) {
+  const template = templates.get(templateId);
+  const acceptedProfiles = [expected.compilerProfileId, ...(template.compatibleCompilerProfiles || [])];
+  const pinnedCompiler = config.compiler.profiles[project.compilerProfileId];
+  if (!acceptedProfiles.includes(project.compilerProfileId) || project.artifact?.compilerProfileId !== project.compilerProfileId
+    || !pinnedCompiler || project.artifact?.compilerCommit !== pinnedCompiler.upstreamCommit) {
     fail("Portable will does not use the template's pinned compiler profile", "PORTABLE_WILL_COMPILER_PROFILE_MISMATCH");
   }
   let templateRevision = "current";
@@ -135,7 +142,7 @@ export function inspectPortableWillPackage(input, templates) {
     if (!HEX_32.test(deployment.txid) || !HEX_32.test(deployment.covenantId) || !HEX_32.test(deployment.activeTxid || deployment.txid)) {
       fail("Portable will deployment identity is invalid");
     }
-    if (deployment.network !== "tn10" || !Number.isSafeInteger(deployment.activeOutputIndex) || deployment.activeOutputIndex < 0) {
+    if (deployment.network !== payload.network || !Number.isSafeInteger(deployment.activeOutputIndex) || deployment.activeOutputIndex < 0) {
       fail("Portable will deployment state is invalid");
     }
   }

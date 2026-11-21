@@ -1,0 +1,38 @@
+{
+  "checkedAt": "2026-11-21",
+  "mainnetFundsEnabled": true,
+  "mainnetAudited": false,
+  "releaseGate": "Owner approved experimental mainnet on 2026-11-21; explicit real-KAS confirmations and ALLOW_MAINNET=false kill switch retained",
+  "silverScript": {
+    "repository": "https://github.com/kaspanet/silverscript",
+    "release": "v1.0.0",
+    "compilerCommit": "3ed973335b59269293564805cc2c58a14595ec03",
+    "observedHead": "443d519e6688fa03d24c69432763b13e6abe4486",
+    "profile": "stable-1.0.0"
+  },
+  "standards": {
+    "repository": "https://github.com/kaspanet/kccs",
+    "commit": "1ed87aef59faff8354061aee30f734a3b8b2c3d2",
+    "adopted": ["KCC-1 Final", "KCC-2 Final", "KCC-20 Final"],
+    "excludedDrafts": ["KCC-23"]
+  },
+  "tokenReference": {
+    "repository": "https://github.com/argent-lang/kcc20-reference",
+    "commit": "27f8403fee55863125b044c73b2c9449d997a6ca",
+    "stateViewPrefixLength": 34,
+    "stateViewLength": 112,
+    "stateViewSuffixLength": 3885,
+    "stateViewTemplateHash": "734850b0af0aeef49f009167bf9ddd238fd8c5cdbe214234f97181ac6f5cc498"
+  },
+  "preflight": {
+    "engineCrate": "kaspa-txscript",
+    "version": "2.1.0",
+    "publishedCrateSourceCommit": "ba5ddcd9a059fd90e163254eb07b3dedba9208f9",
+    "lockfile": "vendor/kascov-preflight/Cargo.lock"
+  },
+  "sdk": {
+    "package": "@kluster/kaspa-wasm",
+    "version": "2.0.1",
+    "nativeCovenantIndex": "Capability-detected; not guaranteed by this SDK version"
+  }
+}

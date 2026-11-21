@@ -109,7 +109,7 @@ export function buildAtomicCovenantPackage({ network: networkId = "tn10", covena
     const abi = item.abi;
     const stateFields = item.stateFields || [];
     const authorizationPrincipals = (item.arguments || []).flatMap((argument, argumentIndex) => {
-      if (argument?.kind === "signature") return [{
+      if (["signature", "signature-witness"].includes(argument?.kind)) return [{
         role: `input-${index}-signature-${argumentIndex}`,
         profile: "p2pk-schnorr/v1",
         cardinality: 1,
@@ -211,7 +211,7 @@ export function buildAtomicCovenantPackage({ network: networkId = "tn10", covena
     return [{ outputIndex, authorizingInputIndex: plan.genesisAuthorizingInput, covenantId, programSha256: plan.programSha256 }];
   });
   const covenantSignatures = metadata.reduce((sum, item) => sum + (item.arguments || []).reduce((count, argument) => count
-    + (argument?.kind === "signature" ? 1 : argument?.kind === "signature[]" ? (argument.items || []).length : 0), 0), 0);
+    + (["signature", "signature-witness"].includes(argument?.kind) ? 1 : argument?.kind === "signature[]" ? (argument.items || []).length : 0), 0), 0);
   const sigOps = Math.max(1, covenantSignatures + (p2pkAuthorization?.input ? 1 : 0));
   if (!kaspa.updateTransactionMass(network.kaspaNetworkId, transaction, sigOps, true)) throw builderError("Atomic covenant transaction exceeds the current mass limit", "ATOMIC_MASS_LIMIT");
   return {

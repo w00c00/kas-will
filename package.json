@@ -1,6 +1,6 @@
 {
   "name": "kas-will",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "Local-first bilingual Kaspa inheritance wallet and covenant desktop app",
@@ -18,6 +18,7 @@
     "desktop:build": "tauri build"
   },
   "dependencies": {
+    "@noble/hashes": "1.8.0",
     "@kluster/kaspa-wasm": "2.0.1",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-dialog": "^2.7.2",

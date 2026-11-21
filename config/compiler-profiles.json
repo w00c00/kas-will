@@ -2,6 +2,23 @@
   "defaultProfileId": "latest-023c7ee",
   "profiles": [
     {
+      "id": "stable-1.0.0",
+      "label": "SilverScript 1.0.0 (official stable)",
+      "upstreamCommit": "3ed973335b59269293564805cc2c58a14595ec03",
+      "binary": "bin/silverc-1.0.0",
+      "artifactBytecodeField": "bytecode",
+      "syntaxGeneration": 3,
+      "status": "stable",
+      "networkPolicy": "application-audit-required",
+      "releasedAt": "2026-09-09",
+      "notes": [
+        "Official v1.0.0 tag; not an unversioned development HEAD",
+        "KCC-1 BLAKE3 template hashes and four-byte ABI dispatch tags",
+        "Portable constructor arguments and structured ABI artifact",
+        "Compiler stability does not constitute an audit of Kas Will"
+      ]
+    },
+    {
       "id": "latest-023c7ee",
       "label": "SilverScript latest (023c7ee)",
       "upstreamCommit": "023c7eed6b85038c72233a62024c5476640445e3",

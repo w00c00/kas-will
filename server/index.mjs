@@ -27,7 +27,7 @@ fs.mkdirSync(config.dataDir, { recursive: true, mode: 0o700 });
 const projects = new ProjectStore(config.dataDir);
 const drafts = new DraftStore(config.dataDir);
 const templates = new TemplateStore();
-const WILL_TEMPLATE_IDS = new Set(["inheritance-vault", "kcc20-inheritance-vault"]);
+const WILL_TEMPLATE_IDS = new Set(["inheritance-vault", "kcc20-inheritance-vault", "kcc20-final-inheritance-vault"]);
 const wallets = new WalletService(config.dataDir);
 const kcc20Tokens = new Kcc20TokenRegistry(config.dataDir);
 const settings = new AppSettingsStore(config.dataDir);
@@ -118,15 +118,15 @@ app.get("/api/kcc20/metadata", async (req, res, next) => {
   try { res.json({ metadata: await fetchKascovTokenMetadata(String(req.query.network || "tn10"), String(req.query.covenantId || "")) }); } catch (error) { next(error); }
 });
 app.get("/api/kcc20/wallet/tokens", async (req, res, next) => {
-  try { res.json(await listKcc20WalletTokens({ address: req.query.address }, { registry: kcc20Tokens })); } catch (error) { next(error); }
+  try { res.json(await listKcc20WalletTokens({ address: req.query.address, network: req.query.network }, { registry: kcc20Tokens })); } catch (error) { next(error); }
 });
 app.post("/api/kcc20/wallet/tokens", async (req, res, next) => {
   try {
     const { token } = await registerKcc20WalletToken(req.body || {}, { registry: kcc20Tokens });
     // Kascov naming is advisory only; registration never depends on it.
     try {
-      const metadata = await fetchKascovTokenMetadata("tn10", token.covenantId);
-      const record = kcc20Tokens.get(token.covenantId);
+      const metadata = await fetchKascovTokenMetadata(token.network || "tn10", token.covenantId);
+      const record = kcc20Tokens.get(token.covenantId, token.network || "tn10");
       if (metadata?.found && record) {
         record.name = record.name || metadata.name || "";
         record.ticker = record.ticker || metadata.ticker || "";
@@ -140,7 +140,7 @@ app.post("/api/kcc20/wallet/tokens", async (req, res, next) => {
 });
 app.delete("/api/kcc20/wallet/tokens/:covenantId", (req, res, next) => {
   try {
-    if (!kcc20Tokens.remove(String(req.params.covenantId || ""))) return res.status(404).json({ error: "Token not registered" });
+    if (!kcc20Tokens.remove(String(req.params.covenantId || ""), String(req.query.network || "tn10"))) return res.status(404).json({ error: "Token not registered" });
     res.json({ deleted: true });
   } catch (error) { next(error); }
 });
@@ -252,7 +252,7 @@ app.post("/api/portable-wills/import", async (req, res, next) => {
     }
     if (candidate.deployment && candidate.deployment.status !== "spent") {
       await findCovenantUtxo(
-        "tn10",
+        inspected.payload.network,
         compiled.programHex,
         candidate.deployment.activeTxid,
         candidate.deployment.activeOutputIndex,
@@ -265,7 +265,7 @@ app.post("/api/portable-wills/import", async (req, res, next) => {
     const safeDeployment = candidate.deployment ? {
       txid: candidate.deployment.txid,
       covenantId: candidate.deployment.covenantId,
-      network: "tn10",
+      network: inspected.payload.network,
       status: candidate.deployment.status === "spent" ? "spent" : "active",
       activeTxid: candidate.deployment.activeTxid,
       activeOutputIndex: candidate.deployment.activeOutputIndex,
@@ -279,12 +279,12 @@ app.post("/api/portable-wills/import", async (req, res, next) => {
         : existing;
       return res.json({ project, imported: false, commitment: inspected.commitment, templateRevision: inspected.templateRevision });
     }
-    const deterministic = templates.projectInput(inspected.templateId, "tn10", candidate.templateParameters, {
+    const deterministic = templates.projectInput(inspected.templateId, inspected.payload.network, candidate.templateParameters, {
       language: req.body?.language,
       encodingVersion: Number(candidate.review?.parameterEncodingVersion || 1)
     });
     const baseRecord = inspected.templateRevision === "current" ? deterministic : {
-      network: "tn10",
+      network: inspected.payload.network,
       requirements: String(candidate.requirements || ""),
       source: candidate.source,
       constructorArgs: structuredClone(candidate.constructorArgs || []),
@@ -354,16 +354,16 @@ app.post("/api/projects/:id/operations/build", async (req, res, next) => {
     if (project.artifact?.sourceSha256 !== sha256(project.source) || project.artifact?.constructorArgsSha256 !== sha256(JSON.stringify(project.constructorArgs))) {
       throw Object.assign(new Error("Lifecycle builders require a fresh compiled artifact for the current source and constructor arguments"), { status: 400, code: "TEMPLATE_OPERATION_STALE_ARTIFACT" });
     }
-    if (["inheritance-vault", "kcc20-inheritance-vault"].includes(project.review?.templateId) && req.body?.operationId === "checkIn") {
+    if (["inheritance-vault", "kcc20-inheritance-vault", "kcc20-final-inheritance-vault"].includes(project.review?.templateId) && req.body?.operationId === "checkIn") {
       assertLocalRenewalOpen(await lifecycleStatusFor(project));
     }
-    if (project.review?.templateId === "kcc20-inheritance-vault" && req.body?.operationId === "fundKcc20") {
+    if (["kcc20-inheritance-vault","kcc20-final-inheritance-vault"].includes(project.review?.templateId) && req.body?.operationId === "fundKcc20") {
       assertLocalRenewalOpen(await lifecycleStatusFor(project));
     }
-    if (["inheritance-vault", "kcc20-inheritance-vault"].includes(project.review?.templateId) && req.body?.operationId === "inherit") {
+    if (["inheritance-vault", "kcc20-inheritance-vault", "kcc20-final-inheritance-vault"].includes(project.review?.templateId) && req.body?.operationId === "inherit") {
       assertInheritanceDistributionOpen(await lifecycleStatusFor(project));
     }
-    const isKcc20TokenOperation = project.review?.templateId === "kcc20-inheritance-vault" && req.body?.operationId !== "checkIn";
+    const isKcc20TokenOperation = ["kcc20-inheritance-vault","kcc20-final-inheritance-vault"].includes(project.review?.templateId) && req.body?.operationId !== "checkIn";
     res.json(isKcc20TokenOperation
       ? await buildKcc20WillOperationPackage(req.body || {}, project)
       : await buildTemplateOperationPackage(req.body || {}, project, template));
@@ -519,7 +519,7 @@ app.post("/api/external-covenants/broadcast", async (req, res, next) => {
       const controller = inspected.review.covenantInputs?.find((item) => item.transactionInputIndex === 0);
       const identityMatches = current
         && current.network === inspected.package.network
-        && current.review?.templateId === "kcc20-inheritance-vault"
+        && ["kcc20-inheritance-vault","kcc20-final-inheritance-vault"].includes(current.review?.templateId)
         && current.deployment?.covenantId === controller?.covenantId
         && current.artifact?.programSha256 === controller?.programSha256;
       if (identityMatches) {

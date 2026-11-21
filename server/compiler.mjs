@@ -247,10 +247,48 @@ function encodeTypedExpression(expression, expectedType) {
 
 export function encodeConstructorArgsForProfile(source, constructorArgs, profileId = config.compiler.defaultProfileId) {
   const profile = compilerProfile(profileId);
+  if (Number(profile.syntaxGeneration) >= 3) {
+    const types = constructorParameterTypes(source);
+    if (types.length !== constructorArgs.length) throw new Error("Constructor parameter count mismatch");
+    return constructorArgs.map((value, index) => portableConstructorValue(value, types[index]));
+  }
   if (Number(profile.syntaxGeneration || 1) < 2) return structuredClone(constructorArgs);
   const types = constructorParameterTypes(source);
   if (types.length !== constructorArgs.length) throw new Error(`Contract declares ${types.length} constructor parameters but ${constructorArgs.length} arguments were supplied`);
   return constructorArgs.map((argument, index) => encodeTypedExpression(argument, types[index]));
+}
+
+function portableConstructorValue(expression, type) {
+  const data = expression?.data;
+  if (expression?.kind === "array" && Array.isArray(data)) {
+    if (/^byte\[\d*\]$/.test(type) || ["pubkey", "sig", "datasig"].includes(type)) {
+      const bytes = data.map((value) => Number(value.data));
+      if (bytes.some((value) => !Number.isInteger(value) || value < 0 || value > 255)) throw new Error("Invalid constructor bytes");
+      return { kind: "bytes", value: bytes };
+    }
+    const child = elementTypeName(type);
+    if (!child) throw new Error("Unsupported portable constructor array");
+    return { kind: "array", value: data.map((value) => portableConstructorValue(value, child)) };
+  }
+  if (expression?.kind === "int") {
+    const value = Number(data);
+    if (!Number.isSafeInteger(value) || BigInt(value) !== BigInt(data)) throw new Error("Constructor integer must be losslessly representable");
+    return { kind: "int", value };
+  }
+  if (expression?.kind === "bool" && typeof data === "boolean") return { kind: "bool", value: data };
+  if (expression?.kind === "byte" && Number.isInteger(data) && data >= 0 && data <= 255) return { kind: "byte", value: data };
+  throw new Error(`Unsupported portable constructor value ${expression?.kind}`);
+}
+
+function portableTypeName(type) {
+  if (type?.kind === "fixed_bytes") return `byte[${type.len}]`;
+  if (type?.kind === "fixed_array") return `${portableTypeName(type.item)}[${type.len}]`;
+  if (type?.kind === "dynamic_array") return `${portableTypeName(type.item)}[]`;
+  if (type?.kind === "struct") return type.name;
+  if (type?.kind === "bytes") return "byte[]";
+  if (type?.kind === "temporal") return "int";
+  if (["int", "bool", "byte", "pubkey", "sig", "datasig", "string"].includes(type?.kind)) return type.kind;
+  throw new Error("Unsupported type in stable SilverScript ABI");
 }
 
 export function detectBreakingChanges(source, targetProfileId = config.compiler.defaultProfileId) {
@@ -272,6 +310,14 @@ export function detectBreakingChanges(source, targetProfileId = config.compiler.
   }
   findings.push(...latestHardeningFindings(text, target));
   findings.push(...scalarConversionFindings(text, target));
+  if (Number(target.syntaxGeneration) >= 3) {
+    const age = /\bthis\.age\b/g;
+    for (const match of text.matchAll(age)) findings.push({ id: "stable-age-daa", severity: "error", line: lineAt(text, match.index), detected: true,
+      messageZh: "正式版使用 this.ageDaa；旧 age 必须重新编译并验证时间单位。", messageEn: "Stable uses this.ageDaa; recompile and verify the time units." });
+    findings.push({ id: "stable-wire-protocol", severity: "integration", line: null, detected: true,
+      messageZh: "正式版使用结构化 ABI、四字节入口标签和 KCC-1 BLAKE3 模板哈希；旧交易包不可直接重解释。",
+      messageEn: "Stable uses structured ABI, four-byte dispatch tags and KCC-1 BLAKE3 template hashes; never reinterpret legacy packages." });
+  }
   const blockers = findings.filter((finding) => finding.severity === "error");
   return {
     targetProfileId: target.id,
@@ -382,16 +428,25 @@ export async function compileContract({ source, constructorArgs = [], compilerPr
     try { rawArtifact = JSON.parse(stdout); } catch {
       throw Object.assign(new Error("silverc did not return a JSON artifact"), { stderr: String(stderr || "").slice(0, 4000) });
     }
-    const bytecode = rawArtifact[compiler.artifactBytecodeField] ?? rawArtifact.bytecode ?? rawArtifact.script;
+    const stableArtifact = Number(compiler.syntaxGeneration) >= 3;
+    const contractNames = Object.keys(rawArtifact.contracts || {});
+    if (stableArtifact && (rawArtifact.schema_version !== 1 || contractNames.length !== 1)) throw new Error("Expected exactly one schema-v1 compiled contract");
+    const compiledContract = stableArtifact ? rawArtifact.contracts[contractNames[0]] : null;
+    const bytecode = stableArtifact ? compiledContract.compiled?.bytecode : rawArtifact[compiler.artifactBytecodeField] ?? rawArtifact.bytecode ?? rawArtifact.script;
     if (!Array.isArray(bytecode) || bytecode.some((byte) => !Number.isInteger(byte) || byte < 0 || byte > 255)) {
       throw new Error("silverc artifact has an invalid bytecode array");
     }
     const program = Buffer.from(bytecode);
     return {
-      contractName: rawArtifact.contract_name || "",
+      contractName: stableArtifact ? contractNames[0] : rawArtifact.contract_name || "",
       compilerVersion: rawArtifact.compiler_version || "",
-      abi: rawArtifact.abi || [],
-      stateFields: Array.isArray(rawArtifact.ast?.fields) ? rawArtifact.ast.fields.map((field) => ({
+      abi: stableArtifact ? Object.entries(compiledContract.entries || {}).map(([name, entry]) => ({
+        name, dispatchTag: entry.dispatch_tag,
+        inputs: entry.params.map((parameter) => ({ name: parameter.name, type_name: portableTypeName(parameter.type) }))
+      })) : rawArtifact.abi || [],
+      ...(stableArtifact ? { invocationEncoding: "kcc1", abiSchemaVersion: 1, stateSpan: compiledContract.compiled.state_span,
+        templateHash: Buffer.from(compiledContract.compiled.template_hash).toString("hex") } : {}),
+      stateFields: stableArtifact ? compiledContract.runtime_state.fields.map((field) => ({ name: field.name, type_name: portableTypeName(field.type) })) : Array.isArray(rawArtifact.ast?.fields) ? rawArtifact.ast.fields.map((field) => ({
         name: String(field.name || ""),
         type_name: typeNameOf(field.type_ref)
       })) : [],

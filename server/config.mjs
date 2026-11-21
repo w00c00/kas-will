@@ -11,6 +11,7 @@ dotenv.config({ path: path.join(ROOT, ".env.local"), override: true });
 export const APP_VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")).version;
 
 export const SILVERSCRIPT_COMMIT = "023c7eed6b85038c72233a62024c5476640445e3";
+export const SILVERSCRIPT_STABLE_COMMIT = "3ed973335b59269293564805cc2c58a14595ec03";
 export const SILVERSCRIPT_PREVIOUS_COMMIT = "14dce9a5ce8769cdfbd0c8965f8764fa9c325067";
 export const SILVERSCRIPT_OLDER_COMMIT = "6f9e078b1d8b5389212755183b592704de99fea5";
 export const SILVERSCRIPT_LEGACY_COMMIT = "2a3961cadc76bb16a425042172ffe32481da89b5";
@@ -58,6 +59,7 @@ function loadCompilerConfig() {
       ? stored
       : {};
     const environmentByProfile = {
+      "stable-1.0.0": [process.env.SILVERC_STABLE_BIN, process.env.SILVERC_STABLE_SHA256],
       "latest-023c7ee": [process.env.SILVERC_LATEST_BIN || process.env.SILVERC_BIN, process.env.SILVERC_LATEST_SHA256 || process.env.SILVERC_SHA256],
       "latest-14dce9a": [process.env.SILVERC_PREVIOUS_BIN, process.env.SILVERC_PREVIOUS_SHA256],
       "latest-6f9e078": [process.env.SILVERC_OLDER_BIN || process.env.SILVERC_6F9E078_BIN, process.env.SILVERC_OLDER_SHA256 || process.env.SILVERC_6F9E078_SHA256],
@@ -122,7 +124,7 @@ export const config = Object.freeze({
     tn10: String(process.env.KASPA_TN10_RPC_URL || "").trim(),
     mainnet: String(process.env.KASPA_MAINNET_RPC_URL || "").trim()
   }),
-  allowMainnet: bool(process.env.ALLOW_MAINNET),
+  allowMainnet: bool(process.env.ALLOW_MAINNET, true),
   mainnetMaxDeployKas: String(process.env.MAINNET_MAX_DEPLOY_KAS || "1"),
   compiler: loadCompilerConfig(),
   providers: Object.freeze({
@@ -154,7 +156,8 @@ export function publicConfig() {
   return {
     appVersion: APP_VERSION,
     networks: NETWORKS,
-    defaultNetwork: "tn10",
+    defaultNetwork: config.allowMainnet ? "mainnet" : "tn10",
+    mainnetAudited: false,
     allowMainnet: config.allowMainnet,
     mainnetMaxDeployKas: config.mainnetMaxDeployKas,
     nodeAccess: {
@@ -172,6 +175,7 @@ export function publicConfig() {
     },
     providers,
     compiler: {
+      stableCommit: SILVERSCRIPT_STABLE_COMMIT,
       configured: Boolean(config.compiler.profiles[config.compiler.defaultProfileId]
         && fs.existsSync(config.compiler.profiles[config.compiler.defaultProfileId].bin)
         && /^[0-9a-f]{64}$/.test(config.compiler.profiles[config.compiler.defaultProfileId].sha256)),

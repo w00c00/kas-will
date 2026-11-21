@@ -1,5 +1,7 @@
 import { createRequire } from "node:module";
 import { NETWORKS } from "./config.mjs";
+import { requireNetwork } from "./network-policy.mjs";
+import { FINAL_KCC20_PROTOCOL, FINAL_KCC20_ABI, FINAL_KCC20_FIELDS, ZERO32, decodeFinalTokenProgram, encodeFinalTokenProgram, finalStateArgument } from "./kcc20-final.mjs";
 import { buildAtomicCovenantPackage } from "./atomic-covenant-builder.mjs";
 import { finalizeExternalCovenantPackage, inspectExternalCovenantPackage } from "./external-covenant-service.mjs";
 import { findCovenantUtxo, kasToSompi, kascovPreflight, sompiToKas } from "./kaspa-service.mjs";
@@ -49,6 +51,7 @@ function templateHash(prefix, suffix) {
 
 function tokenState(programHex, project) {
   const descriptor = {
+    ...(project.review?.templateId === "kcc20-final-inheritance-vault" ? { protocol: FINAL_KCC20_PROTOCOL, extensionCommitment: project.templateParameters?.tokenExtensionCommitment } : {}),
     templateHash: project.templateParameters?.tokenTemplateHash,
     prefixLength: project.templateParameters?.tokenTemplatePrefixLength,
     suffixLength: project.templateParameters?.tokenTemplateSuffixLength
@@ -61,6 +64,8 @@ function tokenState(programHex, project) {
 // encoding and a positive, non-minter amount before returning the template
 // bytes and the decoded state.
 export function decodeKcc20TokenProgram(programHex, descriptor) {
+  if (descriptor?.protocol === FINAL_KCC20_PROTOCOL) return decodeFinalTokenProgram(programHex, descriptor);
+  if (descriptor?.protocol && descriptor.protocol !== "kcc20-legacy") fail("Unsupported KCC20 protocol descriptor");
   const program = Buffer.from(hex(programHex, null, "KCC20 redeem program"), "hex");
   const prefixLength = Number(descriptor?.prefixLength);
   const suffixLength = Number(descriptor?.suffixLength);
@@ -93,6 +98,7 @@ export function decodeKcc20TokenProgram(programHex, descriptor) {
 }
 
 export function encodeKcc20TokenProgram(template, ownerIdentifier, identifierType, amount) {
+  if (template?.protocol === FINAL_KCC20_PROTOCOL) return encodeFinalTokenProgram(template, ownerIdentifier, identifierType, amount);
   const prefix = Buffer.isBuffer(template?.prefix) ? template.prefix : Buffer.from(hex(template?.prefixHex, null, "KCC20 template prefix"), "hex");
   const suffix = Buffer.isBuffer(template?.suffix) ? template.suffix : Buffer.from(hex(template?.suffixHex, null, "KCC20 template suffix"), "hex");
   const amountBytes = Buffer.alloc(8);
@@ -162,7 +168,7 @@ function fillSignaturePlaceholders(pkg) {
   const copy = structuredClone(pkg);
   for (const input of copy.covenantInputs) {
     for (const argument of input.arguments || []) {
-      if (argument?.kind === "signature" && !argument.hex) argument.hex = "00".repeat(65);
+      if (["signature", "signature-witness"].includes(argument?.kind) && !argument.hex) argument.hex = "00".repeat(65);
       if (argument?.kind === "signature[]") for (const item of argument.items || []) if (!item.hex) item.hex = "00".repeat(65);
     }
   }
@@ -174,13 +180,13 @@ function entryAmount(source) {
   return BigInt(source?.entry?.amount ?? source?.amountSompi ?? 0);
 }
 
-function tokenInputMetadata(source, programHex, argumentsList) {
+function tokenInputMetadata(source, programHex, argumentsList, isFinal = false) {
   return {
     utxo: source.entry,
     programHex,
-    abi: KCC20_ABI,
-    stateFields: KCC20_STATE_FIELDS,
-    entrypoint: "__leader_transfer",
+    abi: isFinal ? FINAL_KCC20_ABI : KCC20_ABI,
+    stateFields: isFinal ? FINAL_KCC20_FIELDS : KCC20_STATE_FIELDS,
+    entrypoint: isFinal ? "transfer" : "__leader_transfer",
     arguments: argumentsList,
     computeBudget: COMPUTE_BUDGET,
     descriptorProfileId: "kas-will/kcc20-token-input/v1",
@@ -211,14 +217,16 @@ export async function buildKcc20WillOperationPackage(
   { findUtxo = findCovenantUtxo, preflight = kascovPreflight } = {},
   feeContext = null
 ) {
-  if (project?.review?.templateId !== "kcc20-inheritance-vault" || project.network !== "tn10") fail("KCC20 inheritance is restricted to the TN10 experimental template");
+  if (!["kcc20-inheritance-vault", "kcc20-final-inheritance-vault"].includes(project?.review?.templateId)) fail("Unsupported KCC20 inheritance template");
+  const isFinal = project.review.templateId === "kcc20-final-inheritance-vault";
+  const covenantOwnerScheme = isFinal ? 4 : 2;
   if (!project?.artifact?.programHex || !project?.deployment?.txid || !project?.deployment?.covenantId) fail("Deploy the KCC20 controller before building token operations");
   const operationId = String(input.operationId || "");
   if (!["fundKcc20", "recover", "inherit"].includes(operationId)) fail("Unknown KCC20 will operation");
-  const network = NETWORKS.tn10;
+  const network = requireNetwork(project.network, { spend: true, legacy: !isFinal });
   const tokenProgramHex = hex(input.tokenProgramHex, null, "KCC20 redeem program");
   const tokenCovenantId = hex(project.templateParameters?.tokenCovenantId, 32, "KCC20 covenant ID");
-  const tokenSource = feeContext?.tokenSource || await findUtxo("tn10", tokenProgramHex, input.tokenTransactionId, input.tokenOutputIndex ?? 0, tokenCovenantId);
+  const tokenSource = feeContext?.tokenSource || await findUtxo(network.id, tokenProgramHex, input.tokenTransactionId, input.tokenOutputIndex ?? 0, tokenCovenantId);
   if (String(tokenSource.covenantId || "").toLowerCase() !== tokenCovenantId) fail("Resolved token UTXO has a different Covenant ID");
   const previous = tokenState(tokenProgramHex, project);
   if (previous.isMinter) fail("Kas Will never accepts a KCC20 minter UTXO", "KCC20_MINTER_REJECTED");
@@ -226,9 +234,10 @@ export async function buildKcc20WillOperationPackage(
   const controllerId = hex(project.deployment.covenantId, 32, "controller covenant ID");
   if (operationId === "fundKcc20") {
     if (previous.identifierType !== 0 || previous.ownerIdentifier !== owner.publicKey) fail("Funding token must currently be owned by the configured owner wallet", "KCC20_FUNDING_OWNER_MISMATCH");
-  } else if (previous.identifierType !== 2 || previous.ownerIdentifier !== controllerId) {
+  } else if (previous.identifierType !== covenantOwnerScheme || previous.ownerIdentifier !== controllerId) {
     fail("Token UTXO is not controlled by this Kas Will controller", "KCC20_CONTROLLER_OWNERSHIP_MISMATCH");
   }
+  if (isFinal && operationId !== "fundKcc20" && (previous.borrow_scheme !== 0 || previous.borrow_guard !== ZERO32)) fail("Inheritance-held tokens must have borrowing disabled");
 
   const requestedFee = feeContext?.requestedFee ?? kasToSompi(String(input.feeKas || "0.02"));
   const fee = feeContext?.fee ?? requestedFee;
@@ -237,7 +246,7 @@ export async function buildKcc20WillOperationPackage(
   let controllerSource = null;
   if (operationId !== "fundKcc20") {
     controllerSource = feeContext?.controllerSource || await findUtxo(
-      "tn10",
+      network.id,
       project.artifact.programHex,
       project.deployment.activeTxid || project.deployment.txid,
       project.deployment.activeOutputIndex ?? 0,
@@ -253,9 +262,9 @@ export async function buildKcc20WillOperationPackage(
   let tokenSignatures = [];
   let witnesses = "";
   if (operationId === "fundKcc20") {
-    tokenStates = [{ ownerIdentifier: controllerId, identifierType: 2, amount: previous.amount }];
+    tokenStates = [{ ownerIdentifier: controllerId, identifierType: covenantOwnerScheme, amount: previous.amount }];
     outputValues = [availableKas];
-    tokenPrograms = [encodeKcc20TokenProgram(previous, controllerId, 2, previous.amount)];
+    tokenPrograms = [encodeKcc20TokenProgram(previous, controllerId, covenantOwnerScheme, previous.amount)];
     tokenSignatures = [{ kind: "signature", publicKey: owner.publicKey }];
   } else if (operationId === "recover") {
     tokenStates = [{ ownerIdentifier: owner.publicKey, identifierType: 0, amount: previous.amount }];
@@ -264,7 +273,7 @@ export async function buildKcc20WillOperationPackage(
     witnesses = "00";
   } else {
     const inheritors = project.templateParameters?.inheritors || [];
-    if (inheritors.length < 1 || inheritors.length > 5) fail("KCC20 inheritance requires 1-5 inheritors");
+    if (inheritors.length < 1 || inheritors.length > (isFinal ? 3 : 5)) fail(isFinal ? "The standard token profile supports 1-3 inheritors" : "KCC20 inheritance requires 1-5 inheritors");
     const resolved = inheritors.map((item) => ({ ...item, identity: xOnly(item.address, network) }));
     const tokenAmounts = distribute(previous.amount, resolved, "token");
     outputValues = distribute(availableKas, resolved, "KAS");
@@ -273,14 +282,18 @@ export async function buildKcc20WillOperationPackage(
     witnesses = "00";
   }
 
-  const tokenArguments = [
+  const tokenArguments = isFinal ? [
+    { kind: "state[]", items: tokenStates.map((item) => finalStateArgument({ amount: item.amount, owner: item.ownerIdentifier,
+      owner_scheme: item.identifierType, borrow_scheme: 0, borrow_guard: ZERO32, extension_commitment: previous.extension_commitment })) },
+    operationId === "fundKcc20" ? { kind: "signature-witness", publicKey: owner.publicKey, prefixHex: "00" } : { kind: "bytes", hex: "00" }
+  ] : [
     { kind: "state[]", items: tokenStates.map((item) => stateArgument(item.ownerIdentifier, item.identifierType, item.amount)) },
     { kind: "signature[]", items: tokenSignatures },
     { kind: "bytes", hex: witnesses }
   ];
   const covenantInputs = [];
   if (controllerSource) covenantInputs.push(controllerInputMetadata(controllerSource, project, operationId, fee, owner.publicKey));
-  covenantInputs.push(tokenInputMetadata(tokenSource, tokenProgramHex, tokenArguments));
+  covenantInputs.push(tokenInputMetadata(tokenSource, tokenProgramHex, tokenArguments, isFinal));
   const tokenInputIndex = covenantInputs.length - 1;
   const outputs = tokenPrograms.map((programHex, index) => ({
     valueSompi: outputValues[index].toString(),
@@ -288,7 +301,7 @@ export async function buildKcc20WillOperationPackage(
     covenantId: tokenCovenantId
   }));
   const built = buildAtomicCovenantPackage({
-    network: "tn10",
+    network: network.id,
     covenantInputs,
     outputs,
     feeSompi: fee.toString(),
@@ -320,7 +333,7 @@ export async function buildKcc20WillOperationPackage(
   try { tx.free?.(); } catch {}
   inspected = inspectExternalCovenantPackage(inspected.package);
   if (inspected.review.complete) inspected = finalizeExternalCovenantPackage(inspected.package);
-  const report = inspected.review.complete ? await preflight(inspected.package.transactionSafeJson, "tn10", "draft") : {
+  const report = inspected.review.complete ? await preflight(inspected.package.transactionSafeJson, network.id, "draft") : {
     ok: true,
     verdict: "signatures_required",
     provider: "local-structural",

@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { cargoReleaseBinary, executableName, makeExecutable } from "./platform-binaries.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const stableCommit = "3ed973335b59269293564805cc2c58a14595ec03";
 const latestCommit = "023c7eed6b85038c72233a62024c5476640445e3";
 const previousCommit = "14dce9a5ce8769cdfbd0c8965f8764fa9c325067";
 const olderCommit = "6f9e078b1d8b5389212755183b592704de99fea5";
@@ -46,7 +47,8 @@ function buildProfile({ id, commit, outputName, configuredSource }) {
     "--manifest-path", path.join(repository, "Cargo.toml"),
     "-p", "silverscript-lang",
     "--bin", "silverc",
-    "--release"
+    "--release",
+    "--locked"
   ], { env: { ...process.env, CARGO_TARGET_DIR: targetDirectory } });
 
   const source = cargoReleaseBinary(targetDirectory, "silverc");
@@ -59,6 +61,8 @@ function buildProfile({ id, commit, outputName, configuredSource }) {
 
 try {
   fs.mkdirSync(path.join(root, "config"), { recursive: true });
+  const stableBin = buildProfile({ id: "stable-1.0.0", commit: stableCommit,
+    outputName: "silverc-1.0.0", configuredSource: process.env.SILVERSCRIPT_STABLE_SOURCE || "" });
   const latestBin = buildProfile({
     id: "latest-023c7ee",
     commit: latestCommit,
@@ -97,6 +101,7 @@ try {
   const manifest = {
     defaultProfileId: "latest-023c7ee",
     profiles: {
+      "stable-1.0.0": { bin: stableBin, sha256: sha256(stableBin), upstreamCommit: stableCommit, builtAt: new Date().toISOString() },
       "latest-023c7ee": {
         bin: latestBin,
         sha256: latestSha256,
@@ -131,6 +136,7 @@ try {
   };
   fs.writeFileSync(path.join(root, "config", "compiler.json"), `${JSON.stringify(manifest, null, 2)}\n`, { mode: 0o600 });
   run(latestBin, ["--help"]);
+  run(stableBin, ["--help"]);
   run(previousBin, ["--help"]);
   run(olderBin, ["--help"]);
   run(oldestBin, ["--help"]);

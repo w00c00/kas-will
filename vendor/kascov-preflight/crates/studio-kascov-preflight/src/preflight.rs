@@ -706,7 +706,7 @@ pub fn run(body: &str, network: Network) -> Result<serde_json::Value, String> {
     if let Some(tx) = &tx {
         let calc = MassCalculator::new_with_consensus_params(params);
         let nc = calc.calc_non_contextual_masses(tx);
-        let limits = params.block_mass_limits().after();
+        let limits = &params.block_mass_limits;
         let mut over = Vec::new();
         if nc.compute_mass > limits.compute {
             over.push(format!("compute {} > {}", nc.compute_mass, limits.compute));

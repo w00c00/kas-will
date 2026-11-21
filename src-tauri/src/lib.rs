@@ -35,7 +35,7 @@ fn append_backend_log(path: &Path, message: &str) {
     }
 }
 
-fn runtime_paths(app: &AppHandle) -> Result<(PathBuf, PathBuf, PathBuf, PathBuf, PathBuf, PathBuf, PathBuf), String> {
+fn runtime_paths(app: &AppHandle) -> Result<(PathBuf, PathBuf, PathBuf, PathBuf, PathBuf, PathBuf, PathBuf, PathBuf), String> {
     let resource_dir = app
         .path()
         .resource_dir()
@@ -43,6 +43,7 @@ fn runtime_paths(app: &AppHandle) -> Result<(PathBuf, PathBuf, PathBuf, PathBuf,
     let executable_suffix = if cfg!(windows) { ".exe" } else { "" };
     Ok((
         resource_dir.join("runtime/app/server/index.mjs"),
+        resource_dir.join(format!("runtime/app/bin/silverc-1.0.0{executable_suffix}")),
         resource_dir.join(format!("runtime/app/bin/silverc-latest{executable_suffix}")),
         resource_dir.join(format!("runtime/app/bin/silverc-14dce9a{executable_suffix}")),
         resource_dir.join(format!("runtime/app/bin/silverc-6f9e078{executable_suffix}")),
@@ -80,10 +81,11 @@ fn spawn_backend(app: &AppHandle) -> Result<(), String> {
     let log_path = app_data_dir.join("backend.log");
     *app.state::<BackendState>().log_path.lock().unwrap() = Some(log_path.clone());
 
-    let (script, latest_compiler, previous_compiler, older_compiler, oldest_compiler, legacy_compiler, preflight_engine) =
+    let (script, stable_compiler, latest_compiler, previous_compiler, older_compiler, oldest_compiler, legacy_compiler, preflight_engine) =
         runtime_paths(app)?;
     let required = [
         &script,
+        &stable_compiler,
         &latest_compiler,
         &previous_compiler,
         &older_compiler,
@@ -116,6 +118,7 @@ fn spawn_backend(app: &AppHandle) -> Result<(), String> {
 
     let script_arg = child_process_path(&script);
     let data_arg = child_process_path(&app_data_dir);
+    let stable_compiler_arg = child_process_path(&stable_compiler);
     let latest_compiler_arg = child_process_path(&latest_compiler);
     let previous_compiler_arg = child_process_path(&previous_compiler);
     let older_compiler_arg = child_process_path(&older_compiler);
@@ -131,6 +134,7 @@ fn spawn_backend(app: &AppHandle) -> Result<(), String> {
         .env("HOST", "127.0.0.1")
         .env("PORT", "4320")
         .env("KAS_WILL_DATA_DIR", data_arg)
+        .env("SILVERC_STABLE_BIN", stable_compiler_arg)
         .env("SILVERC_LATEST_BIN", latest_compiler_arg)
         .env("SILVERC_PREVIOUS_BIN", previous_compiler_arg)
         .env("SILVERC_OLDER_BIN", older_compiler_arg)
@@ -203,7 +207,7 @@ fn backend_diagnostics_value(app: &AppHandle) -> BackendDiagnostics {
     lines.reverse();
     let missing_files = runtime_paths(app)
         .map(|paths| {
-            [paths.0, paths.1, paths.2, paths.3, paths.4, paths.5, paths.6]
+            [paths.0, paths.1, paths.2, paths.3, paths.4, paths.5, paths.6, paths.7]
                 .into_iter()
                 .filter(|path| !path.is_file())
                 .map(|path| path.display().to_string())

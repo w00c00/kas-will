@@ -4,6 +4,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { createRequire } from "node:module";
 import { NETWORKS } from "./config.mjs";
+import { requireNetwork } from "./network-policy.mjs";
 import { safeId } from "./security.mjs";
 
 const require = createRequire(import.meta.url);
@@ -159,6 +160,7 @@ export class WalletService {
   }
 
   async signTransaction({ walletId, walletSecret, paymentSecret = "", network = "tn10", transactionSafeJson, expectedAddress }) {
+    requireNetwork(network, { spend: true });
     const record = this.read(walletId);
     if (!record) throw Object.assign(new Error("Wallet not found"), { status: 404 });
     const phrase = await decryptPhrase(record, walletSecret);
@@ -177,6 +179,7 @@ export class WalletService {
   }
 
   async createCovenantInputSignature({ walletId, walletSecret, paymentSecret = "", network = "tn10", transactionSafeJson, inputIndex, expectedPublicKey }) {
+    requireNetwork(network, { spend: true });
     const record = this.read(walletId);
     if (!record) throw Object.assign(new Error("Wallet not found"), { status: 404 });
     const phrase = await decryptPhrase(record, walletSecret);
@@ -198,6 +201,7 @@ export class WalletService {
   }
 
   async signP2pkInput({ walletId, walletSecret, paymentSecret = "", network = "tn10", transactionSafeJson, inputIndex, expectedAddress }) {
+    requireNetwork(network, { spend: true });
     const record = this.read(walletId);
     if (!record) throw Object.assign(new Error("Wallet not found"), { status: 404 });
     const phrase = await decryptPhrase(record, walletSecret);

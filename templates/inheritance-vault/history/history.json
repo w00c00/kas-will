@@ -1,6 +1,13 @@
 {
   "revisions": [
     {
+      "id": "pre-v1",
+      "file": "contract-pre-v1.sil",
+      "sha256": "2337fa7062de06097c4e88e09f3a3bd4a6ddb7cf410d19289d4a2e3065d50612",
+      "noteZh": "正式 SilverScript 1.0.0 之前的四字节入口迁移前版本；保留原编译器用于旧遗嘱。",
+      "noteEn": "Pre-SilverScript-1.0.0 template, retained with its original compiler for existing wills."
+    },
+    {
       "id": "pre-single-heir",
       "file": "contract-pre-single-heir.sil",
       "sha256": "b3291a0f3374da927c9f8f3048052974b2edaae7656f260ac6ed0ea57fa13dd7",

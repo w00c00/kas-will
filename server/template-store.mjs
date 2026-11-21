@@ -4,6 +4,8 @@ import { createRequire } from "node:module";
 import { config, NETWORKS } from "./config.mjs";
 import { safeId, sha256 } from "./security.mjs";
 import { canonicalKcc721Metadata } from "../src/kcc721-metadata.js";
+import { FINAL_KCC20_REFERENCE_VIEW_HASH } from "./kcc20-final.mjs";
+import { requireNetwork } from "./network-policy.mjs";
 
 const require = createRequire(import.meta.url);
 const kaspa = require("@kluster/kaspa-wasm");
@@ -223,10 +225,11 @@ export class TemplateStore {
   projectInput(id, network = "tn10", inputParameters = {}, options = {}) {
     const template = this.get(id);
     if (!template) throw Object.assign(new Error("Template not found"), { status: 404 });
-    const selectedNetwork = network === "mainnet" ? "mainnet" : "tn10";
+    const selectedNetwork = requireNetwork(network).id;
     if (Array.isArray(template.networkAllowlist) && !template.networkAllowlist.includes(selectedNetwork)) {
       throw parameterError(`Template ${template.id} is restricted to ${template.networkAllowlist.join(", ")}`);
     }
+    if (selectedNetwork === "mainnet" && !["inheritance-vault", "kcc20-final-inheritance-vault"].includes(id)) throw parameterError("Only stable KAS and Final KCC20 inheritance templates support mainnet");
     const networkConfig = NETWORKS[selectedNetwork];
     const definitions = Array.isArray(template.parameters) ? template.parameters : [];
     const acceptedIds = new Set(definitions.map((field) => field.id));
@@ -338,6 +341,9 @@ export class TemplateStore {
       } else {
         throw parameterError(`Unsupported template parameter type: ${field.type}`);
       }
+    }
+    if (template.id === "kcc20-final-inheritance-vault" && parameters.tokenTemplateHash !== FINAL_KCC20_REFERENCE_VIEW_HASH) {
+      throw parameterError("Unsupported KCC20 Final implementation; use the pinned reference state-view template hash");
     }
     return {
       name: options.language === "zh" ? template.titleZh : template.titleEn,

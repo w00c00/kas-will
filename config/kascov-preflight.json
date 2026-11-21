@@ -1,10 +1,12 @@
 {
   "repository": "https://github.com/Knitser/kascov.git",
   "upstreamCommit": "b64d6b4114df324f899783080371f26b619b19d0",
-  "rustyKaspaCommit": "98a4ccd8d200853787f227bd4536ac540cf34957",
+  "rustyKaspaCommit": "ba5ddcd9a059fd90e163254eb07b3dedba9208f9",
+  "rustyKaspaVersion": "2.1.0",
+  "localAdapter": "Published crates pinned by Cargo.lock; post-Toccata EngineFlags adapter",
   "sourceMode": "vendored-mit-snapshot",
   "sourceModule": "vendor/kascov-preflight/crates/studio-kascov-preflight/src/preflight.rs",
   "license": "vendor/kascov-preflight/LICENSE",
   "binary": "bin/kascov-preflight",
-  "purpose": "Offline transaction preflight using the same Kaspa script engine path as Kascov"
+  "purpose": "Offline transaction preflight using the published Kaspa 2.1.0 script engine; locally adapted Kascov snapshot"
 }

@@ -9,7 +9,7 @@ import { createRequire } from "node:module";
 import { parseAiContract } from "../server/ai-providers.mjs";
 import { compileContract, compilerManifest, compilerProfiles, detectBreakingChanges, encodeConstructorArgsForProfile, migrateSourceToProfile, staticAnalyze } from "../server/compiler.mjs";
 import { DraftStore } from "../server/draft-store.mjs";
-import { publicConfig, SILVERSCRIPT_COMMIT } from "../server/config.mjs";
+import { publicConfig, SILVERSCRIPT_COMMIT, SILVERSCRIPT_STABLE_COMMIT } from "../server/config.mjs";
 import { buildDeployDraft, buildWalletTransferDraft, configureNodeAccess, findCovenantUtxo, kascovPreflight, nodeStatus, setRpcClientFactoryForTests, sompiToKas, toKascovPreflightTransaction, walletBalance } from "../server/kaspa-service.mjs";
 import { fetchKascovTokenMetadata } from "../server/kascov-token-service.mjs";
 import { ProjectStore, SAMPLE_SOURCE } from "../server/project-store.mjs";
@@ -37,6 +37,7 @@ import { canonicalKcc721Metadata } from "../src/kcc721-metadata.js";
 import { binaryRelativePath, cargoReleaseBinary, executableName } from "../scripts/platform-binaries.mjs";
 import { createPortableWillPackage, inspectPortableWillPackage } from "../server/portable-will-service.mjs";
 import { operationsForWillRole, willWalletRole } from "../src/will-access.js";
+import { FINAL_KCC20_REFERENCE_VIEW_HASH } from "../server/kcc20-final.mjs";
 
 const require = createRequire(import.meta.url);
 const kaspa = require("@kluster/kaspa-wasm");
@@ -108,7 +109,7 @@ test("portable will packages are deterministic, template-bound and tamper-eviden
     programSha256: "11".repeat(32),
     sourceSha256: sha256(project.source),
     constructorArgsSha256: sha256(JSON.stringify(project.constructorArgs)),
-    compiler: { id: project.compilerProfileId, upstreamCommit: SILVERSCRIPT_COMMIT }
+    compiler: { id: project.compilerProfileId, upstreamCommit: SILVERSCRIPT_STABLE_COMMIT }
   };
   project.deployment = { txid: "22".repeat(32), covenantId: "33".repeat(32), network: "tn10", activeTxid: "22".repeat(32), activeOutputIndex: 0 };
 
@@ -149,7 +150,7 @@ test("portable will packages accept pinned historical template revisions and rej
       programSha256: "11".repeat(32),
       sourceSha256: sha256(legacySource),
       constructorArgsSha256: sha256(JSON.stringify(current.constructorArgs)),
-      compiler: { id: current.compilerProfileId, upstreamCommit: SILVERSCRIPT_COMMIT }
+      compiler: { id: current.compilerProfileId, upstreamCommit: SILVERSCRIPT_STABLE_COMMIT }
     },
     deployment: { txid: "22".repeat(32), covenantId: "33".repeat(32), network: "tn10", status: "active", activeTxid: "22".repeat(32), activeOutputIndex: 0 }
   };
@@ -233,7 +234,7 @@ function configuredTemplateParameters(template, network = "testnet-10") {
     if (field.type === "amount") return [field.id, Number(field.minimum || 0) > 0.15 ? String(field.default || field.minimum) : "0.15"];
     if (field.type === "address") return [field.id, new kaspa.XOnlyPublicKey(TEMPLATE_KEYS[addressIndex++ % TEMPLATE_KEYS.length]).toAddress(network).toString()];
     if (field.type === "datetime") return [field.id, "2035-01-02T03:04:00.000Z"];
-    if (field.type === "sha256") return [field.id, "42".repeat(32)];
+    if (field.type === "sha256") return [field.id, template.id === "kcc20-final-inheritance-vault" && field.id === "tokenTemplateHash" ? FINAL_KCC20_REFERENCE_VIEW_HASH : "42".repeat(32)];
     if (field.type === "hexBytes") return [field.id, "42".repeat(Math.max(1, Number(field.minimumBytes || 1)))];
     if (field.type === "choice") return [field.id, String(field.default || field.options?.[0]?.value || "")];
     if (field.type === "kcc721CollectionId") return [field.id, ""];
@@ -306,7 +307,7 @@ test("Kas Will has visible bilingual inheritance, portable will, wallet and node
   assert.match(uiSource, /function isWillProject/, "will template filtering must be explicit");
   assert.match(uiSource, /legacyWillText/, "legacy local records must stay visible for deletion");
   assert.match(uiSource, /id="will-name"|#will-name/, "users must be able to set a readable will name");
-  assert.match(uiSource, /JSON\.stringify\(\{network:"tn10",parameters,language:state\.language,name\}\)/, "custom will names must be sent when creating a template project");
+  assert.match(uiSource, /JSON\.stringify\(\{network:state\.network,parameters,language:state\.language,name\}\)/, "custom will names and selected network must be sent when creating a template project");
   assert.doesNotMatch(uiSource, /state\.projects=full\.filter\(p=>\["inheritance-vault","kcc20-inheritance-vault"\]/, "legacy local records must not be hidden before users can delete them");
   assert.doesNotMatch(uiSource, /page\("operate"\);renderLifecycle\(\)/, "operation navigation must not duplicate lifecycle requests");
   assert.match(uiSource, /requestDeleteConfirmation/, "deletion must open the strict confirmation dialog");
@@ -333,7 +334,7 @@ test("Kas Will has visible bilingual inheritance, portable will, wallet and node
   // Every static label must have an English string, and static translation
   // must consult the merged dictionaries — otherwise newly added sections
   // silently fall back to Chinese after the language toggle.
-  assert.match(uiSource, /msg\.en\?\.\[key\]\|\|en\[key\]/, "static labels must resolve through the merged dictionaries");
+  assert.match(uiSource, /msg\[state\.language\]\?\.\[key\]\?t\(key\)/, "static labels must resolve through the merged dictionaries in both languages");
   const enObjectStart = uiSource.indexOf("const en = {");
   const enBase = uiSource.slice(enObjectStart, uiSource.indexOf("\n};", enObjectStart));
   const enAssignments = uiSource.split("\n").filter((line) => line.includes("Object.assign(msg.en") || /Object\.assign\(en,/.test(line));
@@ -1151,7 +1152,7 @@ contract Compatibility(pubkey owner) {
   }
 }`;
   const profiles = compilerProfiles();
-  assert.deepEqual(profiles.map((profile) => profile.id), ["latest-023c7ee", "latest-14dce9a", "latest-6f9e078", "latest-cb34aa5", "legacy-2a3961c"]);
+  assert.deepEqual(profiles.map((profile) => profile.id), ["stable-1.0.0", "latest-023c7ee", "latest-14dce9a", "latest-6f9e078", "latest-cb34aa5", "legacy-2a3961c"]);
   assert.ok(profiles.every((profile) => profile.configured));
   const report = detectBreakingChanges(`${legacySource}\n// checkSigFromStack and tx.inputs[0].outpointTransactionHash.reverse()`, "latest-14dce9a");
   assert.equal(report.compatible, false);

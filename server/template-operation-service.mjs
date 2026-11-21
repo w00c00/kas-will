@@ -54,6 +54,8 @@ const OPERATIONS = {
   ]
 };
 
+OPERATIONS["kcc20-final-inheritance-vault"] = OPERATIONS["kcc20-inheritance-vault"];
+
 function operationError(message, code = "INVALID_TEMPLATE_OPERATION") {
   return Object.assign(new Error(message), { status: 400, code });
 }
@@ -246,13 +248,13 @@ export async function buildTemplateOperationPackage(
       lockTime = BigInt(timeoutOf(project, templateId));
     }
     sigOps = 1;
-  } else if (templateId === "inheritance-vault" || templateId === "kcc20-inheritance-vault") {
+  } else if (templateId === "inheritance-vault" || ["kcc20-inheritance-vault", "kcc20-final-inheritance-vault"].includes(templateId)) {
     const owner = publicKeyOf(parameters.ownerAddress, network);
     if (operation.id === "checkIn") {
       outputs = [new kaspa.TransactionOutput(payout, kaspa.payToScriptHashScript(project.artifact.programHex), new kaspa.CovenantBinding(0, new kaspa.Hash(source.covenantId)))];
       args = [signature(owner.publicKey), int(fee)];
       sigOps = 1;
-    } else if (templateId === "kcc20-inheritance-vault") {
+    } else if (["kcc20-inheritance-vault", "kcc20-final-inheritance-vault"].includes(templateId)) {
       throw operationError("KCC20 recovery and distribution require the descriptor-bound atomic builder", "KCC20_ATOMIC_BUILDER_REQUIRED");
     } else if (operation.id === "recover") {
       outputs = [new kaspa.TransactionOutput(payout, kaspa.payToAddressScript(owner.address))];

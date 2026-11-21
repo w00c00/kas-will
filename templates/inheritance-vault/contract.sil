@@ -5,23 +5,23 @@ contract InheritanceVault(pubkey owner, pubkey[] inheritors, int[] sharesBps, in
     int constant SHARE_SCALE = 10000;
     int constant MAX_MINER_FEE = 10000000;
 
-    function requireSingleCovenantInput() {
+    function requireSingleCovenantInput(int activeIndex) {
         require(tx.inputs.length == 1);
-        require(this.activeInputIndex == 0);
-        byte[32] covId = OpInputCovenantId(this.activeInputIndex);
+        require(activeIndex == 0);
+        byte[32] covId = OpInputCovenantId(activeIndex);
         require(OpCovInputCount(covId) == 1);
     }
 
-    function requireFee(int minerFee) {
+    function requireFee(int minerFee, int activeIndex) {
         require(minerFee >= 0);
         require(minerFee <= MAX_MINER_FEE);
-        require(tx.inputs[this.activeInputIndex].value > minerFee);
+        require(tx.inputs[activeIndex].value > minerFee);
     }
 
     entry checkIn(sig ownerSignature, int minerFee) {
         require(checkSig(ownerSignature, owner));
-        requireFee(minerFee);
-        requireSingleCovenantInput();
+        requireFee(minerFee, this.activeInputIndex);
+        requireSingleCovenantInput(this.activeInputIndex);
         require(tx.outputs.length == 1);
         require(OpAuthOutputCount(this.activeInputIndex) == 1);
         int continuation = OpAuthOutputIdx(this.activeInputIndex, 0);
@@ -32,19 +32,19 @@ contract InheritanceVault(pubkey owner, pubkey[] inheritors, int[] sharesBps, in
 
     entry recover(sig ownerSignature, int minerFee) {
         require(checkSig(ownerSignature, owner));
-        requireFee(minerFee);
-        requireSingleCovenantInput();
+        requireFee(minerFee, this.activeInputIndex);
+        requireSingleCovenantInput(this.activeInputIndex);
         require(tx.outputs.length == 1);
         require(OpAuthOutputCount(this.activeInputIndex) == 0);
-        byte[34] ownerScript = new ScriptPubKeyP2PK(owner);
+        byte[] ownerScript = byte[](new ScriptPubKeyP2PK(owner));
         require(tx.outputs[0].scriptPubKey == byte[](ownerScript));
         require(tx.outputs[0].value == tx.inputs[this.activeInputIndex].value - minerFee);
     }
 
     entry inherit(int minerFee) {
-        require(this.age >= inactivityPeriod);
-        requireFee(minerFee);
-        requireSingleCovenantInput();
+        require(this.ageDaa >= inactivityPeriod);
+        requireFee(minerFee, this.activeInputIndex);
+        requireSingleCovenantInput(this.activeInputIndex);
         require(inheritors.length >= 1);
         require(inheritors.length <= MAX_INHERITORS);
         require(sharesBps.length == inheritors.length);
@@ -60,13 +60,14 @@ contract InheritanceVault(pubkey owner, pubkey[] inheritors, int[] sharesBps, in
         for(i, 0, inheritors.length, MAX_INHERITORS) {
             int share = sharesBps[i];
             require(share > 0);
+            require(share <= SHARE_SCALE);
             shareTotal = shareTotal + share;
             int amount = base * share + (remainder * share) / SHARE_SCALE;
             if (i == inheritors.length - 1) {
                 amount = distributable - paid;
             }
             require(amount > 0);
-            byte[34] inheritorScript = new ScriptPubKeyP2PK(inheritors[i]);
+            byte[] inheritorScript = byte[](new ScriptPubKeyP2PK(inheritors[i]));
             require(tx.outputs[i].scriptPubKey == byte[](inheritorScript));
             require(tx.outputs[i].value == amount);
             paid = paid + amount;

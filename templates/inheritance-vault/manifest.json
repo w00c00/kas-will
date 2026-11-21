@@ -23,6 +23,8 @@
   "risk": "advanced",
   "parameterEncodingVersion": 2,
   "sourceFile": "contract.sil",
+  "compilerProfileId": "stable-1.0.0",
+  "compatibleCompilerProfiles": ["latest-023c7ee"],
   "controlPrincipals": [
     { "role": "owner", "profile": "p2pk-schnorr/v1", "cardinality": 1, "constructorParameter": "owner" },
     { "role": "inheritors", "profile": "p2pk-schnorr/v1", "cardinalityParameter": "inheritors", "constructorParameter": "inheritors" }

@@ -40,6 +40,8 @@ jobs:
           cache: npm
 
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.95.0"
 
       - name: Install Linux desktop dependencies
         if: runner.os == 'Linux'
@@ -114,6 +116,7 @@ jobs:
           HOST=127.0.0.1 \
           PORT=4320 \
           KAS_WILL_DATA_DIR="$data_dir" \
+          SILVERC_STABLE_BIN="$runtime/bin/silverc-1.0.0" \
           SILVERC_LATEST_BIN="$runtime/bin/silverc-latest" \
           SILVERC_PREVIOUS_BIN="$runtime/bin/silverc-14dce9a" \
           SILVERC_OLDER_BIN="$runtime/bin/silverc-6f9e078" \

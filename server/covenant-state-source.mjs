@@ -98,3 +98,26 @@ export function covenantStateProvider(id, query, supports = null) {
   if (typeof query !== "function") throw stateError("Covenant state provider query must be a function");
   return Object.freeze({ id, query, ...(typeof supports === "function" ? { supports } : {}) });
 }
+
+// Official plural RPC (#1152). Consume the complete cursor sequence before
+// selecting a cell, otherwise a later page could hide an ambiguous match.
+export async function queryCovenantIndex(rpc, covenantId, { maxPages = 128, maxEntries = 20_000 } = {}) {
+  const id = hex64(covenantId);
+  if (!id) throw stateError("Expected covenant ID must be 32 bytes");
+  if (typeof rpc.getUtxosByCovenantIds !== "function") throw stateError("Node/SDK does not expose covenant-index RPC", "COVENANT_RPC_UNSUPPORTED");
+  let cursor;
+  const seen = new Set(), entries = [];
+  for (let page = 0; page < maxPages; page++) {
+    const response = await rpc.getUtxosByCovenantIds({ covenantIds: [id], scriptPublicKeys: [], budget: 1000, ...(cursor ? { cursor } : {}) });
+    if (response?.error) throw stateError("Covenant-index RPC returned an error");
+    if (!Array.isArray(response?.entries)) throw stateError("Covenant-index RPC returned malformed entries");
+    entries.push(...response.entries.map((entry) => entry.utxoEntry ? { ...entry, entry: entry.utxoEntry } : entry));
+    if (entries.length > maxEntries) throw stateError("Covenant-index query exceeds local limits", "COVENANT_RPC_LIMIT");
+    cursor = response.nextCursor;
+    if (!cursor) return entries;
+    const key = JSON.stringify(cursor, (_key, value) => typeof value === "bigint" ? value.toString() : value);
+    if (seen.has(key)) throw stateError("Covenant-index RPC repeated its cursor", "COVENANT_RPC_CURSOR_LOOP");
+    seen.add(key);
+  }
+  throw stateError("Covenant-index query did not finish", "COVENANT_RPC_LIMIT");
+}

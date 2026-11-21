@@ -2,6 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { NETWORKS } from "./config.mjs";
+import { requireNetwork } from "./network-policy.mjs";
+import { FINAL_KCC20_PROTOCOL, FINAL_KCC20_ABI, FINAL_KCC20_FIELDS, ZERO32, finalStateArgument } from "./kcc20-final.mjs";
 import { decodeKcc20TokenProgram, encodeKcc20TokenProgram, kcc20WalletIdentity, KCC20_ABI, KCC20_STATE_FIELDS } from "./kcc20-will-service.mjs";
 import { buildAtomicCovenantPackage } from "./atomic-covenant-builder.mjs";
 import { finalizeExternalCovenantPackage, inspectExternalCovenantPackage } from "./external-covenant-service.mjs";
@@ -34,35 +36,44 @@ export class Kcc20TokenRegistry {
     fs.mkdirSync(this.directory, { recursive: true, mode: 0o700 });
   }
 
-  file(id) {
-    return path.join(this.directory, `${safeId(id, "covenant id")}.json`);
+  file(id, network = "tn10") {
+    requireNetwork(network);
+    const directory = network === "tn10" ? this.directory : path.join(this.directory, network);
+    return path.join(directory, `${safeId(id, "covenant id")}.json`);
   }
 
-  list() {
-    return fs.readdirSync(this.directory)
+  list(network = "tn10") {
+    requireNetwork(network);
+    const directory = network === "tn10" ? this.directory : path.join(this.directory, network);
+    if (!fs.existsSync(directory)) return [];
+    return fs.readdirSync(directory)
       .filter((name) => name.endsWith(".json"))
       .map((name) => {
-        try { return JSON.parse(fs.readFileSync(path.join(this.directory, name), "utf8")); } catch { return null; }
+        try { return JSON.parse(fs.readFileSync(path.join(directory, name), "utf8")); } catch { return null; }
       })
-      .filter(Boolean)
+      .filter((record) => record && (record.network || "tn10") === network)
       .sort((a, b) => String(a.registeredAt).localeCompare(String(b.registeredAt)));
   }
 
-  get(id) {
-    try { return JSON.parse(fs.readFileSync(this.file(id), "utf8")); } catch { return null; }
+  get(id, network = "tn10") {
+    try {
+      const record = JSON.parse(fs.readFileSync(this.file(id, network), "utf8"));
+      return (record.network || "tn10") === network ? record : null;
+    } catch { return null; }
   }
 
   save(record) {
-    const file = this.file(record.covenantId);
+    const file = this.file(record.covenantId, record.network || "tn10");
+    fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
     const temporary = `${file}.${process.pid}.tmp`;
     fs.writeFileSync(temporary, `${JSON.stringify(record, null, 2)}\n`, { mode: 0o600 });
     fs.renameSync(temporary, file);
     return record;
   }
 
-  remove(id) {
+  remove(id, network = "tn10") {
     try {
-      fs.unlinkSync(this.file(id));
+      fs.unlinkSync(this.file(id, network));
       return true;
     } catch (error) {
       if (error.code === "ENOENT") return false;
@@ -83,12 +94,17 @@ function normalizedDescriptor(raw) {
   if (!Number.isSafeInteger(prefixLength) || prefixLength < 0 || !Number.isSafeInteger(suffixLength) || suffixLength < 1) {
     fail("KCC20 descriptor template lengths are invalid");
   }
-  return { covenantId, templateHash, prefixLength, suffixLength };
+  const protocol = root.protocol || "kcc20-legacy";
+  if (!["kcc20-legacy", FINAL_KCC20_PROTOCOL].includes(protocol)) fail("Unknown KCC20 protocol; legacy and Final descriptors are not interchangeable");
+  return { covenantId, templateHash, prefixLength, suffixLength, protocol, ...(root.extensionCommitment ? { extensionCommitment: hex(root.extensionCommitment, 32) } : {}) };
 }
 
 export function publicTokenView(record, holdings = null) {
   return {
+    network: record.network || "tn10",
     covenantId: record.covenantId,
+    protocol: record.protocol || "kcc20-legacy",
+    extensionCommitment: record.extensionCommitment || "",
     name: record.name || "",
     ticker: record.ticker || "",
     templateHash: record.templateHash,
@@ -105,24 +121,36 @@ export function publicTokenView(record, holdings = null) {
 // needed only once.
 export async function registerKcc20WalletToken(input, { registry, findUtxo = findCovenantUtxo } = {}) {
   const descriptor = normalizedDescriptor(input?.descriptor);
+  const network = requireNetwork(input?.network || "tn10", { legacy: descriptor.protocol !== FINAL_KCC20_PROTOCOL });
+  const rawDescriptor = typeof input?.descriptor === "string" ? JSON.parse(input.descriptor) : input?.descriptor;
+  const declaredNetwork = rawDescriptor?.descriptor?.network || rawDescriptor?.network;
+  if (declaredNetwork && declaredNetwork !== network.id && declaredNetwork !== network.kaspaNetworkId) fail("Descriptor network differs from the selected network", "WRONG_NETWORK");
   const programHex = hex(input?.programHex, null, "KCC20 redeem program");
   const state = decodeKcc20TokenProgram(programHex, descriptor);
   if (state.isMinter) fail("Kas Will never registers a KCC20 minter cell", "KCC20_MINTER_REJECTED");
-  const live = await findUtxo("tn10", programHex, "", 0, descriptor.covenantId);
+  const live = await findUtxo(network.id, programHex, "", 0, descriptor.covenantId);
   if (String(live.covenantId || "").toLowerCase() !== descriptor.covenantId) {
     fail("Resolved token UTXO has a different Covenant ID", "KCC20_COVENANT_ID_MISMATCH");
   }
-  const existing = registry.get(descriptor.covenantId) || {};
+  const existing = registry.get(descriptor.covenantId, network.id) || {};
+  if (existing.covenantId && (existing.templateHash !== descriptor.templateHash || (existing.protocol || "kcc20-legacy") !== descriptor.protocol
+    || (descriptor.protocol === FINAL_KCC20_PROTOCOL && existing.extensionCommitment !== state.extension_commitment))) fail("An existing token registration cannot change its template, protocol or fungibility domain");
   const record = {
+    network: network.id,
     covenantId: descriptor.covenantId,
     name: String(input?.name || existing.name || "").slice(0, 120),
     ticker: String(input?.ticker || existing.ticker || "").slice(0, 32),
     templateHash: descriptor.templateHash,
+    protocol: descriptor.protocol,
+    prefixLength: descriptor.prefixLength,
+    suffixLength: descriptor.suffixLength,
+    ...(descriptor.protocol === FINAL_KCC20_PROTOCOL ? { extensionCommitment: state.extension_commitment } : {}),
     prefixHex: state.prefix.toString("hex"),
     suffixHex: state.suffix.toString("hex"),
     registeredAt: existing.registeredAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    cells: existing.cells || {}
+    cells: existing.cells || {},
+    programs: [...new Set([programHex, ...(existing.programs || [])])].slice(0, 8)
   };
   registry.save(record);
   return { token: publicTokenView(record) };
@@ -130,7 +158,7 @@ export async function registerKcc20WalletToken(input, { registry, findUtxo = fin
 
 async function holdingsForToken(record, address) {
   try {
-    const metadata = await fetchKascovTokenMetadata("tn10", record.covenantId);
+    const metadata = await fetchKascovTokenMetadata(record.network || "tn10", record.covenantId);
     const mine = (metadata.balances || []).filter((entry) => entry.ownerAddress === address);
     return {
       balance: mine.reduce((sum, entry) => sum + BigInt(entry.balance), 0n).toString(),
@@ -143,10 +171,11 @@ async function holdingsForToken(record, address) {
   }
 }
 
-export async function listKcc20WalletTokens({ address }, { registry } = {}) {
+export async function listKcc20WalletTokens({ address, network: networkId = "tn10" }, { registry } = {}) {
+  const network = requireNetwork(networkId);
   const wallet = String(address || "").trim().toLowerCase();
-  if (!wallet.startsWith(`${NETWORKS.tn10.prefix}:`)) fail("KCC20 wallet address is not on TN10");
-  const tokens = registry.list();
+  kcc20WalletIdentity(wallet, network);
+  const tokens = registry.list(network.id);
   const settled = await Promise.all(tokens.map((record) => holdingsForToken(record, wallet)));
   return {
     tokens: tokens.map((record, index) => publicTokenView(record, settled[index]))
@@ -156,8 +185,8 @@ export async function listKcc20WalletTokens({ address }, { registry } = {}) {
 async function resolveCurrentCell(token, owner, candidates) {
   for (const candidateHex of candidates) {
     try {
-      const source = await findCovenantUtxo("tn10", candidateHex, "", 0, token.covenantId);
-      const state = decodeKcc20TokenProgram(candidateHex, token);
+      const source = await findCovenantUtxo(token.network || "tn10", candidateHex, "", 0, token.covenantId);
+      const state = decodeKcc20TokenProgram(candidateHex, { ...token, prefixLength: token.prefixHex.length / 2, suffixLength: token.suffixHex.length / 2 });
       if (state.ownerIdentifier === owner.publicKey && state.identifierType === 0 && !state.isMinter) {
         return { source, state, programHex: candidateHex };
       }
@@ -170,25 +199,28 @@ async function resolveCurrentCell(token, owner, candidates) {
 // P2PK identity, keeps any remainder in a change cell owned by the sender, and
 // pays fees through a plain wallet UTXO appended as a p2pk authorization input.
 export async function buildKcc20WalletTransfer(input, { registry } = {}) {
-  const network = NETWORKS.tn10;
+  const network = requireNetwork(input?.network || "tn10", { spend: true });
   const covenantId = hex(input?.covenantId, 32, "KCC20 covenant ID");
-  const token = registry.get(covenantId);
+  const token = registry.get(covenantId, network.id);
   if (!token) fail("This KCC20 token is not registered on this device", "KCC20_TOKEN_NOT_REGISTERED");
+  requireNetwork(network.id, { legacy: token.protocol !== FINAL_KCC20_PROTOCOL });
   const owner = kcc20WalletIdentity(input?.address, network);
   const recipient = kcc20WalletIdentity(input?.recipientAddress, network);
   if (recipient.address === owner.address) fail("KCC20 recipient must differ from the sending wallet");
   const amount = BigInt(input?.amount ?? "");
   if (amount <= 0n) fail("KCC20 transfer amount must be a positive integer");
 
-  const template = { prefixHex: token.prefixHex, suffixHex: token.suffixHex };
+  const isFinal = token.protocol === FINAL_KCC20_PROTOCOL;
+  const template = { prefixHex: token.prefixHex, suffixHex: token.suffixHex, protocol: token.protocol, extensionCommitment: token.extensionCommitment };
   let current = await resolveCurrentCell(token, owner, [
     ...input?.programHex ? [hex(input.programHex, null, "KCC20 redeem program")] : [],
-    ...token.cells?.[owner.address]?.programHex ? [token.cells[owner.address].programHex] : []
+    ...token.cells?.[owner.address]?.programHex ? [token.cells[owner.address].programHex] : [],
+    ...(token.programs || [])
   ]);
   if (!current) {
     // Reconstruct candidate programs from Kascov's advisory single-cell
     // balances; the node's P2SH script match below rejects any wrong guess.
-    const metadata = await fetchKascovTokenMetadata("tn10", covenantId);
+    const metadata = await fetchKascovTokenMetadata(network.id, covenantId);
     const candidates = (metadata.balances || [])
       .filter((entry) => entry.ownerAddress === owner.address && Number(entry.cells || 0) === 1)
       .map((entry) => encodeKcc20TokenProgram(template, owner.publicKey, 0, BigInt(entry.balance)));
@@ -241,7 +273,11 @@ export async function buildKcc20WalletTransfer(input, { registry } = {}) {
     }
     if (authKas - fee > 0n) outputs.push({ valueSompi: (authKas - fee).toString(), address: owner.address });
 
-    const tokenArguments = [
+    const tokenArguments = isFinal ? [
+      { kind: "state[]", items: [{ owner: recipient.publicKey, amount }, ...(remainder > 0n ? [{ owner: owner.publicKey, amount: remainder }] : [])]
+        .map((item) => finalStateArgument({ ...item, owner_scheme: 0, borrow_scheme: 0, borrow_guard: ZERO32, extension_commitment: state.extension_commitment })) },
+      { kind: "signature-witness", publicKey: owner.publicKey, prefixHex: "00" }
+    ] : [
       { kind: "state[]", items: [
         { fields: {
           ownerIdentifier: { kind: "bytes32", hex: recipient.publicKey },
@@ -277,13 +313,13 @@ export async function buildKcc20WalletTransfer(input, { registry } = {}) {
       }
     };
     built = buildAtomicCovenantPackage({
-      network: "tn10",
+      network: network.id,
       covenantInputs: [{
         utxo: source.entry,
         programHex,
-        abi: KCC20_ABI,
-        stateFields: KCC20_STATE_FIELDS,
-        entrypoint: "__leader_transfer",
+        abi: isFinal ? FINAL_KCC20_ABI : KCC20_ABI,
+        stateFields: isFinal ? FINAL_KCC20_FIELDS : KCC20_STATE_FIELDS,
+        entrypoint: isFinal ? "transfer" : "__leader_transfer",
         arguments: tokenArguments,
         computeBudget: COMPUTE_BUDGET,
         descriptorProfileId: "kas-will/kcc20-token-input/v1",
@@ -297,7 +333,7 @@ export async function buildKcc20WalletTransfer(input, { registry } = {}) {
     inspected = inspectExternalCovenantPackage(built);
     const estimationInput = structuredClone(inspected.package);
     for (const covenantInput of estimationInput.covenantInputs || []) {
-      covenantInput.arguments = (covenantInput.arguments || []).map((argument) => argument?.kind === "signature[]"
+      covenantInput.arguments = (covenantInput.arguments || []).map((argument) => argument?.kind === "signature-witness" ? { ...argument, hex: "00".repeat(65) } : argument?.kind === "signature[]"
         ? { ...argument, items: (argument.items || []).map((item) => ({ ...item, hex: "00".repeat(65) })) }
         : argument);
     }
@@ -315,15 +351,11 @@ export async function buildKcc20WalletTransfer(input, { registry } = {}) {
     fee = requiredFee + 10_000n;
   }
 
-  const preflight = await kascovPreflight(inspected.package.transactionSafeJson, "tn10", "draft");
+  const preflight = await kascovPreflight(inspected.package.transactionSafeJson, network.id, "draft");
 
-  // Remember the self change cell (or clear it on a full send) so the next
-  // transfer can rebuild the program without another paste. Verification on
-  // the next build rejects stale entries automatically.
-  const cells = { ...(token.cells || {}) };
-  if (remainder > 0n) cells[owner.address] = { programHex: changeProgramHex, amount: remainder.toString(), updatedAt: new Date().toISOString() };
-  else delete cells[owner.address];
-  registry.save({ ...token, cells, updatedAt: new Date().toISOString() });
+  // A draft is not a confirmed spend. Retain the live program and only cache
+  // possible change as a bounded candidate; every future use checks the node.
+  registry.save({ ...token, programs: [...new Set([programHex, ...(changeProgramHex ? [changeProgramHex] : []), ...(token.programs || [])])].slice(0, 8), updatedAt: new Date().toISOString() });
 
   return {
     transfer: {

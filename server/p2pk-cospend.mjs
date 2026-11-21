@@ -1,5 +1,6 @@
 import { createRequire } from "node:module";
 import { NETWORKS } from "./config.mjs";
+import { requireNetwork } from "./network-policy.mjs";
 import { transactionCommitment } from "./security.mjs";
 
 const require = createRequire(import.meta.url);
@@ -86,6 +87,8 @@ export function createP2pkCoSpendAuthorization({ network: networkId = "tn10", ad
 }
 
 export async function signP2pkCoSpendPackage(input, walletService) {
+  requireNetwork(input?.package?.network, { spend: true });
+  if (input.package.network === "mainnet" && input.mainnetConfirmation !== "SIGN REAL KAS P2PK") throw authorizationError("Mainnet P2PK signing confirmation is required", "P2PK_CONFIRMATION_REQUIRED");
   const pkg = typeof input.package === "string" ? JSON.parse(input.package) : structuredClone(input.package || {});
   const metadata = pkg.p2pkAuthorization;
   if (!metadata || typeof metadata !== "object") throw authorizationError("Operation package has no P2PK co-spend authorization metadata");

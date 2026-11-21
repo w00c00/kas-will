@@ -442,7 +442,8 @@ fn run_engine_at(
     let mut buf: Vec<u8> = Vec::new();
     let (pass, verdict, used) = {
         let ctx = EngineCtx::new(&sig_cache).with_reused(&reused).with_covenants_ctx(&cov_ctx);
-        let flags = EngineFlags { covenants_enabled: true, ..Default::default() };
+        // 2.1.0 is unconditionally post-Toccata; the activation flag was removed.
+        let flags = EngineFlags::default();
         let mut vm = match limit {
             Some(limit) => TxScriptEngine::from_transaction_input_with_script_units_limit(
                 &vtx,
